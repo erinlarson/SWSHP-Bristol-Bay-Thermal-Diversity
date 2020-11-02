@@ -1,0 +1,15 @@
+---
+title: "BMeyer_Worklog"
+author: "bemeyer@alaska.edu"
+date: "11/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document will be used to record work done by Benjamin Meyer, UAF Research Technician, on importing and QA/QC of data files for the SWSHP Bristol Bay Thermal Diversity Project.
+
+11/2/20 - 1:00 - 2:00 PM.  Held Zoom meeting w/ R. Shaftel.  Introduced to project, set intentions for first 40 hr block of time.  Introduced to using Github for version control and collaboration.  Practiced example of repo pull/edit/push.
+
