@@ -1,0 +1,166 @@
+---
+title: "data_Deshka_Temperature_Model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggrepel)
+library(lubridate)
+library(readxl)
+library(rgdal)
+# library(sp)
+# library(sf)
+library(raster)
+library(tidyverse)
+
+capwords <- function(s, strict = FALSE) {
+    cap <- function(s) paste(toupper(substring(s, 1, 1)),
+                  {s <- substring(s, 2); if(strict) tolower(s) else s},
+                             sep = "", collapse = " " )
+    sapply(strsplit(s, split = " "), cap, USE.NAMES = !is.null(names(s)))
+}
+
+```
+
+This report is for reading in the data used in the Deshka stream temperature model. I want to read in all data as originally provided and combine it into one file for import into AKTEMP. I am copying over the code used to merge the data files together. No data were flagged for this project. (Note: for the model, some sites or years were removed, but this is the complete dataset as originally provided.)
+
+Project funded by Mat-Su Salmon Habitat Partnership, award no. F18AC00942
+Ended 6/30/20.
+
+Data are from CIK (~ 60 sites, 2017-2019) and FWS (~30 sites, 2019 only at minnow-trapping locations).
+
+```{r}
+deshka_folder <- "W:/Github/Deshka_temperature/"
+```
+
+# Cook Inletkeeper Data
+
+## Read and combine excel files
+
+Read in all excel files in the data folder. Sue included some files that show all available data (metadata summaries); remove those from vector of file names before reading in data.
+
+```{r}
+
+files <- list.files(path = paste(deshka_folder, "data/", sep = ""), pattern = ".xlsx", full.names = TRUE)
+
+files <- files[!files %in% (grep("availability", files, value = TRUE))]
+
+```
+
+Sheet names are the site names, although it looks like some years are broken into separate sheets.
+Create a function that reads in each sheet and uses the sheet name to assign the site_ID.
+
+```{r}
+combine_sheets_with_site_ID <- function(excel_file_path) {
+  sheets <- excel_sheets(excel_file_path)
+  all_dat <- tibble()
+  for(i in sheets){
+    dat <- read_excel(excel_file_path, sheet = i) %>% 
+      mutate(SiteID = i)
+    all_dat <- bind_rows(all_dat, dat)
+  }
+  return(all_dat)
+}
+```
+
+Read in all of the excel files into a data frame using map.
+
+```{r}
+temp <- files %>% 
+  map_df(function(x) combine_sheets_with_site_ID(x)) 
+```
+
+Rename fields and modify date fields.
+
+```{r}
+temp <- temp %>% 
+  mutate(sampleDate = as.Date(Date, format = "%Y-%m-%d"),
+         sampleTime = strftime(`Time, GMT-08:00`, format = "%H:%M"),
+         useData = 1) %>% 
+  rename(Temperature = `Temp, °C`) %>% 
+  filter(!is.na(Temperature)) %>% 
+  dplyr::select(SiteID, sampleDate, sampleTime, Temperature, useData)
+```
+
+Fix site names: remove extra dates, remove extra white space, correct different tributary spellings and capitalization, make all capwords. Total of 61 sites, matches locations provided by Sue.
+
+```{r}
+
+site_ID_fix <- temp %>% 
+  distinct(SiteID) %>% 
+  mutate(site_ID2 = sub('^([^ ]+ [^ ]+ [^ ]+).*', '\\1', SiteID), #remove extra date info from Sue's sheet names
+         site_ID2 = trimws(site_ID2),
+         site_ID2 = capwords(site_ID2),
+         site_ID2 = sub("\\bTrib\\b", "Tributary", site_ID2),
+         site_ID2 = sub("TOP", "Top of Study", site_ID2))
+         
+site_ID_fix %>% arrange(site_ID2)
+site_ID_fix %>% distinct(site_ID2)
+         
+temp <- temp %>% 
+  left_join(site_ID_fix) %>% 
+  dplyr::select(-SiteID) %>% 
+  rename(SiteID = site_ID2) 
+
+temp %>% distinct(SiteID)
+```
+
+
+
+
+# USFWS Road Sites
+
+These are road-accessible sites that were logged June-August 2019 while out collecting fish data.
+
+## Read and combine excel files
+
+Get list of files.
+
+```{r}
+files <- list.files(path = paste(deshka_folder, "data/Road_sites/XLSX Clean Files", sep = ""), 
+                    pattern = ".xlsx", full.names = TRUE)
+```
+
+Read in data.
+
+```{r}
+rdtemp <- files %>% 
+  map_df(function(x) {
+    dat <- read_excel(path = x, skip = 2, col_names = c("Date", "Time", "Temperature"), col_types = c("date", "date", "numeric"))
+    name <- str_extract(excel_sheets(x), "[^_]+")
+    newdat <- dat %>% 
+      mutate(SiteID = name)
+    return(newdat)
+  }
+  ) 
+
+rdtemp <- rdtemp %>% 
+  mutate(sampleDate = as.Date(Date, format = "%Y-%m-%d"),
+         sampleTime = strftime(Time, format = "%H:%M"),
+         SiteID = case_when(SiteID == "OWl1" ~ "OWL1", 
+                             TRUE ~ SiteID),
+         useData = 1) %>% 
+  select(SiteID, sampleDate, sampleTime, Temperature, useData)
+
+rdtemp %>% distinct(SiteID)
+
+```
+
+
+# Combine datasets and save
+
+
+```{r}
+
+names(temp)
+names(rdtemp)
+
+bind_rows(temp, rdtemp) %>% 
+  write_csv(path = "output/deshka_90sites.csv")
+
+```
+
+
+

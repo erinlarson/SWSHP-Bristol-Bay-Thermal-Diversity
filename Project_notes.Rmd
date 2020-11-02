@@ -1,0 +1,26 @@
+---
+title: "Project_Notes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Temperature Data
+
+Bristol Bay data providers and data sets include 
+
+* UAA-ACCS. We have data from 14 sites 2015-2019. We may have installed loggers at a few of our long term sites in 2014 or earlier. Dan Bogan archived all Bristol Bay data on KNB through 2017. I have data from all 14 sites for three downloads after 2017, June 2018, June 2019, and October 2019. These data need to be reviewed before sharing. **TO DO: Dustin or Becky can review and share.**
+* USGS. Site numbers can be identified on NWIS online and data can be downloaded using dataRetrieval library in R.
+* University of Washington. We have files for 51 sites through 2017, but file names are difficult to tie to AKOATS IDs and it was never submitted to KNB. Jackie has file names and will link them to AKOATS IDs for us so we have locations. She will also query and send over data post-2017.
+* NPS. Krista Bartz plans to send all data from their Southwest Monitoring Network. (Note that data through 2017 was also archived on KNB, but don't bother becuase we'll be getting all years for all sites from Krista.)
+* UWFWS. Meg has shared all FWS data for the State. We will be using data from Togiak refuge for this project. Check to see if they have any other data from Bristol Bay... OSM weirs?
+* Cook Inletkeeper. Sue has collected some data with village and lodge partners, but we don't have that data. It has been requested.
+
+# Temperature Summary
+
+* Number of sites and years of data from each site.
+* Map showing locations of sites across the bay. Maybe also add watershed boundaries for 9 major rivers. In R or ArcGIS.
+* Time series of mean daily temperatures for streams and lakes, by watershed? If not too busy, would be interesting to see general patterns.
+* Calculate simple summary metrics and make some figures.

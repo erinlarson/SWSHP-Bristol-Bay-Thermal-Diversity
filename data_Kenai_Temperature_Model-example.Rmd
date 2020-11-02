@@ -1,0 +1,531 @@
+---
+title: "data_Kenai_Temperature_Model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+
+```
+
+
+This report is for reading in the data used in the Kenai stream temperature model. I want to read in all data as originally provided and combine it into one file for import into AKTEMP. I am copying over the code used to merge the data files together. The original dataset for the model included data from KNB archived by Sue Mauger (CIK) and also USGS sites. Those are not included here because KNB datasets are being brought in separately so no need to duplicate them. USGS data are dailies and we can always grab those in R later if we want them in AKTEMP. 
+
+Some air temperature data have been flagged in this script. (Note: for the model, some sites or years were removed, but this is the complete dataset as originally provided.)
+
+Project funded by Kenai Salmon Habitat Partnership, award no. F18AC00741
+Ended 6/30/20.
+
+Data are from Cook InletKeeper (1 site, 2014-2015), Ben Meyer (UAF graduate student, 14 sites, 2015-2016), and Kenai Watershed Forum (3 sites, 2015-2016).
+
+# Cook Inletkeeper
+
+Data for Moose River, which Sue sent by email.
+
+```{r}
+kenai_wd <- "W:/Github/Kenai_temperature/" 
+
+Moose_2014 <- read.csv(file = paste(kenai_wd, "data/Kenai/CIK/CIK5_2014.csv", sep = ""), header=TRUE)
+Moose_2015 <- read.csv(file = paste(kenai_wd, "data/Kenai/CIK/CIK5_2015.csv", sep = ""), header=TRUE)
+Moose <- rbind(Moose_2014, Moose_2015)
+
+# Moose %>% count(sampleDate)
+
+Moose <- Moose %>% 
+  mutate(AKOATS_ID = NA,
+         UseData = 1,
+         Freq = 96,
+         sampleDate = as.Date(sampleDate, format = "%Y-%m-%d"),
+         sampleTime = hms::as_hms(as.character(sampleTime)),
+         # Year = year(sampleDate),
+         # Month = month(sampleDate),
+         # Day = day(sampleDate),
+         SiteID = "CIK_5") 
+
+```
+
+Check frequency.
+
+```{r}
+Moose %>% 
+  count(SiteID, sampleDate) %>% 
+  count(SiteID, n) 
+  
+```
+
+
+# Ben Meyers (UAF) 
+
+Ben Meyer collected data on Beaver Creek (3 sites), Ptarmigan Creek (3 sites), and Russian River (3 sites). He also provided a dataset from KWF from Ptarmigan Creek for 2016, but Leslie requested all 2016 data for KWF, which will go into that dataset so don't import here.
+
+```{r}
+
+files <- list.files(paste(kenai_wd, "data/Kenai/Meyers", sep = ""), full.names = TRUE)
+files <- files[grepl("BM", files)] #remove KWF site from 2016 and 2015 data file, which is organized on worksheets.
+
+benm <- data.frame()
+
+for(i in files) {
+  datin <- read_csv(i, col_types = "ctd")[,1:3]
+  filename <- strsplit(i, "/")[[1]][7]
+  sitename <- strsplit(filename, "_", fixed = TRUE)[[1]][1]
+  datin <- datin %>% 
+    mutate(SiteID = sitename)
+  benm <- bind_rows(datin, benm)
+}
+
+benm %>% distinct(SiteID, sampleDate) %>% 
+  filter(grepl("/", sampleDate))
+
+benm <- benm %>% 
+  mutate(AKOATS_ID = case_when(SiteID == "BM1" ~ 1837,
+                               SiteID == "BM2" ~ 1840,
+                               SiteID == "BM3" ~ 1845,
+                               SiteID == "BM6" ~ 1838,
+                               SiteID == "BM7" ~ 1841,
+                               SiteID == "BM8" ~ 1846,
+                               SiteID == "BM9" ~ 1839,
+                               SiteID == "BM10" ~ 1843,
+                               SiteID == "BM13" ~ 1847,
+                               TRUE ~ NA_real_),
+         UseData = 1,
+         Freq = 96,
+         sampleDate = case_when(SiteID == "BM6" ~ as.Date(sampleDate, format = "%m/%d/%Y"),
+                                TRUE ~ as.Date(sampleDate, format = "%Y-%m-%d"))) 
+
+benm %>% distinct(SiteID, AKOATS_ID) %>% arrange(SiteID)
+summary(benm)
+
+```
+
+Lots of missing temperature data for a few sites that was confirmed in the csv files, delete.
+
+```{r}
+benm %>% 
+  filter(is.na(Temperature)) %>% 
+  count(SiteID)
+
+benm <- benm %>% 
+  filter(!is.na(Temperature))
+
+```
+
+Check frequency.
+
+```{r}
+benm %>% 
+  count(SiteID, sampleDate) %>% 
+  count(SiteID, n) 
+
+```
+
+Also found 2015 data from Ben Meyers on EPSCOR website:
+http://epscor.portal.gina.alaska.edu/catalogs/11500-2015-water-temperature-data-alaska-epscor-sou
+
+Read in all worksheets into a list of data frames.
+
+```{r}
+
+path <- paste(kenai_wd, "data/Kenai/Meyers/Water_Temperatures_2015_EPSCoR_SCTC.xlsx", sep = "")
+
+benm15 <- path %>% 
+  excel_sheets() %>% 
+  set_names() %>% 
+  map(read_excel, path = path) 
+
+```
+
+Only select the rows that we need, which will get rid of errors when trying the bind the data frames together. Keep the lat/longs in case site locations are different between 2015 and 2016.
+
+```{r}
+benm15 <- lapply(benm15, "[", c("DateTime", "Temp_C", "Site ID", "Latitude", "Longitude"))
+```
+
+Bind all of the data frames together.
+
+```{r}
+benm15_df <- bind_rows(benm15, .id = "File_name")
+```
+
+Lots of missing temperature data. Check where these are from and confirm them in the Excel workbook. All missing temperature data is from KWF_Hydrolab_Beaver where there are lots of dateTimes filled in without temperature data. There are also lots of rows with dateTimes and temperatures, but Site ID is missing. Check for these as well and fill in based on file_names.
+
+```{r}
+benm15_df %>% 
+  filter(is.na(Temp_C)) %>% 
+  count(`Site ID`, File_name)
+
+benm15_df %>% 
+  filter(is.na(`Site ID`) & !is.na(Temp_C)) %>% 
+  count(File_name)
+
+benm15_df %>% 
+  distinct(File_name, `Site ID`)
+```
+
+Remove missing temperature data and fill in missing Site IDs. Also format (names and data types) so they match 2016 data from Ben Meyers
+
+```{r}
+benm15_df <- benm15_df %>% 
+  filter(!is.na(Temp_C)) %>% 
+  mutate(`Site ID` = case_when(File_name == "MBC_WL_10324669" ~ "MBC-WL-2015", 
+                               File_name == "KWF_Hydrolab_Beaver" ~ "LBC-KWF-2015", 
+                               TRUE ~ `Site ID`),
+         AKOATS_ID = NA,
+         UseData = 1,
+         Freq = 96,
+         sampleDate = as.Date(DateTime),
+         sampleTime = as_hms(DateTime)) %>% 
+  rename(Temperature = Temp_C,
+         SiteID = `Site ID`)
+
+benm15_df %>% distinct(SiteID)
+
+```
+
+Get ACCS SiteIDs from the Kenai_site_locations workbook Leslie started. We need to check that site locations are the same for both years. All lat/longs are the same from 2015 (workbook) to 2016 (csv files), except for three. 
+
+* Site LBC-KWF-2015 (2015 workbook) has the exact same coordinates as site LBC-WL-2015 (csv file), but there is a separate worksheet for that site so the lat/long must be wrong. This is the exact same data as KWF1, already imported for 2015, the KWF site on Beaver Creek. Remove this site from Ben's df since it will be imported into the KWF data frame.
+* Site MBC-WL-2015 has slightly different coordinates in the 2015 workbook and the 2016 csv file (~ 0.7 km apart). But, they are in the same RCA, so  model covariates will match so can just use one site location. 
+* Site LPC-AL-2015 is a typo, change to LPC-WL-2015. Lat longs match from 2015 workbook and 2016 csv.
+
+Get ACCS site IDs on the 2015 data frame.
+
+```{r}
+
+site_loc <- read_csv(paste(kenai_wd, "data/Kenai/Kenai_site_locations.csv", sep = ""))
+
+benm15_df <- benm15_df %>% 
+  filter(!SiteID == "LBC-KWF-2015") %>% 
+  mutate(SiteID = case_when(SiteID == "LRR-AL-2015" ~ "LRR-WL-2015",
+                               TRUE ~ SiteID)) %>% 
+  left_join(site_loc %>% select(Description, siteID), by = c("SiteID" = "Description")) %>% 
+  rename(newSiteID = siteID)
+
+benm15_df %>% distinct(SiteID, newSiteID)
+
+names(benm15_df)
+
+```
+Final edits to 2015 data frame, add akoats ids and only keep needed columns.
+
+```{r}
+benm15_df <- benm15_df %>% 
+  select(-SiteID, -File_name, -DateTime, -Latitude, -Longitude, -Freq) %>% 
+  rename(SiteID = newSiteID) %>% 
+  mutate(AKOATS_ID = case_when(SiteID == "BM1" ~ 1837,
+                               SiteID == "BM2" ~ 1840,
+                               SiteID == "BM3" ~ 1845,
+                               SiteID == "BM6" ~ 1838,
+                               SiteID == "BM7" ~ 1841,
+                               SiteID == "BM8" ~ 1846,
+                               SiteID == "BM9" ~ 1839,
+                               SiteID == "BM10" ~ 1843,
+                               SiteID == "BM13" ~ 1847,
+                               TRUE ~ NA_real_))
+```
+
+
+
+Merge 2015 data frame with 2016 data frame so all of Ben Meyers data is in one place.
+
+```{r}
+benm <- bind_rows(benm %>% select(-Freq), benm15_df)
+```
+
+Check frequency.
+
+```{r}
+benm %>% 
+  count(SiteID, sampleDate) %>% 
+  count(SiteID, n) %>% 
+  arrange(desc(nn))
+```
+
+
+# EPSCOR - Kenai Watershed Forum  
+
+Start with 2015 data, which are formatted.
+
+```{r}
+
+files <- list.files(paste(kenai_wd, "data/Kenai/KenaiWatershedForum", sep = ""), full.names = TRUE)
+
+kwf <- tibble()
+
+for(i in files) {
+  datin <- read_csv(i)
+  filename <- strsplit(i, "/")[[1]][7]
+  sitename <- strsplit(filename, "_", fixed = TRUE)[[1]][1]
+  datin <- datin %>% 
+    mutate(SiteID = sitename)
+  kwf <- rbind(datin, kwf)
+}
+
+kwf <- kwf %>% 
+  mutate(AKOATS_ID = NA,
+         UseData = 1) %>% 
+  filter(!is.na(Temperature))
+
+```
+
+Check frequency. There may be some duplicates because there is a max of 100 readings for site KWF1. When working with the 2016 data, it looks like there are multiple sensors that overlap on some dates. Maybe these weren't entirely cleaned off in the 2015 data.
+
+```{r}
+kwf %>% 
+  count(SiteID, sampleDate) %>% 
+  count(SiteID, n) %>% 
+  arrange(desc(nn))
+```
+
+Leslie requested and received 2016 data, which is in a different format. Temperature data are in a series of csv files that cover 1 to 3 or so weeks.
+
+Russian River site first.
+
+```{r}
+
+files <- list.files(paste(kenai_wd, "data/Kenai/KenaiWatershedForum/Hydrolab data_Russian_2016", sep = ""), pattern = ".csv",
+                    full.names = TRUE)
+
+
+rr16 <- lapply(files, function(x) suppressWarnings(read_csv(x, skip = 16, cols_only(col_date("%m/%d/%Y"), col_time(), col_skip(), col_double()),
+                                                            col_names = c("sampleDate", "sampleTime", "Temperature")))) %>%
+  bind_rows()
+
+summary(rr16)
+
+```
+Lot of weird inputs at ends of files, delete these empty rows. Also error is 999999, delete those.
+
+```{r}
+
+rr16 <- rr16 %>% 
+  filter(!is.na(Temperature), !Temperature == 999999)
+
+```
+
+Now look for duplicate date-times. 
+
+```{r}
+rr16[duplicated(rr16[,1:2]),] #6844!
+
+rr16 %>% 
+  unite(DT, sampleDate, sampleTime, remove = FALSE) %>% 
+  mutate(DT1 = as.POSIXct(DT, format = "%Y-%m-%d_%T")) %>% 
+  filter(!Temperature > 15) %>% 
+  ggplot(aes(x = DT1, y = Temperature)) +
+    geom_line()
+
+```
+
+Try spreading on duplicate values. There are up to three temperature measurements at any one date-time.
+
+```{r}
+rr16 %>% 
+  group_by(sampleDate, sampleTime) %>% 
+  mutate(duplicate_id = row_number()) %>% 
+  spread(duplicate_id, Temperature) %>% 
+  filter(!is.na(`3`)) # can also filter on when 2 is not na.
+# output is all records 17864 - duplicate records 6844 = 11020
+```
+
+Talked to Leslie, let's just keep the minimum value. That ensures that we aren't getting the sensor that was just deployed. Temperatures go up to 20 when new logger is deployed or logger is removed.
+
+```{r}
+rr16 <- rr16 %>% 
+  group_by(sampleDate, sampleTime) %>% 
+  mutate(duplicate_id = row_number()) %>% 
+  spread(duplicate_id, Temperature) %>% 
+  mutate(Temperature = min(`1`, `2`, `3`, na.rm = TRUE)) %>% 
+  select(-`1`, -`2`, -`3`) 
+
+```
+
+This doesn't totally solve the problem. Will need to plot and flag bad temperatures below with useData = 0.
+
+```{r}
+rr16 %>% 
+  unite(DT, sampleDate, sampleTime, remove = FALSE) %>% 
+  mutate(DT1 = as.POSIXct(DT, format = "%Y-%m-%d_%T")) %>% 
+  filter(!Temperature > 15) %>% 
+  ggplot(aes(x = DT1, y = Temperature)) +
+    geom_line()
+```
+
+Read in Beaver Creek and Ptarmigan Creek, repeat steps above, bind all together and save for QA. Can just read in the compiled datasets and take the minimum now that I know what I'm dealing with. (Saves the need to read all the csvs and spread the duplicates.)
+
+Beaver Creek
+
+```{r}
+
+bvr16 <- read_excel(paste(kenai_wd, "data\\Kenai\\KenaiWatershedForum\\Hydrolab_Beaver_2016\\Compiled\\Beaver_temp_2016.xlsx", sep = ""), 
+                    range = "A4:S19635", col_names = FALSE, col_types = c("guess", rep("numeric", 18)))
+
+summary(bvr16)
+
+```
+
+Clean up by taking minimum, getting rid of any empty rows, and naming everything.
+
+```{r}
+bvr16 <-   bvr16 %>% 
+  rename(DT = `...1`) %>% 
+  mutate(Temperature = pmin(`...2`, `...3`,`...4`,`...5`,`...6`,`...7`,`...8`,
+                            `...9`,`...10`,`...11`,`...12`,`...13`,`...14`,`...15`,
+                            `...16`,`...17`,`...18`,`...19`,na.rm = TRUE)) %>% 
+  filter(!is.na(Temperature)) %>% 
+  select(-c(`...2`, `...3`,`...4`,`...5`,`...6`,`...7`,`...8`,
+                            `...9`,`...10`,`...11`,`...12`,`...13`,`...14`,`...15`,
+                            `...16`,`...17`,`...18`,`...19`))  
+  
+bvr16
+```
+
+Merge Beaver with Russian.
+
+```{r}
+bvr16 <- bvr16 %>% 
+  mutate(sampleDate = as.Date(DT),
+         sampleTime = as_hms(DT),
+         SiteID = "KWF1") 
+
+rr16 <- rr16 %>% 
+  mutate(DT = as.POSIXct(paste(sampleDate, sampleTime, sep = " "), format = "%Y-%m-%d %T"),
+         SiteID = "KWF3")
+
+kwf16 <- bind_rows(bvr16, rr16)
+```
+
+Ptarmigan Creek.
+
+```{r}
+ptr16 <- read_excel(paste(kenai_wd, "data\\Kenai\\KenaiWatershedForum\\Hydrolab_Ptarmigan_2016\\Compiled\\Ptar_Temp_2016.xlsx", sep = ""), 
+                    range = "A4:S19635", col_names = FALSE, col_types = c("guess", rep("numeric", 18)))
+
+summary(ptr16)
+```
+
+Clean up by taking minimum, getting rid of any empty rows, and naming everything. Get rid of bad data: 999999.
+
+```{r}
+ptr16 <-  ptr16 %>% 
+  rename(DT = `...1`) %>% 
+  mutate(Temperature = pmin(`...2`, `...3`,`...4`,`...5`,`...6`,`...7`,`...8`,
+                            `...9`,`...10`,`...11`,`...12`,`...13`,`...14`,`...15`,
+                            `...16`,`...17`,`...18`,`...19`,na.rm = TRUE)) %>% 
+  filter(!is.na(Temperature), !Temperature == 999999) %>% 
+  select(-c(`...2`, `...3`,`...4`,`...5`,`...6`,`...7`,`...8`,
+                            `...9`,`...10`,`...11`,`...12`,`...13`,`...14`,`...15`,
+                            `...16`,`...17`,`...18`,`...19`)) 
+
+summary(ptr16)
+```
+
+Merge Ptarmigan with Beaver and Russian.
+
+```{r}
+
+ptr16 <- ptr16 %>% 
+  mutate(sampleDate = as.Date(DT),
+         sampleTime = as_hms(DT),
+         SiteID = "KWF2") 
+
+kwf16 <- bind_rows(kwf16, ptr16)
+
+```
+
+Merge 2016 datasets and add new columns before merging with 2015 data. (keeping DT on there in case it is needed for QA.)
+
+```{r}
+
+kwf16 <- kwf16 %>% 
+  mutate(AKOATS_ID = NA,
+         UseData = 1)
+
+kwf <- kwf %>%
+  mutate(DT = as.POSIXct(paste(sampleDate, sampleTime, sep = " "), format = "%Y-%m-%d %T")) %>% 
+  bind_rows(kwf16)
+
+```
+
+## KWF Data QA - flagging useData 
+
+There are definitely some air temperature spikes in this data. Plot and follow up with dynamic plots in plotly to identify.
+Data QA:
+
+* Three air temp spikes in Russian River in 2016. Possible burial as well in June 2016, could compare to Ben's data for the Russian.
+* Two air temp spikes in Ptarmigan for 2016. Note: kwf3 is russian, 2 is ptarmigan, and 1 is beaver.
+
+```{r}
+
+p <- kwf %>% 
+  filter(SiteID == "KWF3") %>% 
+  ggplot(aes(x = DT, y = Temperature)) +
+  geom_line() 
+
+ggplotly(p) 
+
+```
+
+For Russian River (KWF3), remove data for three dates: 6/1, 6/21, and 8/29 from 2016.
+
+```{r}
+kwf <- kwf %>% 
+  mutate(UseData = case_when(SiteID == "KWF3" & sampleDate == "2016-06-01" ~ 0,
+                             SiteID == "KWF3" & sampleDate == "2016-06-21" ~ 0,
+                             SiteID == "KWF3" & sampleDate == "2016-08-29" ~ 0,
+                             TRUE ~ UseData)) 
+
+kwf %>% 
+  filter(UseData == 0) %>% 
+  distinct(SiteID, sampleDate)
+```
+
+Ptarmigan.
+
+```{r}
+
+p <- kwf %>% 
+  filter(SiteID == "KWF2") %>% 
+  ggplot(aes(x = DT, y = Temperature)) +
+  geom_line() 
+
+ggplotly(p) 
+
+```
+
+For Ptarmigan Creek (KWF2), Remove data for dates: 5/12 and 6/20 2016.
+
+```{r}
+kwf <- kwf %>% 
+  mutate(UseData = case_when(SiteID == "KWF2" & sampleDate == "2016-05-12" ~ 0,
+                             SiteID == "KWF2" & sampleDate == "2016-06-20" ~ 0,
+                             TRUE ~ UseData)) 
+
+kwf %>% 
+  filter(UseData == 0) %>% 
+  distinct(SiteID, sampleDate)
+
+```
+
+# Combine datasets and save
+
+One site from Sue, 14 sites from Ben, and 3 from KWF.
+
+```{r}
+names(Moose) #drop freq
+names(benm) #ok
+names(kwf) #drop dt
+
+kenai18 <- bind_rows(Moose %>% select(-Freq), benm, kwf %>% select(-DT))
+
+kenai18 %>% 
+  write_csv("output/kenai_18sites.csv")
+```
+
+
