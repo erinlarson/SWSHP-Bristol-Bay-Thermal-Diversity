@@ -1,6 +1,7 @@
 # SWSHP-Bristol-Bay-Thermal-Diversity
 
 Project funded by Southwest Alaska Salmon Habitat Partnership. Collaboration between R. Shaftel (ACCS-UAA) and E. Schoen (IAB-UAF).
+Ben Meyer (KWF) is helping with data summary.
 
 Project Title: Bristol Bay regional analysis of thermal diversity supporting salmon populations and life-histories
 

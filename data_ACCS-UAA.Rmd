@@ -1,0 +1,21 @@
+---
+title: "data_ACCS-UAA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readxl)
+library(tidyverse)
+```
+
+
+
+```{r}
+dans.files <- list.files("data/Dan")
+
+for(i in dan.files)
+read_excel()
+```
+

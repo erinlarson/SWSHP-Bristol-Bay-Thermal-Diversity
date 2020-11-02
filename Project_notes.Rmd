@@ -18,9 +18,20 @@ Bristol Bay data providers and data sets include
 * UWFWS. Meg has shared all FWS data for the State. We will be using data from Togiak refuge for this project. Check to see if they have any other data from Bristol Bay... OSM weirs?
 * Cook Inletkeeper. Sue has collected some data with village and lodge partners, but we don't have that data. It has been requested.
 
+# Temperature cleaning
+
+The final fields that I would like to have for each dataset:
+
+* SiteID - this should be the original site id as provided by the agency. 
+* sampleDate - Date class.
+* sampleTime - hms class.
+* Temperature - numeric.
+* useData - this should be a 0/1. I set everything mutate(useData = 1) first. If some data don't look clean (e.g. air temps or really dampened daily variation indicating burial), we can talk about scripts for setting useData = 0.
+
+
 # Temperature Summary
 
 * Number of sites and years of data from each site.
-* Map showing locations of sites across the bay. Maybe also add watershed boundaries for 9 major rivers. In R or ArcGIS.
 * Time series of mean daily temperatures for streams and lakes, by watershed? If not too busy, would be interesting to see general patterns.
 * Calculate simple summary metrics and make some figures.
+* Map showing locations of sites across the bay. Maybe also add watershed boundaries for 9 major rivers. In R or ArcGIS.
