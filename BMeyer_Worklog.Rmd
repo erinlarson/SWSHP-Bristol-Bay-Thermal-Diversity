@@ -9,7 +9,24 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+
 This document will be used to record work done by Benjamin Meyer, UAF Research Technician, on importing and QA/QC of data files for the SWSHP Bristol Bay Thermal Diversity Project.
 
-11/2/20 - 1:00 - 2:00 PM.  Held Zoom meeting w/ R. Shaftel.  Introduced to project, set intentions for first 40 hr block of time.  Introduced to using Github for version control and collaboration.  Practiced example of repo pull/edit/push.
+Hours view-able at this Google Sheet, submitted weekly to UAonline: https://docs.google.com/spreadsheets/d/1iS4BnXhsgqgQmZyixOiFC9R6uyZO4FeliF3bUjpRauo/edit#gid=0
 
+<br>
+
+11/2/20 
+
+Github is used in the project for version control and collaboration.  Below are some notes on including Github in workflow for this project:
+
+* Original data files (csv and excel) are large and best not to have to push/pull from Github with each work session.  Thus the folders "data" and "output" are ignored via the .gitignore file.  To access original data files, they may be downloaded to your local directory from Google Drive at https://drive.google.com/drive/u/3/folders/1XQ2rkLnbsHB_hTaNCUnd6u8-iO_cuuNV
+
+* At the beginning of each work session, use the "Pull with Rebase" button to synch all files in this .Rproj with the Github repo.
+
+* At appropriate moments during work flow, in addition to saving the file(s) being worked on, use the "commit" button to commit an edit to your file(s).
+
+* When ready to synch your .Rproj to the Github repo, click the "Commit" button, write an appropriate commit message, click the box next to each file in the "Staged" column, click "Commit", then use the "Push" arrow to synch to Github.
+
+* Best practice is for only one person to be editing a file at a time, to avoid conflicted versions
