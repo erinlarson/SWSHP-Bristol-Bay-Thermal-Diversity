@@ -30,3 +30,9 @@ Github is used in the project for version control and collaboration.  Below are 
 * When ready to synch your .Rproj to the Github repo, click the "Commit" button, write an appropriate commit message, click the box next to each file in the "Staged" column, click "Commit", then use the "Push" arrow to synch to Github.
 
 * Best practice is for only one person to be editing a file at a time, to avoid conflicted versions
+
+<br>
+
+11/5/20
+
+

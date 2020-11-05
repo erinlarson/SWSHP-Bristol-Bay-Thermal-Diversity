@@ -60,7 +60,7 @@ Moose %>%
 ```
 
 
-# Ben Meyers (UAF) 
+# Ben Meyer (UAF) 
 
 Ben Meyer collected data on Beaver Creek (3 sites), Ptarmigan Creek (3 sites), and Russian River (3 sites). He also provided a dataset from KWF from Ptarmigan Creek for 2016, but Leslie requested all 2016 data for KWF, which will go into that dataset so don't import here.
 

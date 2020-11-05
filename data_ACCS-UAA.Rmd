@@ -1,21 +1,124 @@
 ---
-title: "data_ACCS-UAA"
-output: html_document
+title: "ACCS-UAA Water Temp Data Import"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
 ---
+
+Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(readxl)
+# clear environment
+rm(list=ls())
+
+# load packages
 library(tidyverse)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
 ```
 
 
+Read in data from ACCS folder
+```{r}
+accs.files <- list.files(path = "data/ACCS-UAA", pattern = ".csv", full.names = T)
+
+accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
+               pattern = "*.csv", 
+               full.names = T) %>% 
+    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) 
+
+# note: some files have a "location description" column and others do not
+
+# rename, transform, and eliminate columns to match final field names described in Project_notes.Rmd
+accs.data <- accs.data %>%
+  rename(SiteID = AKOATS_ID) %>%
+  select(SiteID,sampleDate,sampleTime,Temperature
+         ) %>%
+  transform(sampleDate = as.Date(mdy(sampleDate)),
+            sampleTime = hms(sampleTime),
+            Temperature = as.numeric(Temperature)) 
+
+```
+
+<br>
+
+Perform a quick visualization to see extent and form of data
+```{r}
+accs.data %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Original Logger Data by Site and Year")
+
+```
+
+<br>
+
+Looks like we have some malfunctioning loggers at site 1644.  Lets identify 2015 and 2016 data from site 1664 as not usable by identifying with a "0" in the "useData" column.
 
 ```{r}
-dans.files <- list.files("data/Dan")
+# FYI this can be done in a more fine-tuned fashion; eliminating specific data by day or individual observation(s), by creating this file externally as a csv and listing individual  observations to be eliminated
+year <- c(2015, 2016)
+SiteID <- c("1664","1664")
+useData <- c(0,0)
+bad_data <- data.frame(year,SiteID,useData) %>%
+  transform(useData = as.character(useData))
 
-for(i in dan.files)
-read_excel()
+accs.data <- accs.data %>%
+  left_join(bad_data) %>%
+  mutate(useData = replace_na(useData, "1")) %>%
+  distinct() %>%
+  mutate(year = year(sampleDate))
+
 ```
 
+<br>
+
+Perform a quick visualization of "cleaned up" data
+```{r}
+accs.data %>%
+  filter(useData == 1) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Corrected Logger Data by Site and Year")
+
+```
+
+<br>
+
+Improvement is evident, probably more cleaning to be done at sub-daily mean level.
+
+<br>
+
+Export csv of combined datasets, "cleaned", to data folder associated with this .Rproj
+```{r}
+write.csv(accs.data,"output/UAA-ACCS.csv")
+
+```
