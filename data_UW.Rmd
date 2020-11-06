@@ -1,0 +1,254 @@
+---
+title: "UW Water Temp Data Pre-2017"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# clear environment
+rm(list=ls())
+
+# load packages
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+library(DT)
+```
+
+<br>
+
+Read in data from folder "Jackie Carter UW"
+```{r}
+uw.data <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
+               pattern = "*.csv", 
+               full.names = T) %>% 
+    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) 
+
+```
+
+<br>
+
+Notes on data consistency: 
+
+* Date format for sites "Aleknagik Big Whitefish Creek" and "Aleknagik Little Whitefish Creek" is in format "01-Apr-12", which lubridate will not parse.  
+
+* Date and time formats for part of the "Aleknagik Wood River" file for 2009 have some errors and/or inconsistencies.  Some of the cells in the time column begin with ":". Some cells in the date column end with a single digit, and the year is sometimes formatted with 2 digits or 4 digits.  Some of these feastures are likely artifacts of some previous data sorting/cleaning process.
+
+* Need to treat import and prep of these three data sets separately.
+
+<br>
+
+Exclude specified datasets
+```{r}
+# define function to exclude multiple strings in a column
+'%ni%' <- Negate('%in%')
+
+# specify datasets to be excluded (all years)
+exclude_wf <- c("Aleknagik Big Whitefish Creek","Aleknagik Little Whitefish Creek")
+
+# specify datasets to be removed (one watershed, one year)
+StationName <- "Aleknagik Wood River"
+YearSampled <- "2009"
+exclude_wr <- data_frame(StationName,YearSampled)
+
+# apply exclusions
+uw.data <- uw.data %>%
+  anti_join(exclude_wr) %>%
+  filter(StationName %ni% exclude_wf)
+
+```
+
+<br>
+
+Rename, transform, and eliminate columns to match final field names described in Project_notes.Rmd
+```{r}
+uw.data <- uw.data %>%
+  rename(SiteID = StationName,
+         sampleDate = Date,
+         sampleTime = Time) %>%
+  select(SiteID,sampleDate,sampleTime,Temperature) %>%
+  transform(sampleDate = as.Date(mdy(sampleDate)),
+            sampleTime = lubridate::hms(sampleTime),
+            Temperature = as.numeric(Temperature)) 
+
+```
+
+<br>
+
+Perform separate import & prep process for the three datasets previously excluded
+
+* Aleknagik wood river 2009
+```{r}
+# Aleknagik wood river 2009
+uw.data.1 <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
+               pattern = "*.csv", 
+               full.names = T) %>% 
+    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) %>%
+  # retain only wood river 2009 data
+  inner_join(exclude_wr) %>%
+  rename(SiteID = StationName,
+         sampleDate = Date,
+         sampleTime = Time) %>%
+  select(SiteID,sampleDate,sampleTime,Temperature) %>%
+  
+  ## fix date column
+  # remove extraneous digits from date column by taking it apart and putting it back together 
+  separate(sampleDate, sep = "/", into = c("month","day","year")) %>%
+  separate(year, sep = " ", into = "year") %>%
+  # we know these observations are from 2009 from the original YearSampled column, thus:
+  mutate(year = "2009",
+         sampleDate = ymd(paste0(year,"-",month,"-",day))) %>%
+  select(-month,-day,-year) %>%
+  transform(Temperature = as.numeric(Temperature))
+
+  ## fix time column
+  ### for dates 9/1/2009 - 9/3/2009, there is some potentially confusing data.  Based on looking at the original data, here is my best guess for what happened: 9 observations were made at appx. 14:00 on 9/1/2009 and 9/2/2009, and 4 observations at appx. 14:00 on 9/3/2009.  Plan of action: average values on a daily basis and assign a single temperature value to time 14:00 for each of those days.
+
+### specify erroneous dates
+erroneous_dates <- data.frame(c("2009-09-01","2009-09-02","2009-09-03"))
+colnames(erroneous_dates) <- "sampleDate"
+erroneous_dates <- erroneous_dates %>%transform(sampleDate = as.Date(sampleDate))
+
+### create corrected data subset for 9/1/2009 - 9/3/2009
+uw.data.2 <- uw.data.1 %>%
+  inner_join(erroneous_dates) %>%
+  transform(Temperature = as.numeric(Temperature)) %>%
+  group_by(sampleDate) %>%
+  summarise(Temperature = mean(Temperature)) %>%
+  mutate(SiteID = "Aleknagik Wood River",
+         sampleTime = "14:00:00")
+
+### remove erroneous original data from Aleknagik wood river 2009 data
+uw.data.1 <- uw.data.1 %>% anti_join(erroneous_dates)
+
+### rejoin corrected subset to Aleknagik wood river 2009 data
+uw.data.1 <- bind_rows(uw.data.1,uw.data.2)
+  
+# ensure column classes are identical to overall UW dataset
+uw.data.1 <- uw.data.1 %>%
+  transform(sampleTime = lubridate::hms(sampleTime),
+            Temperature = as.numeric(Temperature)) 
+
+# rejoin Aleknagik wood river 2009 data to overall UW dataset
+uw.data <- bind_rows(uw.data,uw.data.1)
+
+```
+
+<br>
+
+* Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek
+```{r}
+# Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek
+uw.data.1 <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
+               pattern = "*.csv", 
+               full.names = T) %>% 
+    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) %>%
+  # retain only data from "Aleknagik Big Whitefish Creek" and "Aleknagik Little Whitefish Creek"
+  filter(StationName %in% exclude_wf) %>%
+  rename(SiteID = StationName,
+         sampleDate = Date,
+         sampleTime = Time) %>%
+  select(SiteID,sampleDate,sampleTime,Temperature) 
+
+
+## fix date column
+## months are in month abbreviation format.  need to convert to digits    
+## create dataframe matching months to numeric digits
+month <- month.abb
+month.num <- 1:12
+month.conv <- data.frame(month,month.num)
+
+# make date format parse-able by lubridate by taking it apart and putting it back together 
+uw.data.1 <- uw.data.1 %>% 
+  # convert month format from abbrevaition to numeric
+  separate(sampleDate, sep = "-", into = c("day","month","year"), remove = F) %>%
+  left_join(month.conv) %>%
+  select(-month) %>%
+  rename(month = month.num) %>%
+  # convert year from two digits to four
+  mutate(year = paste0(20,year)) %>%
+  # create correctly formatted date column
+  mutate(sampleDate = ymd(paste0(year,"-",month,"-",day))) %>%
+  select(-year,-month,-day) %>%
+  transform(Temperature = as.numeric(Temperature),
+            sampleTime = lubridate::hms(sampleTime))
+
+# rejoin Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek back to overall UW dataset
+uw.data <- bind_rows(uw.data,uw.data.1)
+
+```
+
+<br>
+
+
+Perform a quick visualization and summary table to see extent and form of original data.
+
+* Summary table
+
+```{r}
+# create data summary table
+uw.data.summary <- uw.data %>%
+  mutate(year = year(sampleDate)) %>%
+  group_by(SiteID,year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+uw.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+    
+```
+
+<br>
+
+* Visualization
+
+```{r}
+uw.data %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Original Logger Data by Site and Year")
+
+```
+
+<br>
+
+Notes
+
+* Among the whole data set, there are some max temps > 50 C, indicating some logger malfunction and/or air exposure.  There is also on minTemp of -21.5 C
+
+* Different types of instruments were employed to collect UW water temp data over the years, including iButtons, Stage gauges, Tidbits, and Level loggers.
+
+<br>
+
+Identify and eliminate likely erroneous data 
+
+(work in progress here 11/6/20)
