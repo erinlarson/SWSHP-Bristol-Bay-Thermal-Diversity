@@ -22,6 +22,7 @@ Bristol Bay data providers and data sets include
 
 The final fields that I would like to have for each dataset:
 
+* AKOATS_ID - when this is available. Some sites may be new and not in AKOATS. Possibly only one ID will be in the data tables, either AKOATS or a SiteID and it may be necessary to read in a separate metadata sheet to link the two.
 * SiteID - this should be the original site id as provided by the agency. 
 * sampleDate - Date class.
 * sampleTime - hms class.
