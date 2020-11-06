@@ -15,7 +15,7 @@ This document will be used to record work done by Benjamin Meyer, UAF Research T
 
 Hours view-able at this Google Sheet, submitted weekly to UAonline: https://docs.google.com/spreadsheets/d/1iS4BnXhsgqgQmZyixOiFC9R6uyZO4FeliF3bUjpRauo/edit#gid=0
 
-<br>
+<br> 
 
 11/2/20 
 
@@ -34,5 +34,8 @@ Github is used in the project for version control and collaboration.  Below are 
 <br>
 
 11/5/20
+Completed draft of UAA-ACCS data import/clean.  Began work on FWS data, not yet successful in reading in sheets; inidvidual files are saved in tabs.  Looking through previous examples from R Shaftel.
 
+11/6/20
+Continued working on UW data.  Sorted through some erroneous date/time formats and read in entire dataset.  Currently working to identify/eliminate data from logger malfunction or exposure.
 
