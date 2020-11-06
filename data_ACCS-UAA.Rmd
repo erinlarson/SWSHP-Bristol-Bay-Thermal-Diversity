@@ -31,13 +31,12 @@ library(readr)
 library(readxl)
 library(hms)
 library(plotly)
+library(DT)
 ```
 
 
 Read in data from ACCS folder
 ```{r}
-accs.files <- list.files(path = "data/ACCS-UAA", pattern = ".csv", full.names = T)
-
 accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
                pattern = "*.csv", 
                full.names = T) %>% 
@@ -47,13 +46,45 @@ accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
 
 # rename, transform, and eliminate columns to match final field names described in Project_notes.Rmd
 accs.data <- accs.data %>%
-  rename(SiteID = AKOATS_ID) %>%
-  select(SiteID,sampleDate,sampleTime,Temperature
-         ) %>%
+  select(AKOATS_ID,sampleDate,sampleTime,Temperature) %>%
   transform(sampleDate = as.Date(mdy(sampleDate)),
-            sampleTime = hms(sampleTime),
+            sampleTime = lubridate::hms(sampleTime),
             Temperature = as.numeric(Temperature)) 
 
+
+# for visualization and data QA/QC, we want waterbody name and/or SiteID associated with each dataset
+
+# read in metadata file and associate SiteID with AKOATS_ID
+md <- read.csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
+  select(AKOATS_ID,SiteID,Waterbody_name)
+
+# use info from pdf at "data/ACCS-UAA/metadata/doi_10.5063_F1028PR9-METADATA.pdf" to assign waterbody names in blank spaces
+md.x <- md %>%
+  filter(AKOATS_ID <= 764) %>%
+  select(-Waterbody_name)
+
+# 760 = Koktuli River
+# 761 = Tributary of Koktuli River 1
+# 762 = Tributary of Koktuli River 2
+# 763 = tributary of Koktuli River 3
+# 764 = tributary of Newhalen River
+
+# create completed metadata table
+Waterbody_name <- c("Koktuli River", "Tributary of Koktuli River 1", "Tributary of Koktuli River 2","Tributary of Koktuli River 3","Tributary of Newhalen River")
+AKOATS_ID <- 760:764
+md.x1 <- data.frame(Waterbody_name,AKOATS_ID)
+
+md.x <- left_join(md.x,md.x1,by = "AKOATS_ID")
+
+# rejoin metadata w/ manually input site names back to UAA-ACCS metadata
+md <- md %>%
+  filter(AKOATS_ID > 764) %>%
+  bind_rows(md.x) %>%
+  transform(AKOATS_ID = as.character(AKOATS_ID))
+
+# associate SiteID and Waterbody_name with overall UAA-ACCS temperature dataset
+accs.data <- left_join(accs.data,md,by = "AKOATS_ID")
+  
 ```
 
 <br>
@@ -64,25 +95,25 @@ accs.data %>%
   select(-sampleTime) %>%
   mutate(year = as.factor(year(sampleDate)),
          day = yday(sampleDate)) %>%
-  group_by(day,SiteID,year) %>%
+  group_by(day,Waterbody_name,SiteID,year) %>%
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
   geom_point() +
-  facet_wrap(. ~ SiteID) +
+  facet_wrap(. ~ Waterbody_name) +
   ggtitle("Original Logger Data by Site and Year")
 
 ```
 
 <br>
 
-Looks like we have some malfunctioning loggers at site 1644.  Lets identify 2015 and 2016 data from site 1664 as not usable by identifying with a "0" in the "useData" column.
+Looks like we have some malfunctioning loggers at site Bonanza Creek.  Lets identify 2015 and 2016 data from this site as not usable by identifying with a "0" in the "useData" column.
 
 ```{r}
 # FYI this can be done in a more fine-tuned fashion; eliminating specific data by day or individual observation(s), by creating this file externally as a csv and listing individual  observations to be eliminated
 year <- c(2015, 2016)
-SiteID <- c("1664","1664")
+AKOATS_ID <- c("1664","1664")
 useData <- c(0,0)
-bad_data <- data.frame(year,SiteID,useData) %>%
+bad_data <- data.frame(year,AKOATS_ID,useData) %>%
   transform(useData = as.character(useData))
 
 accs.data <- accs.data %>%
@@ -102,11 +133,11 @@ accs.data %>%
   select(-sampleTime) %>%
   mutate(year = as.factor(year(sampleDate)),
          day = yday(sampleDate)) %>%
-  group_by(day,SiteID,year) %>%
+  group_by(day,Waterbody_name,SiteID,year) %>%
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
   geom_point() +
-  facet_wrap(. ~ SiteID) +
+  facet_wrap(. ~ Waterbody_name) +
   ggtitle("Corrected Logger Data by Site and Year")
 
 ```
@@ -117,8 +148,30 @@ Improvement is evident, probably more cleaning to be done at sub-daily mean leve
 
 <br>
 
-Export csv of combined datasets, "cleaned", to data folder associated with this .Rproj
+Data summary table
 ```{r}
+# create data summary table
+accs.data.summary <- accs.data %>%
+  filter(useData == 1) %>%
+  group_by(SiteID,AKOATS_ID,Waterbody_name,year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+accs.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+    
+```
+
+<br>
+
+Export csv of combined datasets, with newly identified "do not use data" signified with a "0" in the useData column, to data folder associated with this .Rproj
+```{r}
+x <- accs.data %>% select(-Waterbody_name,-year)
+
 write.csv(accs.data,"output/UAA-ACCS.csv")
 
 ```
