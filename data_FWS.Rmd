@@ -1,0 +1,92 @@
+---
+title: "ACCS-UAA Water Temp Data Import"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# clear environment
+rm(list=ls())
+
+# load packages
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+```
+
+Read in data from FWS folder -- work in progress here
+```{r}
+# FWS data is structured such that individual sites are separated by tabs, with one tab for metadata
+
+fws_folder <- "data/FWS"
+
+files <- list.files(path = paste(fws_folder, sep = ""), pattern = ".xlsx", full.names = TRUE)
+
+files <- files[!files %in% (grep("availability", files, value = TRUE))]
+
+# function from other of Becky's examples
+combine_sheets_with_site_ID <- function(excel_file_path) {
+  sheets <- excel_sheets(excel_file_path)
+  all_dat <- tibble()
+  for(i in sheets){
+    dat <- read_excel(excel_file_path, sheet = i) %>% 
+      mutate(SiteID = i)
+    all_dat <- bind_rows(all_dat, dat)
+  }
+  return(all_dat)
+}
+
+
+temp <- files %>% 
+  map_df(function(x) combine_sheets_with_site_ID(x)) 
+
+
+
+
+# this suggested code produces repetitive error, 'Expecting numeric in C21845 / R21845C3: got '---'
+path <- "data/FWS/Togiak_Oct2020_Part2.xlsx"
+z <- path %>% 
+  excel_sheets() %>% 
+  set_names() %>% 
+  map(read_excel, path = path)
+
+
+
+fws.files <- list.files(path = "data/FWS", pattern = ".xlsx", full.names = T)
+
+accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
+               pattern = "*.csv", 
+               full.names = T) %>% 
+    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) 
+
+# note: some files have a "location description" column and others do not
+
+# rename, transform, and eliminate columns to match final field names described in Project_notes.Rmd
+accs.data <- accs.data %>%
+  rename(SiteID = AKOATS_ID) %>%
+  select(SiteID,sampleDate,sampleTime,Temperature
+         ) %>%
+  transform(sampleDate = as.Date(mdy(sampleDate)),
+            sampleTime = hms(sampleTime),
+            Temperature = as.numeric(Temperature)) 
+
+```
