@@ -148,7 +148,7 @@ Improvement is evident, probably more cleaning to be done at sub-daily mean leve
 
 <br>
 
-Data summary table
+Interactive data summary table
 ```{r}
 # create data summary table
 accs.data.summary <- accs.data %>%
@@ -170,8 +170,10 @@ accs.data.summary %>%
 
 Export csv of combined datasets, with newly identified "do not use data" signified with a "0" in the useData column, to data folder associated with this .Rproj
 ```{r}
-x <- accs.data %>% select(-Waterbody_name,-year)
+# reorder columns
+x <- accs.data %>% select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
 
-write.csv(accs.data,"output/UAA-ACCS.csv")
+# export csv
+write.csv(x,"output/UAA-ACCS.csv")
 
 ```
