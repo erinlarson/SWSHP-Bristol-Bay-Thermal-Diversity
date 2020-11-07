@@ -51,7 +51,7 @@ Notes on data consistency:
 
 * Date format for sites "Aleknagik Big Whitefish Creek" and "Aleknagik Little Whitefish Creek" is in format "01-Apr-12", which lubridate will not parse.  
 
-* Date and time formats for part of the "Aleknagik Wood River" file for 2009 have some errors and/or inconsistencies.  Some of the cells in the time column begin with ":". Some cells in the date column end with a single digit, and the year is sometimes formatted with 2 digits or 4 digits.  Some of these feastures are likely artifacts of some previous data sorting/cleaning process.
+* Date and time formats for part of the "Aleknagik Wood River" file for 2009 have some errors and/or inconsistencies.  Some of the cells in the time column begin with ":". Also, some cells in the date column end with a single digit, and the year is sometimes formatted with either 2 digits or 4 digits.  Some of these features are likely artifacts of some previous data sorting/cleaning process.
 
 * Need to treat import and prep of these three data sets separately.
 
@@ -68,7 +68,7 @@ exclude_wf <- c("Aleknagik Big Whitefish Creek","Aleknagik Little Whitefish Cree
 # specify datasets to be removed (one watershed, one year)
 StationName <- "Aleknagik Wood River"
 YearSampled <- "2009"
-exclude_wr <- data_frame(StationName,YearSampled)
+exclude_wr <- data.frame(StationName,YearSampled)
 
 # apply exclusions
 uw.data <- uw.data %>%
@@ -87,7 +87,7 @@ uw.data <- uw.data %>%
          sampleTime = Time) %>%
   select(SiteID,sampleDate,sampleTime,Temperature) %>%
   transform(sampleDate = as.Date(mdy(sampleDate)),
-            sampleTime = lubridate::hms(sampleTime),
+            sampleTime = hms::as.hms(sampleTime),
             Temperature = as.numeric(Temperature)) 
 
 ```
@@ -145,7 +145,7 @@ uw.data.1 <- bind_rows(uw.data.1,uw.data.2)
   
 # ensure column classes are identical to overall UW dataset
 uw.data.1 <- uw.data.1 %>%
-  transform(sampleTime = lubridate::hms(sampleTime),
+  transform(sampleTime = hms::as.hms(sampleTime),
             Temperature = as.numeric(Temperature)) 
 
 # rejoin Aleknagik wood river 2009 data to overall UW dataset
@@ -190,7 +190,7 @@ uw.data.1 <- uw.data.1 %>%
   mutate(sampleDate = ymd(paste0(year,"-",month,"-",day))) %>%
   select(-year,-month,-day) %>%
   transform(Temperature = as.numeric(Temperature),
-            sampleTime = lubridate::hms(sampleTime))
+            sampleTime = hms::as.hms(sampleTime))
 
 # rejoin Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek back to overall UW dataset
 uw.data <- bind_rows(uw.data,uw.data.1)
@@ -199,6 +199,7 @@ uw.data <- bind_rows(uw.data,uw.data.1)
 
 <br>
 
+To do here: when site metadata available, associate w/ AKOATS_ID
 
 Perform a quick visualization and summary table to see extent and form of original data.
 
@@ -235,13 +236,13 @@ uw.data %>%
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
   geom_point() +
   facet_wrap(. ~ SiteID) +
-  ggtitle("Original Logger Data by Site and Year")
+  ggtitle("Original Logger Data by Site and Year - Daily Mean")
 
 ```
 
 <br>
 
-Notes
+Notes:
 
 * Among the whole data set, there are some max temps > 50 C, indicating some logger malfunction and/or air exposure.  There is also on minTemp of -21.5 C
 
@@ -249,6 +250,47 @@ Notes
 
 <br>
 
+***
+
 Identify and eliminate likely erroneous data 
 
-(work in progress here 11/6/20)
+* Start by visually examining datasets that include observations >25 C.  Does anything about these datasets suggest exposure or malfunction? (Or temperatures recorded pre/post deployment i water?)
+```{r}
+# remove extraneous temporary objects from previous steps
+rm(erroneous_dates, exclude_wr,exclude_wf,month.conv,uw.data.1,uw.data.2)
+
+# identify datasets that include observations >25C
+above.25 <- uw.data %>%
+  filter(Temperature >= 25) %>%
+  mutate(year = year(sampleDate)) %>%
+  select(SiteID,year) %>%
+  distinct()
+
+# plot reduced dataset, raw data, not daily means
+z <- inner_join(uw.data,above.25) %>%
+  #select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         sampleTime = hms::as_hms(sampleTime)) %>%
+  mutate(sampleTime = strftime(sampleTime, format = "%H:%M")) 
+
+
+# work in progress here at of 11/6/20
+
+         day = yday(sampleDate),
+         dateTime = paste0(sampleDate)) %>%
+  group_by(SiteID,year) %>%
+  #summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID, scales = "free_y") +
+  ggtitle("Original Logger Data by Site and Year - Datasets w/ >25 C")
+
+# Notes: from "data/Jackie Carter UW/UA Mail - Bristol Bay Temperature Data.pdf" :
+# "I have noticed some weird stuff going on with some of the older data. I think it may be an artifact of how our former database manager imported the data (bulk import, no distinction between logger type so there are multiple readings per hour but they aren't really as similar as one might expect). The known affected locations and years are: Aleknagik Bear Creek 2010-2013, Nerka Fenno Creek 2010-2013, and Nerka Pick Creek 2006-2012."
+
+```
+<br>
+
+Process to identify and remove erroneous data:
+
+*
