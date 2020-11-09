@@ -37,6 +37,10 @@ Read in data from FWS folder -- work in progress here
 ```{r}
 # FWS data is structured such that individual sites are separated by tabs, with one tab for metadata
 
+# working to replicate example in "data_Deshka_Temperature>Model.Rmd", seems most similar to read-in process needed here.
+
+# 11/9/20 not yet successful; plan to talk with Becky before continuing
+
 fws_folder <- "data/FWS"
 
 files <- list.files(path = paste(fws_folder, sep = ""), pattern = ".xlsx", full.names = TRUE)
@@ -70,23 +74,7 @@ z <- path %>%
   map(read_excel, path = path)
 
 
-
-fws.files <- list.files(path = "data/FWS", pattern = ".xlsx", full.names = T)
-
-accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
-               pattern = "*.csv", 
-               full.names = T) %>% 
-    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) 
-
 # note: some files have a "location description" column and others do not
 
-# rename, transform, and eliminate columns to match final field names described in Project_notes.Rmd
-accs.data <- accs.data %>%
-  rename(SiteID = AKOATS_ID) %>%
-  select(SiteID,sampleDate,sampleTime,Temperature
-         ) %>%
-  transform(sampleDate = as.Date(mdy(sampleDate)),
-            sampleTime = hms(sampleTime),
-            Temperature = as.numeric(Temperature)) 
 
 ```
