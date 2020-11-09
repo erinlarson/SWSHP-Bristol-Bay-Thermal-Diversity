@@ -65,7 +65,7 @@ Exclude specified datasets
 # specify datasets to be excluded (all years)
 exclude_wf <- c("Aleknagik Big Whitefish Creek","Aleknagik Little Whitefish Creek")
 
-# specify datasets to be removed (one watershed, one year)
+# specify datasets to be excluded (one watershed, one year)
 StationName <- "Aleknagik Wood River"
 YearSampled <- "2009"
 exclude_wr <- data.frame(StationName,YearSampled)
@@ -244,7 +244,7 @@ uw.data %>%
 
 Notes:
 
-* Among the whole data set, there are some max temps > 50 C, indicating some logger malfunction and/or air exposure.  There is also on minTemp of -21.5 C
+* Among the whole data set, there are some max temps > 50 C, indicating some logger malfunction and/or air exposure.  There is also a minTemp of -21.5 C
 
 * Different types of instruments were employed to collect UW water temp data over the years, including iButtons, Stage gauges, Tidbits, and Level loggers.
 
@@ -254,7 +254,11 @@ Notes:
 
 Identify and eliminate likely erroneous data 
 
-* Start by visually examining datasets that include observations >25 C.  Does anything about these datasets suggest exposure or malfunction? (Or temperatures recorded pre/post deployment i water?)
+* Start by visually examining datasets that include observations >25 C.  Does anything about these datasets suggest exposure or malfunction? (Or temperatures recorded pre/post deployment in water?)
+
+<br>
+
+Plot 1, visualization goal: are values for a given site within a particular year out of range of those from previous years?  If so consider identifying and removing erroneous values.
 ```{r}
 # remove extraneous temporary objects from previous steps
 rm(erroneous_dates, exclude_wr,exclude_wf,month.conv,uw.data.1,uw.data.2)
@@ -266,26 +270,28 @@ above.25 <- uw.data %>%
   select(SiteID,year) %>%
   distinct()
 
-# plot reduced dataset, raw data, not daily means
-z <- inner_join(uw.data,above.25) %>%
+# plot reduced dataset of site/years that contain >25C observations -- raw data, not daily means
+(z <- inner_join(uw.data,above.25) %>%
   #select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         sampleTime = hms::as_hms(sampleTime)) %>%
-  mutate(sampleTime = strftime(sampleTime, format = "%H:%M")) 
-
-
-# work in progress here at of 11/6/20
-
-         day = yday(sampleDate),
-         dateTime = paste0(sampleDate)) %>%
+  mutate(dateTime = paste(sampleDate,sampleTime)) %>%
+  mutate(dateTime = as.POSIXct(dateTime, format = "%Y-%m-%d %H:%M:%S"),
+         year = as.factor(year(sampleDate)),
+         test = ) %>%
   group_by(SiteID,year) %>%
   #summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
-  geom_point() +
+  ggplot(aes(dateTime,Temperature, color = year, group = year)) +
+  geom_point(size = 0.7) +
   facet_wrap(. ~ SiteID, scales = "free_y") +
-  ggtitle("Original Logger Data by Site and Year - Datasets w/ >25 C")
+    
+ # working here 11/9/20
+  labs(x="Month", colour="Year") +
+    
+    # goal: plot values by month-day hour on x axis, multiple years per site facet... easier to see how time series compare among years at same site as such.
+    
+    
+  ggtitle("Original Raw Logger Data by Site and Year - Datasets w/ >25 C"))
 
-# Notes: from "data/Jackie Carter UW/UA Mail - Bristol Bay Temperature Data.pdf" :
+# Notes: from "data/Jackie Carter UW/UA email - Bristol Bay Temperature Data.pdf" :
 # "I have noticed some weird stuff going on with some of the older data. I think it may be an artifact of how our former database manager imported the data (bulk import, no distinction between logger type so there are multiple readings per hour but they aren't really as similar as one might expect). The known affected locations and years are: Aleknagik Bear Creek 2010-2013, Nerka Fenno Creek 2010-2013, and Nerka Pick Creek 2006-2012."
 
 ```
@@ -293,4 +299,6 @@ z <- inner_join(uw.data,above.25) %>%
 
 Process to identify and remove erroneous data:
 
-*
+* Visually identify data that does not seem reasonable
+* Plot unreasonable datasets by individual year and site
+* Use an anti_join script process to remove erroneous data by start and end dateTime
