@@ -48,7 +48,7 @@ accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
 accs.data <- accs.data %>%
   select(AKOATS_ID,sampleDate,sampleTime,Temperature) %>%
   transform(sampleDate = as.Date(mdy(sampleDate)),
-            sampleTime = lubridate::hms(sampleTime),
+            sampleTime = hms::as.hms(sampleTime),
             Temperature = as.numeric(Temperature)) 
 
 
