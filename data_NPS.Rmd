@@ -1,0 +1,75 @@
+---
+title: "NPS Water Temp Data"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# clear environment
+rm(list=ls())
+
+# load packages
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+library(DT)
+```
+
+<br>
+
+Read in data from folder "NPS Bartz"
+```{r}
+# create dataframe of multi-depth-loggers Lake sites to read in later
+z <- read.csv(
+)
+
+# site-files that we want to read in seperately are assigned "Sensor_placement = Lake Center" in the Site Info fale; use this to filter
+
+nps.data <-list.files(path = paste0("data/NPS Bartz"),
+               pattern = "*.csv", 
+               full.names = T) %>%
+  data.frame() %>%
+  filter()
+nps.data <- nps.data[!grepl(c("Pilot"), nps.data)] 
+z <- nps.data %>%
+  map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T, skip = 15)) 
+
+```
+
+Notes: 
+
+* The file "All_Pilot_Sites_20201104.csv" is not in a format consistent with all other single-logger-per-site csv files.  Read in separately.
+
+* The following csv files are site files containing all data from an anchored line in a lake w/ loggers at various (5m-10m) depth increments.  Read in and address these separately:
+
+- LCLAR_01_TEMP
+- KIJIL_01_TEMP
+- TELAL_01_TEMP
+- LBROO_01_TEMP
+- NAKNL_03_TEMP
+- NAKNL_01_TEMP
+- NAKNL_02_TEMP
+
+
+* Among sites and years, various types of loggers are employed (sonde, level logger, HOBO, etc)
+
+
