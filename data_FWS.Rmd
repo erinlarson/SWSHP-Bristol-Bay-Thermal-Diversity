@@ -33,59 +33,20 @@ library(hms)
 library(plotly)
 ```
 
-Read in data from FWS folder -- work in progress here
-```{r}
-# FWS data is structured such that individual sites are separated by tabs, with one tab for metadata
 
-# working to replicate example in "data_Deshka_Temperature>Model.Rmd", seems most similar to read-in process needed here.
+<br>
 
-# 11/9/20 not yet successful; plan to talk with Becky before continuing
+### Data Import
 
-fws_folder <- "data/FWS"
+Read in Excel files, one at a time.  Note: data is structured such that individual sites are separated by tabs, with one tab for metadata.
 
-files <- list.files(path = paste(fws_folder, sep = ""), pattern = ".xlsx", full.names = TRUE)
-
-files <- files[!files %in% (grep("availability", files, value = TRUE))]
-
-
-# function from other of Becky's examples
-combine_sheets_with_site_ID <- function(excel_file_path) {
-  sheets <- excel_sheets(excel_file_path)
-  sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
-  all_dat <- tibble()
-  for(i in sheets){
-    dat <- read_excel(excel_file_path, sheet = i) %>% 
-      mutate(SiteID = i)
-    all_dat <- bind_rows(all_dat, dat)
-  }
-  return(all_dat)
-}
-
-
-temp <- files %>% 
-  map_df(function(x) combine_sheets_with_site_ID(x)) 
-
-
-
-
-# this suggested code produces repetitive error, 'Expecting numeric in C21845 / R21845C3: got '---'
-path <- "data/FWS/Togiak_Oct2020_Part2.xlsx"
-z <- path %>% 
-  excel_sheets() %>% 
-  set_names() %>% 
-  map(read_excel, path = path)
-
-
-# note: some files have a "location description" column and others do not
-
-
-```
-
-Example for one workbook -- I would just deal with each separately and combine at the end.
-
+Read in "Togiak_Oct2020_Part1.xlsx"
 ```{r}
 #becky's togiak 1 dataset
-togiak1 <- "S:/Stream Temperature Data/USFWS Perdue - complete 2020/Togiak_Oct2020_Part1.xlsx"
+#togiak1 <- "S:/Stream Temperature Data/USFWS Perdue - complete 2020/Togiak_Oct2020_Part1.xlsx"
+
+# ben's togiak1 dataset path
+togiak1 <- "data/FWS/Togiak_Oct2020_Part1.xlsx"
 
 sheets <- excel_sheets(togiak1)
 sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
@@ -97,8 +58,102 @@ for(i in sheets){
   tog1_dat <- bind_rows(tog1_dat, dat)
 }
 
+```
+
+<br>
+
+Read in "Togiak_Oct2020_Part2.xlsx"
+```{r}
+# ben's togiak2 dataset path
+togiak2 <- "data/FWS/Togiak_Oct2020_Part2.xlsx"
+
+sheets <- excel_sheets(togiak2)
+sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
+tog2_dat <- tibble()
+for(i in sheets){
+  dat <- read_excel(togiak2, 
+                    sheet = i, 
+                    skip = 1, 
+                    col_types = c("date", "date", "text"), 
+                    col_names = c("date", "time", "temp")) %>%
+    mutate(SiteID = i)
+  tog2_dat <- bind_rows(tog2_dat, dat)
+}
 
 ```
+
+<br>
+
+Read in Egegik data, "WRB_Oct2020.xlsx"
+```{r}
+# ben's egegik dataset path
+egegik <- "data/FWS/WRB_Oct2020.xlsx"
+
+sheets <- excel_sheets(egegik)
+sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
+egegik_dat <- tibble()
+for(i in sheets){
+  dat <- read_excel(egegik, 
+                    sheet = i, 
+                    skip = 1, 
+                    col_types = c("date", "date", "text"), 
+                    col_names = c("date", "time", "temp")) %>%
+    mutate(SiteID = i)
+  egegik_dat <- bind_rows(egegik_dat, dat)
+}
+
+```
+
+<br>
+
+Combine the three data sources and format as specified in Project_notes.Rmd
+```{r}
+fws.data <- bind_rows(tog1_dat,tog2_dat,egegik_dat) %>%
+  rename(Temperature = temp,
+         sampleTime = time,
+         sampleDate = date) %>%
+  transform(Temperature = as.numeric(Temperature),
+            sampleDate = as.Date(sampleDate),
+            sampleTime = hms::as.hms(sampleTime)) %>%
+  filter(!is.na(Temperature))
+
+```
+
+<br>
+
+Read in metadata and use to assign AKOATS_IDs
+```{r}
+# togiak1
+togiak1_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part1.xlsx", sheet = "AKOATS_metadata")
+
+#togiak2
+togiak2_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part2.xlsx", sheet = "AKOATS_metadata")
+
+#egegik
+egegik_metadata <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata")
+
+# combine metadata sheets
+fws.metadata <- bind_rows(togiak1_metadata,togiak2_metadata,egegik_metadata) %>%
+  select(AKOATS_ID,SiteID,Waterbody_name)
+
+# 
+fws.data <- left_join(fws.data,fws.metadata,by = "SiteID") %>%
+  distinct()
+
+# remove extraneous objects
+rm(togiak1_metadata,togiak2_metadata,egegik_metadata,egegik_dat,tog1_dat,tog2_dat,dat)
+
+```
+
+
+Plot
+
+
+Assign useData column
+
+
+
+
 
 This read in fine for me. I had to change the temp field to text because there are strange entries. From here, try to deal with date/time formatting and temperature data so all correct classes. 
 
