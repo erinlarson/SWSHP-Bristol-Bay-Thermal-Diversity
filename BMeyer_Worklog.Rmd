@@ -39,3 +39,8 @@ Completed draft of UAA-ACCS data import/clean.  Began work on FWS data, not yet 
 11/6/20
 Continued working on UW data.  Sorted through some erroneous date/time formats and read in entire dataset.  Currently working to identify/eliminate data from logger malfunction or exposure.
 
+
+11/9/20
+Made some progress on data_UW.Rmd.  Was stuck on some coding syntax questions, had conversation w/ Becky for 1/2 hr.  She made a variety of notes and some code to address questions.  Decided that data can be QA/QC'd and excised at the scale of daily mean, less useful to look at original observations at sub-daily level.
+
+Able to read in all FWS data, combined w/ metadata to assign AKOATS_ID and waterbody name.
