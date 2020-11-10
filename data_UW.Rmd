@@ -199,7 +199,10 @@ uw.data <- bind_rows(uw.data,uw.data.1)
 
 <br>
 
-To do here: when site metadata available, associate w/ AKOATS_ID
+To do here: 
+
+* when site metadata available, associate w/ AKOATS_ID
+* examine Lynx Creek data t see if it consists of multiple sites, or just naming variations on the same site
 
 Perform a quick visualization and summary table to see extent and form of original data.
 
@@ -258,9 +261,12 @@ Identify and eliminate likely erroneous data
 
 * Start by visually examining datasets that include observations >25 C.  Does anything about these datasets suggest exposure or malfunction? (Or temperatures recorded pre/post deployment in water?)
 
+
+
+
 <br>
 
-Plot 1, visualization goal: are values for a given site within a particular year out of range of those from previous years?  If so consider identifying and removing erroneous values.
+Plot 1 
 ```{r}
 # remove extraneous temporary objects from previous steps
 rm(erroneous_dates, exclude_wr,exclude_wf,month.conv,uw.data.1,uw.data.2)
@@ -272,35 +278,59 @@ above.25 <- uw.data %>%
   select(SiteID,year) %>%
   distinct()
 
-# plot reduced dataset of site/years that contain >25C observations -- raw data, not daily means
-(z <- inner_join(uw.data,above.25) %>%
-  #select(-sampleTime) %>%
-  mutate(dateTime = paste(sampleDate,sampleTime)) %>%
-  mutate(dateTime = as.POSIXct(dateTime, format = "%Y-%m-%d %H:%M:%S"),
-         year = as.factor(year(sampleDate)),
-         test = ) %>%
-  group_by(SiteID,year) %>%
-  #summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  ggplot(aes(dateTime,Temperature, color = year, group = year)) +
-  geom_point(size = 0.7) +
-  facet_wrap(. ~ SiteID, scales = "free_y") +
-    
- # working here 11/9/20
-    
-  labs(x="Month", colour="Year") +
-    
-    # goal: plot values by month-day hour on x axis, multiple years per site facet... easier to see how time series compare among years at same site as such.
-    
-  ggtitle("Original Raw Logger Data by Site and Year - Datasets w/ >25 C"))
-
-# conversation with becky: do qa/qc at daily mean level
-
+# plot reduced dataset of site/years that contain >25C observations -- daily means
+uw.data %>%
+  inner_join(above.25) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data by Site and Year - Datasets w/ >25 C")
 
 # Notes: from "data/Jackie Carter UW/UA email - Bristol Bay Temperature Data.pdf" :
 # "I have noticed some weird stuff going on with some of the older data. I think it may be an artifact of how our former database manager imported the data (bulk import, no distinction between logger type so there are multiple readings per hour but they aren't really as similar as one might expect). The known affected locations and years are: Aleknagik Bear Creek 2010-2013, Nerka Fenno Creek 2010-2013, and Nerka Pick Creek 2006-2012."
 
 ```
 <br>
+
+Examine individual datasets with suspected issue one at a time by site/year with interactive plotly chart
+```{r}
+# list of watersheds to examine w/ ggplotly object
+l <- above.25 %>%
+  select(-year) %>%
+  distinct()
+
+# create ggplot object
+p <- uw.data %>%
+  inner_join(above.25) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modify SiteID one at a time here to visually inspect dataset
+  filter(SiteID == "Aleknagik Hansen Creek",
+         year == 2008) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data by Site and Year - Datasets w/ >25 C")
+
+# create ggplotly object
+ggplotly(p)
+
+# create table of erroneous data to be flagged/excised
+# @ data/flagged_data/UW_flagged_data.csv
+
+# working on 11/10/20 : some exposure at Hanson crk 2008
+
+```
+
 
 Process to identify and remove erroneous data:
 
