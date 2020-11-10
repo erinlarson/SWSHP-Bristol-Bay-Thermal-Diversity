@@ -44,3 +44,6 @@ Continued working on UW data.  Sorted through some erroneous date/time formats a
 Made some progress on data_UW.Rmd.  Was stuck on some coding syntax questions, had conversation w/ Becky for 1/2 hr.  She made a variety of notes and some code to address questions.  Decided that data can be QA/QC'd and excised at the scale of daily mean, less useful to look at original observations at sub-daily level.
 
 Able to read in all FWS data, combined w/ metadata to assign AKOATS_ID and waterbody name.
+
+11/10/20
+AM: work in progress to ID erroneous UW data
