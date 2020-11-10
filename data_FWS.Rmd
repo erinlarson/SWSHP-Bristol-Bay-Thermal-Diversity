@@ -136,7 +136,7 @@ egegik_metadata <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metad
 fws.metadata <- bind_rows(togiak1_metadata,togiak2_metadata,egegik_metadata) %>%
   select(AKOATS_ID,SiteID,Waterbody_name)
 
-# 
+# join metadata to data
 fws.data <- left_join(fws.data,fws.metadata,by = "SiteID") %>%
   distinct()
 
@@ -145,32 +145,71 @@ rm(togiak1_metadata,togiak2_metadata,egegik_metadata,egegik_dat,tog1_dat,tog2_da
 
 ```
 
+<br>
 
-Plot
+Perform a quick visualization and summary table to see extent and form of original data.
+
+* Summary table
+
+```{r}
+# create data summary table
+fws.data.summary <- fws.data %>%
+  mutate(year = year(sampleDate)) %>%
+  group_by(SiteID,year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+fws.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+    
+```
+<br>
+
+* Visualization
+
+```{r}
+fws.data %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,Waterbody_name,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ Waterbody_name) +
+  ggtitle("Original Logger Data by Site and Year - Daily Mean")
+
+```
+
+<br>
+
+A quick visualization does not reveal many dramatically obvious signs of logger malfunction.  Export for now, will more carefully re-examine later.
 
 
 Assign useData column
-
-
-
-
-
-This read in fine for me. I had to change the temp field to text because there are strange entries. From here, try to deal with date/time formatting and temperature data so all correct classes. 
-
 ```{r}
-summary(tog1_dat)
+fws.data <- fws.data %>%
+  mutate(useData = 1)
+```
 
-tog1_dat
+<br>
 
-tog1_dat %>% 
-  mutate(sampleDate = as.Date(date, format ), # make edits here to pull off time
-         sampleTime = as.hms ()) # makes edits here to pull off date
+To do: Flag erroneous data, and assign "useData = 0" to erroneous/flagged data.
 
-tog1_dat %>% 
-  filter() #get rid of missing temp data "---" others?
-
+<br>
 
 
+Export csv of combined datasets, with newly identified "do not use data" signified with a "0" in the useData column, to data folder associated with this .Rproj
+```{r}
+# reorder columns
+x <- fws.data %>% select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
+
+# export csv
+write.csv(x,"output/FWS.csv", row.names = F)
 
 ```
 
