@@ -47,6 +47,18 @@ uw.data <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
 
 <br>
 
+Notes on site name consistency:
+
+* Once we have UW metadata, we'll need to examine the Lynx creek site locations carefully.  Naming convention(s) may not have been consistent across years.
+```{r}
+uw.data %>%
+  dplyr::filter(grepl("Lynx",StationName)) %>%
+  select(StationName) %>%
+  distinct()
+```
+
+<br>
+
 Notes on data consistency: 
 
 * Date format for sites "Aleknagik Big Whitefish Creek" and "Aleknagik Little Whitefish Creek" is in format "01-Apr-12", which lubridate will not parse.  
@@ -54,6 +66,11 @@ Notes on data consistency:
 * Date and time formats for part of the "Aleknagik Wood River" file for 2009 have some errors and/or inconsistencies.  Some of the cells in the time column begin with ":". Also, some cells in the date column end with a single digit, and the year is sometimes formatted with either 2 digits or 4 digits.  Some of these features are likely artifacts of some previous data sorting/cleaning process.
 
 * Need to treat import and prep of these three data sets separately.
+
+<br>
+
+
+
 
 <br>
 
@@ -259,9 +276,7 @@ Notes:
 
 Identify and eliminate likely erroneous data 
 
-* Start by visually examining datasets that include observations >25 C.  Does anything about these datasets suggest exposure or malfunction? (Or temperatures recorded pre/post deployment in water?)
-
-
+* Step 1: Start by visually examining datasets that include observations >25 C.  Does anything about these datasets suggest exposure or malfunction? (Or temperatures recorded pre/post deployment in water?)
 
 
 <br>
@@ -297,15 +312,22 @@ uw.data %>%
 ```
 <br>
 
-Examine individual datasets with suspected issue one at a time by site/year with interactive plotly chart
+Process to identify and remove erroneous data:
+
+* Visually identify data that does not seem reasonable
+* Plot unreasonable datasets by individual year and site
+* Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
 ```{r}
 # list of watersheds to examine w/ ggplotly object
 l <- above.25 %>%
   select(-year) %>%
   distinct()
 
-# create ggplot object
-p <- uw.data %>%
+y <- c("2012","2016")
+
+# create ggplotly chart
+ggplotly(
+  p <- uw.data %>%
   inner_join(above.25) %>%
   select(-sampleTime) %>%
   mutate(year = as.factor(year(sampleDate)),
@@ -313,27 +335,74 @@ p <- uw.data %>%
   group_by(day,SiteID,year) %>%
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   
-  # modify SiteID one at a time here to visually inspect dataset
-  filter(SiteID == "Aleknagik Hansen Creek",
-         year == 2008) %>%
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == "Nerka Lynx Creek"
+         #,year %in% y
+         ) %>%
+  
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
   geom_point() +
   facet_wrap(. ~ SiteID) +
-  ggtitle("Daily Mean Data by Site and Year - Datasets w/ >25 C")
+  ggtitle("Daily Mean Data, Lynx Creek (Example)")
+  )
+```
 
-# create ggplotly object
-ggplotly(p)
+If further data is is identified to be flagged, edit the csv file at "data/flagged_data/UW_flagged_data.csv"
 
-# create table of erroneous data to be flagged/excised
-# @ data/flagged_data/UW_flagged_data.csv
+<br>
 
-# working on 11/10/20 : some exposure at Hanson crk 2008
+Apply flags for good/bad data
+```{r}
+# created table of erroneous data to be flagged/excised
+## @ data/flagged_data/UW_flagged_data.csv
+
+# use flagged data table to assign "useData = 0" to erroneous observations
+
+# read in start/end dates for flagged data
+uw_flagged_data <- read.csv("data/flagged_data/UW_flagged_data.csv") %>%
+  filter(!is.na(day_start)) %>%
+  select(-Notes) 
+
+# create table of data to be flagged w/ "useData = 0"
+uw_flagged_data <- uw.data %>% 
+  mutate(year = year(sampleDate)) %>%
+  inner_join(uw_flagged_data,by = c("SiteID","year")) %>%
+  mutate(day = yday(sampleDate)) %>%
+  filter(day >= day_start & day <= day_end) %>%
+  mutate(useData = 0) %>%
+  select(-day_start,-day_end,-year,-day)
+
+# remove 
+uw_nonflagged_data <- anti_join(uw.data,uw_flagged_data,by = c("SiteID","sampleDate","sampleTime")) %>%
+  mutate(useData = 1)
+
+# rejoin flagged and non-flagged data in same dataframe
+uw.data <- bind_rows(uw_flagged_data,uw_nonflagged_data)
+
+# remove extraneous objects
+rm(above.25,l,p,uw_flagged_data,uw_nonflagged_data)
 
 ```
 
 
-Process to identify and remove erroneous data:
+<br>
 
-* Visually identify data that does not seem reasonable
-* Plot unreasonable datasets by individual year and site
-* Use an anti_join script process to remove erroneous data by start and end dateTime
+To do: when UW metadata available, use to create an AKOATS_ID column in "uw.data" dataframe
+
+To do: try using functions in "Temp_flags_function.R" to IDeven more bad data.
+
+<br>
+
+
+11/10/20: Ready to output file as soon as we get metadata!
+
+Export csv of combined datasets, with newly identified "do not use data" signified with a "0" in the useData column, to data folder associated with this .Rproj
+```{r}
+# reorder columns
+x <- uw.data %>% select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
+
+# export csv
+# write.csv(x,"output/UW.csv", row.names = F)
+
+```
+
