@@ -47,9 +47,11 @@ files <- list.files(path = paste(fws_folder, sep = ""), pattern = ".xlsx", full.
 
 files <- files[!files %in% (grep("availability", files, value = TRUE))]
 
+
 # function from other of Becky's examples
 combine_sheets_with_site_ID <- function(excel_file_path) {
   sheets <- excel_sheets(excel_file_path)
+  sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
   all_dat <- tibble()
   for(i in sheets){
     dat <- read_excel(excel_file_path, sheet = i) %>% 
@@ -78,3 +80,42 @@ z <- path %>%
 
 
 ```
+
+Example for one workbook -- I would just deal with each separately and combine at the end.
+
+```{r}
+#becky's togiak 1 dataset
+togiak1 <- "S:/Stream Temperature Data/USFWS Perdue - complete 2020/Togiak_Oct2020_Part1.xlsx"
+
+sheets <- excel_sheets(togiak1)
+sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
+tog1_dat <- tibble()
+for(i in sheets){
+  dat <- read_excel(togiak1, sheet = i, skip = 1, col_types = c("date", "date", "text"), 
+                    col_names = c("date", "time", "temp")) %>%
+    mutate(SiteID = i)
+  tog1_dat <- bind_rows(tog1_dat, dat)
+}
+
+
+```
+
+This read in fine for me. I had to change the temp field to text because there are strange entries. From here, try to deal with date/time formatting and temperature data so all correct classes. 
+
+```{r}
+summary(tog1_dat)
+
+tog1_dat
+
+tog1_dat %>% 
+  mutate(sampleDate = as.Date(date, format ), # make edits here to pull off time
+         sampleTime = as.hms ()) # makes edits here to pull off date
+
+tog1_dat %>% 
+  filter() #get rid of missing temp data "---" others?
+
+
+
+
+```
+
