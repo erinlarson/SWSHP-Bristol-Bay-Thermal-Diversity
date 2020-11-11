@@ -37,27 +37,10 @@ library(DT)
 <br>
 
 Read in data from folder "NPS Bartz"
-```{r}
-# create dataframe of multi-depth-loggers Lake sites to read in later
-z <- read.csv(
-)
 
-# site-files that we want to read in seperately are assigned "Sensor_placement = Lake Center" in the Site Info fale; use this to filter
+Read-in notes:
 
-nps.data <-list.files(path = paste0("data/NPS Bartz"),
-               pattern = "*.csv", 
-               full.names = T) %>%
-  data.frame() %>%
-  filter()
-nps.data <- nps.data[!grepl(c("Pilot"), nps.data)] 
-z <- nps.data %>%
-  map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T, skip = 15)) 
-
-```
-
-Notes: 
-
-* The file "All_Pilot_Sites_20201104.csv" is not in a format consistent with all other single-logger-per-site csv files.  Read in separately.
+* The file "All_Pilot_Sites_20201104.csv" is not in a format consistent with all other stream-site csv files.  Read in separately.
 
 * The following csv files are site files containing all data from an anchored line in a lake w/ loggers at various (5m-10m) depth increments.  Read in and address these separately:
 
@@ -68,6 +51,146 @@ Notes:
 - NAKNL_03_TEMP
 - NAKNL_01_TEMP
 - NAKNL_02_TEMP
+
+* Some other lake sites are single-logger per site (e.g. lake shore sites)
+
+Read in single-logger-per-site datasets (streams, beaches)
+```{r}
+# read in all sites that are not multi-level lake logger sites or pilot sites
+nps.data.1 <- list.files(path = "data/NPS Bartz",
+         pattern="*.csv", 
+         full.names = T) %>% 
+   map_df(function(x) read_csv(x,skip = 15, col_types = cols(.default = "c"),col_names = F) %>% 
+            mutate(filename=gsub(".csv","",basename(x))))
+colnames(nps.data.1) <- c("a","DateTime","Temperature","b","c","d","File for B_Shaftel") 
+nps.data.1 <- nps.data.1 %>% select(-a,-b,-c,-d)
+
+# assign AgencyID and waterbody name
+nps.data.1 <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
+  select("Agency_ID","File for B_Shaftel","Waterbody_Name") %>%
+  right_join(nps.data.1) %>%
+  select(-"File for B_Shaftel") %>%
+  # make up a SiteID name for plotting
+  mutate(SiteID = paste0(Agency_ID,"_",Waterbody_Name)) %>%
+  # format col type
+  transform(Temperature = as.numeric(Temperature))
+
+
+# read and format in "All_Pilot_Sites_20201104.csv"
+nps.data.2 <- read.csv("data/NPS Bartz/Pilot_sites/All_Pilot_Sites_20201104.csv") %>%
+  mutate(DateTime = paste(Date,Time)) %>%
+  select(-X,-Date,-Time) %>%
+  pivot_longer(!DateTime, names_to = "SiteID", values_to = "Temperature") %>%
+  transform(Temperature = as.numeric(Temperature))
+
+# we want to use SiteID to associate with metadata.  However, there are two issues:
+
+# primary issue: site names (column names) in "All_Pilot_Sites_20201104.csv" do not have an exact match anywhere in the "Site_Info.xlsx" metadata file.  Thus we will manually generate a dataframe to match site names to metadata
+
+# a secondary issue: in "Site_Info.xlsx", neither the "Agency_ID" column nor "Waterbody_Name" columns have unique IDs for each site.  
+
+# Solution: 
+
+# manually create join table to associate names in "Site_Info.xlsx" with names in "All_Pilot_Sites_20201104.csv"
+
+# FYI: the two sites are 36m apart; but should still be QA/QC'd separately, so keep separate at this step
+
+sitenames.1 <- data.frame(c("Margot_Water","Up_A_Tree_Water",
+                      "Idavain_Water","Chulitna_Water",
+                      "Kijik_Beach_Water","Port_Alsworth_Water",
+                      "Little_Kijik_Water","Tazimina_Water",
+                      "Tlikakila_Water_A","Tlikakila_Water_B",
+                      "Savonoski_Water"))
+colnames(sitenames.1) <- "SiteID"
+
+
+sitenames.2 <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
+  select("Agency_ID","File for B_Shaftel","Waterbody_Name") %>%
+  filter(`File for B_Shaftel` == "All_Pilot_Sites_20201104") %>%
+  select(-`File for B_Shaftel`) 
+
+sitenames <- bind_cols(sitenames.1,sitenames.2)
+
+# join nps.data.2 to assigned site names 
+nps.data.2 <- left_join(nps.data.2,sitenames,by = "SiteID") %>%
+  filter(!is.na(Temperature))
+
+# join "pilot data" with other single-logger-per-site data
+nps.data <- bind_rows(nps.data.1,nps.data.2)
+
+# remove extraneous objects
+rm(nps.data.1,nps.data.2,sitenames,sitenames.1,sitenames.2)
+```
+
+<br>
+
+Read in multiple-logger-per-site datasets (buoys @ lake centers)
+```{r}
+# read in all sites that ARE multi-level lake logger sites 
+
+# Notes
+# - There is not a consistent number of depth levels (ranges ~ 5 - 10 depths)
+
+# working here to maybe adapt example from http://datacornering.com/how-to-combine-files-with-r-and-add-filename-column/
+
+all_paths <-
+  list.files(path = "data/NPS Bartz/Multilevel_Lake_Sites",
+             pattern = "*.csv",
+             full.names = TRUE)
+
+all_content <-
+  all_paths %>%
+  lapply(read.table,
+         header = TRUE,
+         sep = ",",
+         skip = 4,
+         encoding = "UTF-8")
+
+
+all_filenames <- all_paths %>%
+  basename() %>%
+  as.list()
+
+all_lists <- mapply(c, all_content, all_filenames, SIMPLIFY = FALSE)
+
+all_result <- rbindlist(all_lists, fill = T)
+# change column name
+names(all_result)[3] <- "File.Path"
+
+
+
+# read in one file and make it a function?
+file <- read.csv("data/NPS Bartz/Multilevel_Lake_Sites/KIJIL_01_temp_20201104.csv", skip = 3) %>%
+  filter(X != "Timestamp (UTC-08:00)") %>%
+  mutate(filename =gsub(".csv","",basename(file)))
+  
+  
+  
+colnames(file) <- sub("Water.Temp\\.", "Depth", colnames(file))
+file <- file %>%
+  rename(DateTime = X) %>%
+  
+
+
+
+nps.lakes <- list.files(path = "data/NPS Bartz/Multilevel_Lake_Sites",
+         pattern="*.csv", 
+         full.names = T) %>% 
+   map_df(function(x) read_csv(x,skip = 15, col_types = cols(.default = "c"),col_names = F) %>% 
+            mutate(filename=gsub(".csv","",basename(x))))
+colnames(nps.data.1) <- c("a","DateTime","Temperature","b","c","d","File for B_Shaftel") 
+nps.data.1 <- nps.data.1 %>% select(-a,-b,-c,-d)
+
+```
+
+
+
+
+```{r}
+
+
+```
+
 
 
 * Among sites and years, various types of loggers are employed (sonde, level logger, HOBO, etc)
