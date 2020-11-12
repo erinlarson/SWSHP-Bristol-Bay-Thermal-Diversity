@@ -89,11 +89,9 @@ nps.data.2 <- read.csv("data/NPS Bartz/Pilot_sites/All_Pilot_Sites_20201104.csv"
 
 # a secondary issue: in "Site_Info.xlsx", neither the "Agency_ID" column nor "Waterbody_Name" columns have unique IDs for each site.  
 
-# Solution: 
+# Solution: manually create join table to associate names in "Site_Info.xlsx" with names in "All_Pilot_Sites_20201104.csv"
 
-# manually create join table to associate names in "Site_Info.xlsx" with names in "All_Pilot_Sites_20201104.csv"
-
-# FYI: the two sites are 36m apart; but should still be QA/QC'd separately, so keep separate at this step
+# FYI: the two sites are 36m apart; but should still be QA/QC'd separately, so keep separate at this stage of analysis
 
 sitenames.1 <- data.frame(c("Margot_Water","Up_A_Tree_Water",
                       "Idavain_Water","Chulitna_Water",
@@ -129,9 +127,9 @@ Read in multiple-logger-per-site datasets (buoys @ lake centers)
 # read in all sites that ARE multi-level lake logger sites 
 
 # Notes
-# - There is not a consistent number of depth levels (ranges ~ 5 - 10 depths)
+# - There is not a consistent number of depth levels (ranges from ~ 5 - 10 depths)
 
-# one file example
+## one file read-in & format example
 filepath <- "data/NPS Bartz/Multilevel_Lake_Sites/KIJIL_01_temp_20201104.csv"
 file <- read.csv(filepath, skip = 3) %>%
   filter(X != "Timestamp (UTC-08:00)") 
@@ -143,7 +141,8 @@ file <- file %>%
 file <- file %>% mutate(SiteID = basename(filepath))
 nps.lakes <- bind_rows(nps.lakes,file) 
 
-# multiple files
+
+## read in and bind multiple files
 all_paths <- list.files("data/NPS Bartz/Multilevel_Lake_Sites",
                         full.names = T)
 
@@ -160,7 +159,10 @@ file <- file %>% mutate(SiteID = basename(i))
 nps.lakes <- bind_rows(nps.lakes,file) 
 }
 
-# function reads in only the first file.  why is it not iterating over all 7 file paths in "all_paths" list?
+# the loop reads in only the first file...?!
+unique(nps.lakes$SiteID)
+
+# why is it not iterating over all 7 file paths in "all_paths" list?
 
 ```
 
