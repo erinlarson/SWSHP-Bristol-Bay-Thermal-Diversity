@@ -131,55 +131,36 @@ Read in multiple-logger-per-site datasets (buoys @ lake centers)
 # Notes
 # - There is not a consistent number of depth levels (ranges ~ 5 - 10 depths)
 
-# working here to maybe adapt example from http://datacornering.com/how-to-combine-files-with-r-and-add-filename-column/
-
-all_paths <-
-  list.files(path = "data/NPS Bartz/Multilevel_Lake_Sites",
-             pattern = "*.csv",
-             full.names = TRUE)
-
-all_content <-
-  all_paths %>%
-  lapply(read.table,
-         header = TRUE,
-         sep = ",",
-         skip = 4,
-         encoding = "UTF-8")
-
-
-all_filenames <- all_paths %>%
-  basename() %>%
-  as.list()
-
-all_lists <- mapply(c, all_content, all_filenames, SIMPLIFY = FALSE)
-
-all_result <- rbindlist(all_lists, fill = T)
-# change column name
-names(all_result)[3] <- "File.Path"
-
-
-
-# read in one file and make it a function?
-file <- read.csv("data/NPS Bartz/Multilevel_Lake_Sites/KIJIL_01_temp_20201104.csv", skip = 3) %>%
-  filter(X != "Timestamp (UTC-08:00)") %>%
-  mutate(filename =gsub(".csv","",basename(file)))
-  
-  
-  
+# one file example
+filepath <- "data/NPS Bartz/Multilevel_Lake_Sites/KIJIL_01_temp_20201104.csv"
+file <- read.csv(filepath, skip = 3) %>%
+  filter(X != "Timestamp (UTC-08:00)") 
 colnames(file) <- sub("Water.Temp\\.", "Depth", colnames(file))
+nps.lakes <- tibble()
 file <- file %>%
   rename(DateTime = X) %>%
-  
+  pivot_longer(!DateTime, names_to = "Depth", values_to = "Temperature")
+file <- file %>% mutate(SiteID = basename(filepath))
+nps.lakes <- bind_rows(nps.lakes,file) 
 
+# multiple files
+all_paths <- list.files("data/NPS Bartz/Multilevel_Lake_Sites",
+                        full.names = T)
 
+# iterate over all files in folder
+for(i in all_paths){
+file <- read.csv(i, skip = 3) %>%
+  filter(X != "Timestamp (UTC-08:00)") 
+colnames(file) <- sub("Water.Temp\\.", "Depth", colnames(file))
+nps.lakes <- tibble()
+file <- file %>%
+  rename(DateTime = X) %>%
+  pivot_longer(!DateTime, names_to = "Depth", values_to = "Temperature")
+file <- file %>% mutate(SiteID = basename(i))
+nps.lakes <- bind_rows(nps.lakes,file) 
+}
 
-nps.lakes <- list.files(path = "data/NPS Bartz/Multilevel_Lake_Sites",
-         pattern="*.csv", 
-         full.names = T) %>% 
-   map_df(function(x) read_csv(x,skip = 15, col_types = cols(.default = "c"),col_names = F) %>% 
-            mutate(filename=gsub(".csv","",basename(x))))
-colnames(nps.data.1) <- c("a","DateTime","Temperature","b","c","d","File for B_Shaftel") 
-nps.data.1 <- nps.data.1 %>% select(-a,-b,-c,-d)
+# function reads in only the first file.  why is it not iterating over all 7 file paths in "all_paths" list?
 
 ```
 
