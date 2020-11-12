@@ -129,17 +129,17 @@ Read in multiple-logger-per-site datasets (buoys @ lake centers)
 # Notes
 # - There is not a consistent number of depth levels (ranges from ~ 5 - 10 depths)
 
-## one file read-in & format example
-filepath <- "data/NPS Bartz/Multilevel_Lake_Sites/KIJIL_01_temp_20201104.csv"
-file <- read.csv(filepath, skip = 3) %>%
-  filter(X != "Timestamp (UTC-08:00)") 
-colnames(file) <- sub("Water.Temp\\.", "Depth", colnames(file))
-nps.lakes <- tibble()
-file <- file %>%
-  rename(DateTime = X) %>%
-  pivot_longer(!DateTime, names_to = "Depth", values_to = "Temperature")
-file <- file %>% mutate(SiteID = basename(filepath))
-nps.lakes <- bind_rows(nps.lakes,file) 
+## one single file read-in & format example
+#nps.lakes <- tibble()
+#filepath <- "data/NPS Bartz/Multilevel_Lake_Sites/KIJIL_01_temp_20201104.csv"
+#file <- read.csv(filepath, skip = 3) %>%
+#  filter(X != "Timestamp (UTC-08:00)") 
+#colnames(file) <- sub("Water.Temp\\.", "Depth", colnames(file))
+#file <- file %>%
+#  rename(DateTime = X) %>%
+#  pivot_longer(!DateTime, names_to = "Depth", values_to = "Temperature")
+#file <- file %>% mutate(SiteID = basename(filepath))
+#nps.lakes <- bind_rows(nps.lakes,file) 
 
 
 ## read in and bind multiple files
@@ -159,14 +159,29 @@ file <- file %>% mutate(SiteID = basename(i))
 nps.lakes <- bind_rows(nps.lakes,file) 
 }
 
-# create Agency_ID column
+# create Agency_ID and Waterbody Name column
+
+
+```
+
+<br>
+
+Visualization & ID of erroneous data
+```{r}
 
 ```
 
 
 
-
+Save output data
 ```{r}
+
+# output lake data file seperately, since it has an additional column for "depth" that all the other data does not
+
+# write streams & beaches csv
+
+
+# write lakes csv
 
 
 ```
