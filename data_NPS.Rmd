@@ -147,11 +147,11 @@ all_paths <- list.files("data/NPS Bartz/Multilevel_Lake_Sites",
                         full.names = T)
 
 # iterate over all files in folder
+nps.lakes <- tibble()
 for(i in all_paths){
 file <- read.csv(i, skip = 3) %>%
   filter(X != "Timestamp (UTC-08:00)") 
 colnames(file) <- sub("Water.Temp\\.", "Depth", colnames(file))
-nps.lakes <- tibble()
 file <- file %>%
   rename(DateTime = X) %>%
   pivot_longer(!DateTime, names_to = "Depth", values_to = "Temperature")
@@ -159,10 +159,7 @@ file <- file %>% mutate(SiteID = basename(i))
 nps.lakes <- bind_rows(nps.lakes,file) 
 }
 
-# the loop reads in only the first file...?!
-unique(nps.lakes$SiteID)
-
-# why is it not iterating over all 7 file paths in "all_paths" list?
+# create Agency_ID column
 
 ```
 
