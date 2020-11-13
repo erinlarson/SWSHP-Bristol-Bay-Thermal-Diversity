@@ -219,7 +219,7 @@ uw.data <- bind_rows(uw.data,uw.data.1)
 To do here: 
 
 * when site metadata available, associate w/ AKOATS_ID
-* examine Lynx Creek data t see if it consists of multiple sites, or just naming variations on the same site
+* examine Lynx Creek data to see if it consists of multiple sites, or just naming variations on the same site
 
 Perform a quick visualization and summary table to see extent and form of original data.
 
