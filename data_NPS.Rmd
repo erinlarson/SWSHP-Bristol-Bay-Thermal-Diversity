@@ -78,8 +78,12 @@ nps.data.1 <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
 
 # read and format in "All_Pilot_Sites_20201104.csv"
 nps.data.2 <- read.csv("data/NPS Bartz/Pilot_sites/All_Pilot_Sites_20201104.csv") %>%
-  mutate(DateTime = paste(Date,Time)) %>%
-  select(-X,-Date,-Time) %>%
+  # modify Date format to use "-" instead of "/" so that lubridate can parse it
+  separate(Date,sep = "/",into = c("m","d","y")) %>% 
+  mutate(Date = paste0(y,"-",m,"-",d),
+         DateTime = paste(Date,Time)) %>%
+  select(-X,-Date,-Time,-m,-d,-y) %>%
+  # create long format
   pivot_longer(!DateTime, names_to = "SiteID", values_to = "Temperature") %>%
   transform(Temperature = as.numeric(Temperature))
 
@@ -116,6 +120,15 @@ nps.data.2 <- left_join(nps.data.2,sitenames,by = "SiteID") %>%
 # join "pilot data" with other single-logger-per-site data
 nps.data <- bind_rows(nps.data.1,nps.data.2)
 
+# assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
+
+nps.data <- nps.data %>%
+  transform(DateTime = ymd_hms(DateTime)) %>%
+  filter(!is.na(DateTime)) %>%
+  mutate(sampleDate = date(DateTime),
+         sampleTime = hms::as_hms(DateTime)) %>%
+  select(-DateTime)
+
 # remove extraneous objects
 rm(nps.data.1,nps.data.2,sitenames,sitenames.1,sitenames.2)
 ```
@@ -128,8 +141,9 @@ Read in multiple-logger-per-site datasets (buoys @ lake centers)
 
 # Notes
 # - There is not a consistent number of depth levels (ranges from ~ 5 - 10 depths)
+# From "Site_Info.xlsx": "Loggers are attached to an anchored floating line (i.e., a "temperature array") at [various] depths year round... a surface (0-1m) logger is attached during the open water season.
 
-## one single file read-in & format example
+## example for reading in one single file read-in & format
 #nps.lakes <- tibble()
 #filepath <- "data/NPS Bartz/Multilevel_Lake_Sites/KIJIL_01_temp_20201104.csv"
 #file <- read.csv(filepath, skip = 3) %>%
@@ -142,7 +156,8 @@ Read in multiple-logger-per-site datasets (buoys @ lake centers)
 #nps.lakes <- bind_rows(nps.lakes,file) 
 
 
-## read in and bind multiple files
+## read in and bind multiple files using a for loop
+# create list of file paths
 all_paths <- list.files("data/NPS Bartz/Multilevel_Lake_Sites",
                         full.names = T)
 
@@ -154,23 +169,184 @@ file <- read.csv(i, skip = 3) %>%
 colnames(file) <- sub("Water.Temp\\.", "Depth", colnames(file))
 file <- file %>%
   rename(DateTime = X) %>%
-  pivot_longer(!DateTime, names_to = "Depth", values_to = "Temperature")
-file <- file %>% mutate(SiteID = basename(i))
+  pivot_longer(!DateTime, names_to = "Depth", values_to = "Temperature") %>%
+  # remove rows with missing observations (e.g., surface during frozen-surface season)
+  filter(Temperature != "")
+file <- file %>% mutate(`File for B_Shaftel` = basename(i)) %>%
+  mutate(`File for B_Shaftel` = gsub(".csv", "", `File for B_Shaftel`))
 nps.lakes <- bind_rows(nps.lakes,file) 
 }
+rm(file, all_paths)
 
-# create Agency_ID and Waterbody Name column
 
+# assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
+nps.lakes <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
+  select("Agency_ID","File for B_Shaftel","Waterbody_Name") %>%
+  right_join(nps.lakes) %>%
+  transform(DateTime = ymd_hms(DateTime),
+            Temperature = as.numeric(Temperature)) %>%
+  mutate(sampleDate = date(DateTime),
+         sampleTime = hms::as_hms(DateTime)) %>%
+  select(-`File.for.B_Shaftel`,-DateTime)
+  
+# Note: to reiterate; neither "Waterbody_Name" nor "Agency_ID" alone contain unique identifiers for each site.  In combination however, Waterbody_Name + Agency_ID is a unique identifier.
 
 ```
 
 <br>
 
-Visualization & ID of erroneous data
+Create a quick visualization and summary table to see extent and form of original data.
+
+* Summary table, streams & beaches
 ```{r}
+# create data summary table
+nps.data.summary <- nps.data %>%
+  mutate(year = year(sampleDate)) %>%
+  group_by(SiteID,year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+# render table
+nps.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+
+```
+We can see there is at least some air exposure in this dataset (minTemp ~ -32C, maxTemp ~36C)
+
+<br>
+
+
+Summary table, lake buoys
+```{r}
+# create data summary table
+nps.lakes.summary <- nps.lakes %>%
+  mutate(year = year(sampleDate)) %>%
+  group_by(Agency_ID,Waterbody_Name,year,Depth) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+# render table
+nps.lakes.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+
+```
+The lake buoys dataset does not immediately appear to have any air exposure data, which makes sense since the loggers were all suspended at various depth profiles!
+
+<br>
+
+Visualize streams & beaches data
+```{r}
+nps.data %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,Waterbody_Name,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Streams & Beaches, Original Logger Data by Site and Year - Daily Mean")
 
 ```
 
+<br>
+
+The above visualization indicates there is clearly some air exposure data in our dataset.  We will use ggplotly to examine suspect datasets one at a time, and manually generate a table of erroneous data to be excised.
+
+<br>
+
+Process to identify and remove erroneous data:
+
+* Visually identify data that does not seem reasonable
+* Plot unreasonable datasets by individual year and site
+* Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
+
+```{r}
+
+# list of suspect sites to manually examine w/ ggplotly 
+suspect.nps.sites <-data.frame(c("KATM_lbrooo_lvl_Lake Brooks",
+                                 "KATM_lbrooo_temp_Lake Brooks",
+                                 "KATM_naknlo_lvl_Naknek Lake",
+                                 "KATM_naknlo_temp_Naknek Lake",
+                                 "LACL_kijilo_lvl_Kijik Lake",
+                                 "LACL_lclaro_lvl_Lake Clark",
+                                 "Port_Alsworth_Water",
+                                 "Savonoski_Water"))
+colnames(suspect.nps.sites) <- "SiteID"
+
+# specify year or years to visualize
+y <- c("2019")
+
+# create ggplotly chart
+ggplotly(
+  p <- nps.data %>%
+  inner_join(suspect.nps.sites) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == "Savonoski_Water"
+         # put hash tag at next line to see all years for the site
+         ,year %in% y
+         ) %>%
+  
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data")
+  )
+
+```
+
+If further data is is identified to be flagged, edit the csv file at "data/flagged_data/NPS_flagged_data.csv"
+
+<br>
+
+Apply flags for good/bad data
+```{r}
+# created table of erroneous data to be flagged/excised
+## @ data/flagged_data/UW_flagged_data.csv
+
+# use flagged data table to assign "useData = 0" to erroneous observations
+
+# read in start/end dates for flagged data
+nps_flagged_data <- read.csv("data/flagged_data/NPS_flagged_data.csv") %>%
+  filter(!is.na(day_start)) %>%
+  select(-Notes) 
+
+# create table of data to be flagged w/ "useData = 0"
+nps_flagged_data <- nps.data %>% 
+  mutate(year = year(sampleDate)) %>%
+  inner_join(nps_flagged_data,by = c("SiteID","year")) %>%
+  mutate(day = yday(sampleDate)) %>%
+  filter(day >= day_start & day <= day_end) %>%
+  mutate(useData = 0) %>%
+  select(-day_start,-day_end,-year,-day)
+
+# remove 
+nps_nonflagged_data <- anti_join(nps.data,nps_flagged_data,by = c("SiteID","sampleDate","sampleTime")) %>%
+  mutate(useData = 1)
+
+# rejoin flagged and non-flagged data in same dataframe
+nps.data <- bind_rows(nps_flagged_data,nps_nonflagged_data)
+
+# remove extraneous objects
+rm(p,nps_flagged_data,nps_nonflagged_data)
+
+# data to be excised is now designated with "useData = 0"
+
+```
 
 
 Save output data
