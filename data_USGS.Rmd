@@ -37,6 +37,8 @@ library(dataRetrieval)
 
 <br>
 
+Note: USGS gauge site locations do not appear to be on the AKOATS site.
+
 Bristol Bay Region USGS sites with temperature data (from https://waterdata.usgs.gov/ak/nwis/rt):
 
 * USGS 15302000 NUYAKUK R NR DILLINGHAM AK, 2014-05-19 to present
@@ -48,6 +50,13 @@ Bristol Bay Region USGS sites with temperature data (from https://waterdata.usgs
 
 Read in USGS Sites one at a time with readNWIS package
 
+* Establish today's date
+```{r}
+todaysDate <- Sys.time() %>% as.Date() %>% as.character()
+```
+
+<br>
+
 * Nuyakuk River near Dillingham
 ```{r}
 # following example workflow (from https://owi.usgs.gov/R/dataRetrieval.html#1)
@@ -57,9 +66,10 @@ siteNumber <- "15302000"
 nuyakukInfo <- readNWISsite(siteNumber)
 parameterCd <- "00010"
 
-# raw data:
+
+# raw data to date:
 nuyakakData <- readNWISuv(siteNumber,parameterCd,
-                      "2014-05-19","2020-11-13")
+                      "2014-05-19", todaysDate)
 ```
 
 <br>
@@ -73,7 +83,7 @@ parameterCd <- "00010"
 
 # raw data:
 iliamnaData <- readNWISuv(siteNumber,parameterCd,
-                      "2013-10-01","2020-11-13")
+                      "2013-10-01",todaysDate)
 
 ```
 
@@ -88,7 +98,7 @@ parameterCd <- "00010"
 
 # raw data:
 nfkoktuliData <- readNWISuv(siteNumber,parameterCd,
-                      "2013-10-01","2020-11-13")
+                      "2013-10-01",todaysDate)
 
 ```
 
@@ -103,22 +113,73 @@ parameterCd <- "00010"
 
 # raw data:
 kokwokData <- readNWISuv(siteNumber,parameterCd,
-                      "2016-10-14","2020-11-13")
+                      "2016-10-14",todaysDate)
 
 ```
 
 
 
-In progress here
+Join data from all sites, rename and format columns as specified in "Project_notes.Rmd"
 ```{r}
 # join all USGS raw data
-usgsData <- 
+usgsData <- bind_rows(nuyakakData,iliamnaData,nfkoktuliData,kokwokData) 
 
-
-# join all USGS-provided metadata
-
-
+# auto-rename columns
 # auto-rename
-nuyakukData <- renameNWISColumns(nuyakukData)
+usgsData <- renameNWISColumns(usgsData)
+
+# join together USGS-provided metadata
+usgsMetadata <- bind_rows(nuyakukInfo,iliamnaInfo,nfkoktuliInfo,kokwokInfo) %>%
+  select(site_no,station_nm)
+
+# assign USGS station names to temperature data
+usgsData <- left_join(usgsData,usgsMetadata)
+
+# transform and rename columns
+usgsData <- usgsData %>%
+  mutate(sampleDate = date(dateTime),
+         sampleTime = hms::as_hms(dateTime),
+         AKOATS_ID = NA) %>%
+  rename(Temperature = Wtemp_Inst,
+         SiteID = station_nm) %>%
+  select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature)
+
 ```
 
+<br>
+
+Visualize available data
+```{r}
+usgsData %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Original Logger Data by Site and Year - Daily Mean")
+
+```
+
+<br>
+
+There is a not a readily apparent need for extensive QA/QC of USGS water temperature data.  Some 2020 data is described as "provisional."  However, this script can be run again anytime and will update outputs with the most current data, so do so if any data is revealed to be suspect.
+
+<br>
+
+Assign "useData = 1" to all USGS water temp data
+```{r}
+usgsData <- usgsData %>%
+  mutate(useData = 1)
+```
+
+
+
+Export csv of combined datasets to data folder associated with this .Rproj
+```{r}
+# export csv
+ write.csv(usgsData,"output/USGS.csv", row.names = F)
+
+```
