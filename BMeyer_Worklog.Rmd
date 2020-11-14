@@ -50,3 +50,6 @@ AM: work in progress to ID erroneous UW data.  PM: Further work on data_UW.Rmd
 
 11/11/20
 Worked on data_NPS.Rmd.  Read in of inconsistent file formats proved challenging.  Some site names in the "Pilot Sites" file did not have unique metadata matches in the "Site_Info" file.  Site coordinates were all unique though, so the data files are to be QA/QC'd separately and treated separately for now.  Able to read in all data except lake buoy sites; work in progress.  
+
+11/13/20
+AM and PM: completed NPS read in and QA QC.  Saved Lake and Beaches & streams files separately because lakes have depth data column.  Started work on USGS data read in. the USGS R package "readNWIS" works very nicely.
