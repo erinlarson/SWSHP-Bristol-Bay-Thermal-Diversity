@@ -1,30 +1,124 @@
 ---
-title: "data_USGS"
-author: "bemeyer@alaska.edu"
-date: "11/13/2020"
-output: html_document
+title: "USGS Water Temp"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
 ---
+
+Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+# clear environment
+rm(list=ls())
+
+# load packages
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+library(DT)
+library(dataRetrieval)
 ```
 
-## R Markdown
+<br>
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Bristol Bay Region USGS sites with temperature data (from https://waterdata.usgs.gov/ak/nwis/rt):
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+* USGS 15302000 NUYAKUK R NR DILLINGHAM AK, 2014-05-19 to present
+* USGS 15300300 ILIAMNA R NR PEDRO BAY AK, 2013-10-01 to present
+* USGS 15302250 NF KOKTULI R NR ILIAMNA AK, 2013-10-01 - present
+* USGS 15302812 KOKWOK R 22 MI AB NUSHAGAK R NR EKWOK AK, 2016-10-14 to 2020-04-07
 
-```{r cars}
-summary(cars)
+<br>
+
+Read in USGS Sites one at a time with readNWIS package
+
+* Nuyakuk River near Dillingham
+```{r}
+# following example workflow (from https://owi.usgs.gov/R/dataRetrieval.html#1)
+
+# Nuyakuk River near Dillingham
+siteNumber <- "15302000" 
+nuyakukInfo <- readNWISsite(siteNumber)
+parameterCd <- "00010"
+
+# raw data:
+nuyakakData <- readNWISuv(siteNumber,parameterCd,
+                      "2014-05-19","2020-11-13")
 ```
 
-## Including Plots
+<br>
 
-You can also embed plots, for example:
+* Iliamna River near Pedro bay
+```{r}
+# Iliamna River near Pedro bay
+siteNumber <- "15300300" 
+iliamnaInfo <- readNWISsite(siteNumber)
+parameterCd <- "00010"
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# raw data:
+iliamnaData <- readNWISuv(siteNumber,parameterCd,
+                      "2013-10-01","2020-11-13")
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+<br>
+
+* North Fork Koktuli River near Iliamna
+```{r}
+# North Fork Koktuli River near Iliamna
+siteNumber <- "15302250" 
+nfkoktuliInfo <- readNWISsite(siteNumber)
+parameterCd <- "00010"
+
+# raw data:
+nfkoktuliData <- readNWISuv(siteNumber,parameterCd,
+                      "2013-10-01","2020-11-13")
+
+```
+
+<br>
+
+* Kokwok river near Ekwok
+```{r}
+# Kokwok river near Ekwok
+siteNumber <- "15302812" 
+kokwokInfo <- readNWISsite(siteNumber)
+parameterCd <- "00010"
+
+# raw data:
+kokwokData <- readNWISuv(siteNumber,parameterCd,
+                      "2016-10-14","2020-11-13")
+
+```
+
+
+
+In progress here
+```{r}
+# join all USGS raw data
+usgsData <- 
+
+
+# join all USGS-provided metadata
+
+
+# auto-rename
+nuyakukData <- renameNWISColumns(nuyakukData)
+```
+
