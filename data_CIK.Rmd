@@ -1,0 +1,151 @@
+---
+title: "Cook Inletkeeper Water Temps"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# clear environment
+rm(list=ls())
+
+# load packages
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+library(DT)
+library(dataRetrieval)
+```
+
+<br>
+
+Read in temp observation data from CIK folder
+```{r}
+# read in
+cik.data <-list.files(path = paste0("data/CIK Bristol Bay village and lodge sites"),
+               pattern = "*.xlsx", 
+               full.names = T) %>%
+     map_df(function(x) read_excel(x,skip = 1,col_names = F) %>% 
+            mutate(filename = gsub(".xlsx","",basename(x))))
+
+# assign colnames
+colnames(cik.data) <- c("sampleDate","DateTime","Temperature","SiteID") 
+
+# modify column structure and formats
+cik.data <- cik.data %>%
+  # remove file name dates
+  separate(SiteID, sep = "_", into = "SiteID") %>%
+  transform(sampleTime = hms::as_hms(DateTime),
+            sampleDate = date(sampleDate)) %>%
+  select(-DateTime,-Var.5) %>%
+  # there do not appear to be any AKOATS_IDs available for these sites yet
+  mutate(AKOATS_ID = NA) %>%
+  filter(!is.na(Temperature))
+
+
+```
+
+<br>
+
+Perform a quick visualization to see extent and form of data
+```{r}
+cik.data %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Original Logger Data by Site and Year")
+
+```
+<br>
+
+CIK QA methods describe having already deleted anomalous data.  However, we will more carefully examine data from a few sites to decide if it too should be excised.
+
+<br>
+
+Process to identify and remove erroneous data:
+
+* Visually identify data that does not seem reasonable
+* Plot unreasonable datasets by individual year and site
+* Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
+
+```{r}
+
+# list of suspect sites to manually examine w/ ggplotly 
+suspect.cik.sites <-data.frame(c("Ben Courtney Creek",
+                                 "Gibraltar River"))
+colnames(suspect.cik.sites) <- "SiteID"
+
+# specify year or years to visualize
+y <- c("2019","2020")
+
+# create ggplotly chart
+ggplotly(
+  p <- cik.data %>%
+  inner_join(suspect.cik.sites) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == "Gibraltar River"
+         # put hash tag at next line to see all years for the site
+         #,year %in% y
+         ) %>%
+  
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data")
+  )
+
+```
+
+<br>
+
+Notes: 2019 Ben Courtney Creek: temps >20C looked potentially suspect, but closer visual examination does not suggest exposure or logger error.  2019 temps at Gibraltar River are of similar form, suggesting common pattern across sites in the region for that time period.
+
+<br>
+
+Assign "useData =1" for all CIK data
+```{r}
+cik.data <- cik.data %>% mutate(useData = 1)
+```
+
+<br>
+
+Export CIK to `\data` folder associated with this .Rproj
+```{r}
+# write CIK csv
+## reorder columns
+x <- cik.data %>% 
+  select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
+# export csv
+write.csv(x,"output/CIK.csv", row.names = F)
+
+```
+
