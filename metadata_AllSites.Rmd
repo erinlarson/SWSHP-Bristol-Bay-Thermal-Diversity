@@ -1,0 +1,49 @@
+---
+title: "All Sites Metadata"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# clear environment
+rm(list=ls())
+
+# load packages
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+library(DT)
+```
+
+<br>
+
+Summarize extent and metadata of all successfully read-in data so date
+
+Create list of unique data sets by site and year from read-in folder (`\data`)
+```{r}
+
+
+
+```
+
+
+We have a total of `r n_obs` individual temperature observations!
