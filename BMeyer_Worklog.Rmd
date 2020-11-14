@@ -53,3 +53,6 @@ Worked on data_NPS.Rmd.  Read in of inconsistent file formats proved challenging
 
 11/13/20
 AM and PM: completed NPS read in and QA QC.  Saved Lake and Beaches & streams files separately because lakes have depth data column.  Started work on USGS data read in. the USGS R package "readNWIS" works very nicely.
+
+11/14/20
+Completed read-in of USGS and CIK data.  Working on resolving numerous site name conflicts with UW data. Will send email to Becky w/ questions for J Carter on Monday.
