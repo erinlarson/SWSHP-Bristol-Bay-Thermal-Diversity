@@ -180,14 +180,18 @@ rm(file, all_paths)
 
 
 # assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
-nps.lakes <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
+nps.lakes  <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
   select("Agency_ID","File for B_Shaftel","Waterbody_Name") %>%
   right_join(nps.lakes) %>%
   transform(DateTime = ymd_hms(DateTime),
             Temperature = as.numeric(Temperature)) %>%
   mutate(sampleDate = date(DateTime),
          sampleTime = hms::as_hms(DateTime)) %>%
-  select(-`File.for.B_Shaftel`,-DateTime)
+  select(-`File.for.B_Shaftel`,-DateTime) %>%
+  # make depth a numeric value
+  mutate(Depth = gsub("Depth","",Depth),
+         Depth = as.numeric(gsub("m","",Depth)))
+
   
 # Note: to reiterate; neither "Waterbody_Name" nor "Agency_ID" alone contain unique identifiers for each site.  In combination however, Waterbody_Name + Agency_ID is a unique identifier.
 
@@ -259,11 +263,11 @@ nps.data %>%
 
 <br>
 
-The above visualization indicates there is clearly some air exposure data in our dataset.  We will use ggplotly to examine suspect datasets one at a time, and manually generate a table of erroneous data to be excised.
+The above visualization indicates there is clearly some air exposure data in our streams & beaches dataset.  We will use ggplotly to examine suspect datasets one at a time, and manually generate a table of erroneous data to be excised.
 
 <br>
 
-Process to identify and remove erroneous data:
+Process to identify and remove streams & beaches erroneous data:
 
 * Visually identify data that does not seem reasonable
 * Plot unreasonable datasets by individual year and site
@@ -279,11 +283,12 @@ suspect.nps.sites <-data.frame(c("KATM_lbrooo_lvl_Lake Brooks",
                                  "LACL_kijilo_lvl_Kijik Lake",
                                  "LACL_lclaro_lvl_Lake Clark",
                                  "Port_Alsworth_Water",
-                                 "Savonoski_Water"))
+                                 "Savonoski_Water",
+                                 "KATM_naknlo_continuous_wq_Naknek Lake"))
 colnames(suspect.nps.sites) <- "SiteID"
 
 # specify year or years to visualize
-y <- c("2019")
+y <- c("2013","2014")
 
 # create ggplotly chart
 ggplotly(
@@ -296,9 +301,9 @@ ggplotly(
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   
   # modified SiteID one at a time here to visually inspect datasets
-  filter(SiteID == "Savonoski_Water"
+  filter(SiteID == "KATM_naknlo_continuous_wq_Naknek Lake"
          # put hash tag at next line to see all years for the site
-         ,year %in% y
+         #,year %in% y
          ) %>%
   
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
@@ -342,12 +347,53 @@ nps_nonflagged_data <- anti_join(nps.data,nps_flagged_data,by = c("SiteID","samp
 nps.data <- bind_rows(nps_flagged_data,nps_nonflagged_data)
 
 # remove extraneous objects
-rm(p,nps_flagged_data,nps_nonflagged_data)
+rm(p,nps_flagged_data,nps_nonflagged_data,suspect.nps.sites)
 
 # data to be excised is now designated with "useData = 0"
 
 ```
 
+<br>
+
+Re-Visualize cleaned-up streams & beaches data
+```{r}
+nps.data %>%
+  # filter out flagged data
+  filter(useData == 1) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,Waterbody_Name,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Streams & Beaches, Corrected Logger Data by Site and Year - Daily Mean")
+
+```
+
+<br>
+
+Lake profile data visualization
+```{r}
+nps.lakes %>%
+  group_by(Waterbody_Name,Depth,sampleDate) %>%
+  summarise(daily_mean_temp = mean(Temperature)) %>%
+  mutate(day = yday(sampleDate),
+         year = year(sampleDate)) %>%
+  ggplot(aes(daily_mean_temp, Depth, color = as.factor(year))) +
+  geom_point(position = position_dodge(width = 1.2)) +
+  scale_y_reverse() +
+  facet_grid(Waterbody_Name ~ ., scales = "free_y") +
+  # this next line is not working; why?
+  theme(strip.text = element_text(angle = 90))
+  
+  #scale_y_continuous(breaks = c(122,152,182,213,244,274,304),
+   #                  labels = c("May","June","July","Aug","Sept", "Oct","Nov")) 
+
+```
+
+<br>
 
 Save output data
 ```{r}
@@ -355,10 +401,23 @@ Save output data
 # output lake data file seperately, since it has an additional column for "depth" that all the other data does not
 
 # write streams & beaches csv
-
+## reorder columns
+x <- nps.data %>% 
+  mutate(AKOATS_ID = NA) %>%
+  select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
+# export csv
+write.csv(x,"output/NPS_streams_beaches.csv", row.names = F)
 
 # write lakes csv
+## reorder columns
+x <- nps.lakes %>% 
+  mutate(AKOATS_ID = NA,
+         SiteID = paste0(Agency_ID,"_",Waterbody_Name),
+         useData = 1) %>%
+  select(AKOATS_ID,SiteID,Depth,sampleDate,sampleTime,Temperature,useData) 
 
+# export csv
+write.csv(x,"output/NPS_lakes.csv", row.names = F)
 
 ```
 
