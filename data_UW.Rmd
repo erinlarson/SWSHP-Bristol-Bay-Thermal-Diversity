@@ -49,12 +49,13 @@ uw.data <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
 
 Notes on site name consistency:
 
-* Once we have UW metadata, we'll need to examine the Lynx creek site locations carefully.  Naming convention(s) may not have been consistent across years.
+* Once we have UW metadata, we'll need to examine the Lynx creek site locations carefully.  Naming convention(s) may not have been consistent across years.  E.g.:
 ```{r}
-uw.data %>%
+(lynxCrkNames <- uw.data %>%
   dplyr::filter(grepl("Lynx",StationName)) %>%
   select(StationName) %>%
-  distinct()
+  distinct() %>%
+  rename(SiteID = StationName))
 ```
 
 <br>
@@ -67,14 +68,10 @@ Notes on data consistency:
 
 * Need to treat import and prep of these three data sets separately.
 
-<br>
-
-
-
 
 <br>
 
-Exclude specified datasets
+Separate specified data sets discussed above
 ```{r}
 # define function to exclude multiple strings in a column
 '%ni%' <- Negate('%in%')
@@ -111,9 +108,9 @@ uw.data <- uw.data %>%
 
 <br>
 
-Perform separate import & prep process for the three datasets previously excluded
+Perform separate import & prep process for the three datasets previously described
 
-* Aleknagik wood river 2009
+* Import Aleknagik wood river 2009
 ```{r}
 # Aleknagik wood river 2009
 uw.data.1 <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
@@ -172,7 +169,7 @@ uw.data <- bind_rows(uw.data,uw.data.1)
 
 <br>
 
-* Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek
+* Import Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek
 ```{r}
 # Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek
 uw.data.1 <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
@@ -218,8 +215,38 @@ uw.data <- bind_rows(uw.data,uw.data.1)
 
 To do here: 
 
-* when site metadata available, associate w/ AKOATS_ID
-* examine Lynx Creek data to see if it consists of multiple sites, or just naming variations on the same site
+* Naming Conflict Resolution Tasks
+- Resolve Lynx Creek site names conflicts
+- Resolve multiple AKOATS_ID conflicts for sites UW-FRI_NerkaBear_Temps, UW_FRI_WR_PfiferTemps, and UW_FRI_WR_SilverSalmon_Temps
+- See notes column in UW metadata for suggestions on how to resolve these conflicts
+
+```{r}
+# read in UW metadata provided by J Carter on 11/13/20
+uw.metadata <- read_excel("data/Jackie Carter UW/uw sites_JC_rss.xlsx")
+
+## Lynx creek naming conflicts
+
+# Notes from Jackie C: "Daniel puts multiple temp loggers in Lynx Creek.  There is a lake at the top that feeds warm water into the stream, so he puts one right below that (Lynx Lake Trib, Lake Trib, etc).  There is also a cold tribuary about 400-500m below the lake that feeds in significantly colder water to the main channel, like 5-8C (Cold Trib, Lynx Cold, etc).  Then there is the main channel, and the temp logger is near the bottom to give an integrated temp (Lynx, Lynx lower, Lynx bottom).  As I was importing 2020 data, I realized that we have way too many names for the same location over the years.  I'm not sure if the AKOATS team just combined all the Lynx temps to average or what the decisions were to get to LynxCreekALL_temps"
+
+# will send email to R Shaftel on 11/16/20 to pass on Lynx Creek resolution questions to J Carter.  See file "data/Jackie Carter UW/UW_sitename_conflicts_resolved.xlsx" in progress.
+
+
+## UW-FRI_NerkaBear_Temps conflict
+
+```
+
+
+<br>
+
+
+* Associate SiteID w/ AKOATS_ID
+```{r}
+
+```
+
+
+
+
 
 Perform a quick visualization and summary table to see extent and form of original data.
 
