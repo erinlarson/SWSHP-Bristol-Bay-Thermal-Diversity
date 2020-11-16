@@ -33,6 +33,9 @@ library(hms)
 library(plotly)
 library(DT)
 library(dataRetrieval)
+
+# define function to exclude multiple strings in a column
+'%ni%' <- Negate('%in%')
 ```
 
 <br>
@@ -71,21 +74,76 @@ We have a total of `r n_obs_sb` individual streams & beaches temperature observa
 
 Associate metadata with all temp data sets.  Proceed one agency at a time, as it is not all in a consistent format.
 
+AKOATS metadata
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE") %>%
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy) %>%
+  rename(AKOATS_ID = seq_id)
+```
+
+<br>
+
 UW metadata
 ```{r}
 # UW metadata
-uw.meta <- read_excel("data/Jackie Carter UW/uw sites_JC_rss.xlsx")
+# read in UW metadata resolutions emailed from R Shaftel on 11/13/20
+uw.meta <- read_excel("data/Jackie Carter UW/uw sites_JC_rss.xlsx", sheet = "Sheet1") %>%
+  # still waiting on Lynx Creek SiteID reslutions, so exclude for now
+  filter(data_SiteID != "UW-FRI_LynxCreekALL_Temps") %>%
+  # use only one AKOATS_ID for sites with multiple entries
+  separate(AKOATS_ID, sep = " and", into = "AKOATS_ID") %>%
+  select(-Notes) %>%
+  # remove degree symbols
+  mutate(Latitude = as.double(gsub("°","",Latitude)),
+         Longitude = as.double(gsub("°","",Longitude))) %>%
+  # create other metadata as possible as known
+  mutate(Contact_person = "Jackie Carter",
+         Contact_email = "jlcarter@uw.edu",
+         SourceName = "uwASP",
+         Contact_telephone = "206-543-7563")
+
+# join with AKOATS-provided metadata where possible, and use UW provided metadata where not
+## uw sites WITHOUT AKOATS_ID values
+uw.meta <- uw.meta %>%
+  filter(AKOATS_ID == "NA") %>%
+  rename(Agency_ID = data_SiteID) %>%
+  transform(AKOATS_ID = as.double(AKOATS_ID))
+
+# all uw metadata
+uw.meta <- bind_rows(akoats.meta,uw.meta) %>%
+  filter(SourceName == "uwASP")
 
 ```
 
 <br>
 
-CIK metatdata
+CIK metadata
 ```{r}
 
 # CIK metadata
-cik.meta <- read_excel("data/CIK Bristol Bay village and lodge sites/cik_metadata/CIK Bristol Bay village and lodge sites.xlsx")
+cik.meta <- akoats.meta %>%
+  filter(SourceName == "CIK")
 
+# "Ben Courtney Creek" location missing.  Estimate location
+# Map location estimate: https://www.google.com/maps/place/59%C2%B015'41.6%22N+156%C2%B021'58.1%22W/@59.261553,-156.3666945,91m/data=!3m2!1e3!4b1!4m14!1m7!3m6!1s0x56dd504b3ddfbc73:0x47793ea8790ba3fc!2sBen+Courtny+Creek!3b1!8m2!3d59.3281016!4d-156.3461239!3m5!1s0x0:0x0!7e2!8m2!3d59.2615526!4d-156.3661459
+
+# create ben courtney creek metadata
+cik.meta.bc <- data.frame("Ben Courtney Creek") %>%
+  mutate(AKOATS_ID = as.double("NA"),
+         Agency_ID = "Ben Courtney Creek",
+         Contact_person = "Sue Mauger",
+         SourceName = "CIK",
+         Contact_email = "sue@inletkeeper.org",
+         Contact_telephone = "907-235-4068",
+         Latitude = 59.261553,
+         Longitude = -156.366146,
+         Sensor_accuracy = "") %>%
+  select(-X.Ben.Courtney.Creek.)
+
+# join ben courtney creek metadata to other CIK metadata
+cik.meta <- bind_rows(cik.meta,cik.meta.bc)
+
+rm(cik.meta.bc)
 ```
 
 <br>
@@ -99,6 +157,13 @@ egegik.meta <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata"
 fws.meta <- bind_rows(togiak1.meta,togiak2.meta,egegik.meta)
 rm(togiak1.meta,togiak2.meta,egegik.meta)
 
+# specify strings to remove
+strings <- c("I have no data for Togiak Lake","I have no data for Togiak lake","New Sites:")
+fws.meta <- fws.meta %>% 
+  # choose columns to retain
+  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy) %>%
+  filter(SiteID %ni% strings)
+
 ```
 
 <br>
@@ -106,7 +171,8 @@ rm(togiak1.meta,togiak2.meta,egegik.meta)
 UAA-ACCS metadata
 ```{r}
 # UAA-ACCS metadata
-accs.meta <- read.csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv")
+accs.meta <- read.csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
+  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy) 
 
 ```
 
@@ -115,8 +181,10 @@ accs.meta <- read.csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv")
 NPS metadata
 ```{r}
 # NPS metadata
-nps.meta <- read_excel("data/NPS Bartz/Site_Info.xlsx")
+nps.meta <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4)
 
+
+# For NPS data, Agency_ID + Waterbody name is the unique ID.  Either of them alone do not provide a unique ID
 ```
 
 <br>
@@ -132,9 +200,38 @@ usgs.meta <- readNWISsite(usgs.sites)
 
 <br>
 
+Join all metadata tables to one single metadata table
+```{r}
+
+```
+
+<br>
+
+Join all metadata to all streams & beaches data
+```{r}
+
+```
+
+<br>
+
+Join all metadata to all lakes data
+```{r}
+
+```
+
+
+
+
+
 working here 11/16/20
 
 
 <br>
 
 Join to AKOATS metadata table
+
+Summarise by year, site, agency
+- min/max/mean/sd
+- n_obs
+- frequency obs
+
