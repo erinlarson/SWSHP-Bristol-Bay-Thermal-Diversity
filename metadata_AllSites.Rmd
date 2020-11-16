@@ -32,6 +32,7 @@ library(readxl)
 library(hms)
 library(plotly)
 library(DT)
+library(dataRetrieval)
 ```
 
 <br>
@@ -41,9 +42,99 @@ Summarize extent and metadata of all successfully read-in data so date
 Create list of unique data sets by site and year from read-in folder (`\data`)
 ```{r}
 
+# read in streams & beaches
+dat <-list.files(path = paste0("output"),
+               pattern = "*.csv", 
+               full.names = T) %>%
+     map_df(function(x) read_csv(x,skip = 1,col_names = F) %>% 
+            mutate(filename = gsub(".csv","",basename(x))))
 
+# how many streams & beaches observations? (7,429,464)
+n_obs_sb <- nrow(dat)
+
+# read in lakes
+dat.lakes <-list.files(path = paste0("output/Lakes"),
+               pattern = "*.csv", 
+               full.names = T) %>%
+     map_df(function(x) read_csv(x,skip = 1,col_names = F) %>% 
+            mutate(filename = gsub(".csv","",basename(x))))
+
+# how many lakes observations? (5,467,621)
+n_obs_lakes <- nrow(dat.lakes)
 
 ```
 
 
-We have a total of `r n_obs` individual temperature observations!
+We have a total of `r n_obs_sb` individual streams & beaches temperature observations!  And, we have a total of `r n_obs_lakes` observations from multi-level buoy sites!
+
+<br>
+
+Associate metadata with all temp data sets.  Proceed one agency at a time, as it is not all in a consistent format.
+
+UW metadata
+```{r}
+# UW metadata
+uw.meta <- read_excel("data/Jackie Carter UW/uw sites_JC_rss.xlsx")
+
+```
+
+<br>
+
+CIK metatdata
+```{r}
+
+# CIK metadata
+cik.meta <- read_excel("data/CIK Bristol Bay village and lodge sites/cik_metadata/CIK Bristol Bay village and lodge sites.xlsx")
+
+```
+
+<br>
+
+FWS metadata
+```{r}
+# FWS metadata
+togiak1.meta <- read_excel("data/FWS/Togiak_Oct2020_Part1.xlsx", sheet = "AKOATS_metadata")
+togiak2.meta <- read_excel("data/FWS/Togiak_Oct2020_Part2.xlsx", sheet = "AKOATS_metadata")
+egegik.meta <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata")
+fws.meta <- bind_rows(togiak1.meta,togiak2.meta,egegik.meta)
+rm(togiak1.meta,togiak2.meta,egegik.meta)
+
+```
+
+<br>
+
+UAA-ACCS metadata
+```{r}
+# UAA-ACCS metadata
+accs.meta <- read.csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv")
+
+```
+
+<br>
+
+NPS metadata
+```{r}
+# NPS metadata
+nps.meta <- read_excel("data/NPS Bartz/Site_Info.xlsx")
+
+```
+
+<br>
+
+USGS metadata
+```{r}
+# USGS metadata
+## read in directly from online w/ readNWIS pkg fxn
+usgs.sites <- c("15302000","15300300","15302250","15302812")
+usgs.meta <- readNWISsite(usgs.sites)
+
+```
+
+<br>
+
+working here 11/16/20
+
+
+<br>
+
+Join to AKOATS metadata table
