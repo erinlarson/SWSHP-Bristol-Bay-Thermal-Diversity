@@ -40,8 +40,10 @@ Read in data from folder "Jackie Carter UW"
 ```{r}
 uw.data <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
                pattern = "*.csv", 
-               full.names = T) %>% 
-    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) 
+               full.names = T) %>%
+# include file name read in for later use in resolving site name conflicts
+   map_df(function(x) read_csv(x,col_types = cols(.default = "c"),col_names = T) %>% 
+            mutate(data_SiteID = gsub(".csv","",basename(x))))
 
 ```
 
@@ -99,7 +101,7 @@ uw.data <- uw.data %>%
   rename(SiteID = StationName,
          sampleDate = Date,
          sampleTime = Time) %>%
-  select(SiteID,sampleDate,sampleTime,Temperature) %>%
+  select(SiteID,sampleDate,sampleTime,Temperature,data_SiteID) %>%
   transform(sampleDate = as.Date(mdy(sampleDate)),
             sampleTime = hms::as.hms(sampleTime),
             Temperature = as.numeric(Temperature)) 
@@ -115,14 +117,15 @@ Perform separate import & prep process for the three datasets previously describ
 # Aleknagik wood river 2009
 uw.data.1 <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
                pattern = "*.csv", 
-               full.names = T) %>% 
-    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) %>%
+               full.names = T) %>%
+  map_df(function(x) read_csv(x,col_types = cols(.default = "c"),col_names = T) %>% 
+            mutate(data_SiteID = gsub(".csv","",basename(x)))) %>%
   # retain only wood river 2009 data
   inner_join(exclude_wr) %>%
   rename(SiteID = StationName,
          sampleDate = Date,
          sampleTime = Time) %>%
-  select(SiteID,sampleDate,sampleTime,Temperature) %>%
+  select(SiteID,sampleDate,sampleTime,Temperature,data_SiteID) %>%
   
   ## fix date column
   # remove extraneous digits from date column by taking it apart and putting it back together 
@@ -175,13 +178,14 @@ uw.data <- bind_rows(uw.data,uw.data.1)
 uw.data.1 <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
                pattern = "*.csv", 
                full.names = T) %>% 
-    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) %>%
+  map_df(function(x) read_csv(x,col_types = cols(.default = "c"),col_names = T) %>% 
+            mutate(data_SiteID = gsub(".csv","",basename(x)))) %>%
   # retain only data from "Aleknagik Big Whitefish Creek" and "Aleknagik Little Whitefish Creek"
   filter(StationName %in% exclude_wf) %>%
   rename(SiteID = StationName,
          sampleDate = Date,
          sampleTime = Time) %>%
-  select(SiteID,sampleDate,sampleTime,Temperature) 
+  select(SiteID,sampleDate,sampleTime,Temperature,data_SiteID) 
 
 
 ## fix date column
@@ -213,39 +217,40 @@ uw.data <- bind_rows(uw.data,uw.data.1)
 
 <br>
 
-To do here: 
+Associate and AKOATS_ID with each site where possible
 
 * Naming Conflict Resolution Tasks
-- Resolve Lynx Creek site names conflicts
-- Resolve multiple AKOATS_ID conflicts for sites UW-FRI_NerkaBear_Temps, UW_FRI_WR_PfiferTemps, and UW_FRI_WR_SilverSalmon_Temps
+- Resolve Lynx Creek site names conflicts (awaiting email from J Carter as of 11/16/20)
+- Use sheet from R Shaftel "uw sites_JC_rss.xlsx" to resolve most other conflicts except Lynx Creek
 - See notes column in UW metadata for suggestions on how to resolve these conflicts
 
 ```{r}
-# read in UW metadata provided by J Carter on 11/13/20
-uw.metadata <- read_excel("data/Jackie Carter UW/uw sites_JC_rss.xlsx")
+# read in UW metadata resolutions emailed from R Shaftel on 11/13/20
+uw.metadata <- read_excel("data/Jackie Carter UW/uw sites_JC_rss.xlsx", sheet = "Sheet1") %>%
+  # We will resolve Lynx Creek site names separately, so exclude at this step
+  filter(data_SiteID != "UW-FRI_LynxCreekALL_Temps") %>%
+  # use only one AKOATS_ID for sites with multiple entries
+  separate(AKOATS_ID, sep = " and", into = "AKOATS_ID") %>%
+  select(data_SiteID,AKOATS_ID)
 
-## Lynx creek naming conflicts
+# join AKOATS_IDs to UW water temp data.  Make sure to use the "data_SiteID" column as a join key
+ uw.data <- left_join(uw.data,uw.metadata,by = "data_SiteID")
+
+# there will be some further resolution of UW metadata and SiteIDs in "metadata_AllSites.Rmd", as some UW sites not have assigned AKOATS_ID values
+
+
+## Lynx creek naming conflicts - to do
 
 # Notes from Jackie C: "Daniel puts multiple temp loggers in Lynx Creek.  There is a lake at the top that feeds warm water into the stream, so he puts one right below that (Lynx Lake Trib, Lake Trib, etc).  There is also a cold tribuary about 400-500m below the lake that feeds in significantly colder water to the main channel, like 5-8C (Cold Trib, Lynx Cold, etc).  Then there is the main channel, and the temp logger is near the bottom to give an integrated temp (Lynx, Lynx lower, Lynx bottom).  As I was importing 2020 data, I realized that we have way too many names for the same location over the years.  I'm not sure if the AKOATS team just combined all the Lynx temps to average or what the decisions were to get to LynxCreekALL_temps"
 
 # will send email to R Shaftel on 11/16/20 to pass on Lynx Creek resolution questions to J Carter.  See file "data/Jackie Carter UW/UW_sitename_conflicts_resolved.xlsx" in progress.
 
 
-## UW-FRI_NerkaBear_Temps conflict
 
 ```
 
 
 <br>
-
-
-* Associate SiteID w/ AKOATS_ID
-```{r}
-
-```
-
-
-
 
 
 Perform a quick visualization and summary table to see extent and form of original data.
@@ -311,7 +316,7 @@ Identify and eliminate likely erroneous data
 Plot 1 
 ```{r}
 # remove extraneous temporary objects from previous steps
-rm(erroneous_dates, exclude_wr,exclude_wf,month.conv,uw.data.1,uw.data.2)
+rm(erroneous_dates, exclude_wr,exclude_wf,month.conv,uw.data.1,uw.data.2,lynxCrkNames)
 
 # identify datasets that include observations >25C
 above.25 <- uw.data %>%
@@ -333,9 +338,6 @@ uw.data %>%
   facet_wrap(. ~ SiteID) +
   ggtitle("Daily Mean Data by Site and Year - Datasets w/ >25 C")
 
-# Notes: from "data/Jackie Carter UW/UA email - Bristol Bay Temperature Data.pdf" :
-# "I have noticed some weird stuff going on with some of the older data. I think it may be an artifact of how our former database manager imported the data (bulk import, no distinction between logger type so there are multiple readings per hour but they aren't really as similar as one might expect). The known affected locations and years are: Aleknagik Bear Creek 2010-2013, Nerka Fenno Creek 2010-2013, and Nerka Pick Creek 2006-2012."
-
 ```
 <br>
 
@@ -344,8 +346,10 @@ Process to identify and remove erroneous data:
 * Visually identify data that does not seem reasonable
 * Plot unreasonable datasets by individual year and site
 * Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
+
+1.) Examine & remove bad data from data sets w/ observations >25C
 ```{r}
-# list of watersheds to examine w/ ggplotly object
+# list of watersheds w/ 25C observations to examine w/ ggplotly object
 l <- above.25 %>%
   select(-year) %>%
   distinct()
@@ -374,7 +378,98 @@ ggplotly(
   )
 ```
 
+<br>
+
+2.) Examine & remove bad data from data sets w/ known suspect data
+
+Notes, from "data/Jackie Carter UW/UA email saved at "data/Jackie Carter UW/UA Mail - Bristol Bay Temperature Data.pdf": "I have noticed some weird stuff going on with some of the older data. I think it may be an artifact of how our former database manager imported the data (bulk import, no distinction between logger type so there are multiple readings per hour but they aren't really as similar as one might expect). The known affected locations and years are: Aleknagik Bear Creek 2010-2013, Nerka Fenno Creek 2010-2013, and Nerka Pick Creek 2006-2012."
+
+Examine the three data sets specified above
+```{r}
+# potentially erroneous data sets:
+# Nerka Fenno Creek 2010-2013
+# Nerka Pick Creek 2006-2012
+# Aleknagik Bear Creek 2010-2013 --> this one not found anywhere in our dataset:
+alk <- uw.data %>%
+  dplyr::filter(grepl("Bear",SiteID)) %>%
+  select(SiteID) %>%
+  distinct()
+
+# list of watersheds to examine w/ ggplotly object
+l <- c("Nerka Fenno Creek","Nerka Pick Creek")
+z <- uw.data %>%
+  filter(SiteID %in% l) %>%
+  select(SiteID) %>%
+  distinct()
+
+# specify year or years to display here
+y <- c("2006")
+
+# create ggplotly chart
+ggplotly(
+  p <- uw.data %>%
+  inner_join(z) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == "Nerka Seventh Creek"
+         # hashtag line below if want to see all years for a site
+         #,year %in% y
+         ) %>%
+  
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data")
+  )
+
+```
+
+<br>
+
+3.) Examine & remove bad data from all other datasets (e.g. exposure data)
+
+```{r}
+
+# list of all watersheds to examine w/ ggplotly object
+# do a quick manual run-through this list one at a time to spot visually apparent logger exposure(s)
+l <- data.frame(unique(uw.data$SiteID))
+
+# specify year or years to display here
+y <- c("2015")
+
+# create ggplotly chart
+ggplotly(
+  p <- uw.data %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == "Aleknagik Little Whitefish Creek"
+         # hashtag line below if want to see all years for a site
+         #,year %in% y
+         ) %>%
+  
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data")
+  )
+
+
+# note: creating a Shiny app for this job would be really useful!  e.g., to be able to easily toggle between various sites and years
+```
+
+
 If further data is is identified to be flagged, edit the csv file at "data/flagged_data/UW_flagged_data.csv"
+
 
 <br>
 
@@ -407,14 +502,17 @@ uw_nonflagged_data <- anti_join(uw.data,uw_flagged_data,by = c("SiteID","sampleD
 uw.data <- bind_rows(uw_flagged_data,uw_nonflagged_data)
 
 # remove extraneous objects
-rm(above.25,l,p,uw_flagged_data,uw_nonflagged_data)
+rm(above.25,l,p,uw_flagged_data,uw_nonflagged_data,alk)
+
+# how much data is being flagged?
+uw.data %>%
+  group_by(useData) %>%
+  summarise(ct = n())
 
 ```
 
 
 <br>
-
-To do: when UW metadata available, use to create an AKOATS_ID column in "uw.data" dataframe
 
 To do: try using functions in "Temp_flags_function.R" to IDeven more bad data.
 
@@ -425,11 +523,18 @@ To do: try using functions in "Temp_flags_function.R" to IDeven more bad data.
 
 Export csv of combined datasets, with newly identified "do not use data" signified with a "0" in the useData column, to data folder associated with this .Rproj
 ```{r}
+# use "data_SiteID" terms for SiteIDs
+ uw.data <- uw.data %>%
+   select(-SiteID) %>%
+   rename(SiteID = data_SiteID)
+
+# re-export when lynx creek site names are resolved
+
 # reorder columns
 x <- uw.data %>% select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
 
 # export csv
-# write.csv(x,"output/UW.csv", row.names = F)
+write.csv(x,"output/UW.csv", row.names = F)
 
 ```
 
