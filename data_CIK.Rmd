@@ -56,10 +56,7 @@ cik.data <- cik.data %>%
   transform(sampleTime = hms::as_hms(DateTime),
             sampleDate = date(sampleDate)) %>%
   select(-DateTime,-Var.5) %>%
-  # there do not appear to be any AKOATS_IDs available for these sites yet
-  mutate(AKOATS_ID = NA) %>%
   filter(!is.na(Temperature))
-
 
 ```
 
@@ -134,6 +131,33 @@ Notes: 2019 Ben Courtney Creek: temps >20C looked potentially suspect, but close
 Assign "useData =1" for all CIK data
 ```{r}
 cik.data <- cik.data %>% mutate(useData = 1)
+```
+
+<br>
+
+Assign AKOATS_ID where possible
+
+```{r}
+# CIK metadata from Sue M
+cik.meta <- read_excel("data/CIK Bristol Bay village and lodge sites/cik_metadata/CIK Bristol Bay village and lodge sites.xlsx") %>%
+  rename(Agency_ID = SiteID)
+
+# CIK metadata from AKOATS
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE") %>%
+  select(seq_id,Agency_ID,SourceName) %>%
+  filter(SourceName == "CIK") %>%
+  rename(AKOATS_ID = seq_id) %>%
+  select(-SourceName)
+
+# associate CIK site names with AKOATS_IDs
+cik.meta.1 <- inner_join(akoats.meta,cik.meta,by = "Agency_ID") %>%
+  rename(SiteID = Agency_ID) %>%
+  select(AKOATS_ID,SiteID)
+
+# join AKOATS_IDs to overall data set
+cik.data <- left_join(cik.data,cik.meta.1,by = "SiteID") %>%
+  distinct()
+
 ```
 
 <br>
