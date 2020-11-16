@@ -56,3 +56,6 @@ AM and PM: completed NPS read in and QA QC.  Saved Lake and Beaches & streams fi
 
 11/14/20
 Completed read-in of USGS and CIK data.  Working on resolving numerous site name conflicts with UW data. Will send email to Becky w/ questions for J Carter on Monday.
+
+11/16/20
+Completed read-in of all data.  Working on metdata summary. Just about to hit ~40 hrs total time worked.
