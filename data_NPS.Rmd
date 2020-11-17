@@ -115,7 +115,9 @@ sitenames <- bind_cols(sitenames.1,sitenames.2)
 
 # join nps.data.2 to assigned site names 
 nps.data.2 <- left_join(nps.data.2,sitenames,by = "SiteID") %>%
-  filter(!is.na(Temperature))
+  filter(!is.na(Temperature)) %>%
+   # make up a SiteID name for plotting
+   mutate(SiteID = paste0(Agency_ID,"_",Waterbody_Name))
 
 # join "pilot data" with other single-logger-per-site data
 nps.data <- bind_rows(nps.data.1,nps.data.2)
@@ -176,11 +178,11 @@ file <- file %>% mutate(`File for B_Shaftel` = basename(i)) %>%
   mutate(`File for B_Shaftel` = gsub(".csv", "", `File for B_Shaftel`))
 nps.lakes <- bind_rows(nps.lakes,file) 
 }
-rm(file, all_paths)
+rm(file, all_paths, i)
 
 
 # assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
-nps.lakes  <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
+nps.lakes <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
   select("Agency_ID","File for B_Shaftel","Waterbody_Name") %>%
   right_join(nps.lakes) %>%
   transform(DateTime = ymd_hms(DateTime),
@@ -190,7 +192,8 @@ nps.lakes  <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
   select(-`File.for.B_Shaftel`,-DateTime) %>%
   # make depth a numeric value
   mutate(Depth = gsub("Depth","",Depth),
-         Depth = as.numeric(gsub("m","",Depth)))
+         Depth = as.numeric(gsub("m","",Depth))) %>%
+  mutate(SiteID = paste0(Agency_ID,"_",Waterbody_Name))
 
   
 # Note: to reiterate; neither "Waterbody_Name" nor "Agency_ID" alone contain unique identifiers for each site.  In combination however, Waterbody_Name + Agency_ID is a unique identifier.
@@ -282,8 +285,8 @@ suspect.nps.sites <-data.frame(c("KATM_lbrooo_lvl_Lake Brooks",
                                  "KATM_naknlo_temp_Naknek Lake",
                                  "LACL_kijilo_lvl_Kijik Lake",
                                  "LACL_lclaro_lvl_Lake Clark",
-                                 "Port_Alsworth_Water",
-                                 "Savonoski_Water",
+                                 "LACL_porta_beach_water_Lake Clark",
+                                 "KATM_savor_stream_water_Savonoski River",
                                  "KATM_naknlo_continuous_wq_Naknek Lake"))
 colnames(suspect.nps.sites) <- "SiteID"
 
@@ -301,7 +304,7 @@ ggplotly(
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   
   # modified SiteID one at a time here to visually inspect datasets
-  filter(SiteID == "KATM_naknlo_continuous_wq_Naknek Lake"
+  filter(SiteID == "KATM_savor_stream_water_Savonoski River"
          # put hash tag at next line to see all years for the site
          #,year %in% y
          ) %>%
@@ -417,7 +420,7 @@ x <- nps.lakes %>%
   select(AKOATS_ID,SiteID,Depth,sampleDate,sampleTime,Temperature,useData) 
 
 # export csv
-write.csv(x,"output/NPS_lakes.csv", row.names = F)
+write.csv(x,"output/Lakes/NPS_lakes.csv", row.names = F)
 
 ```
 
