@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This document will be used to record work done by Benjamin Meyer, UAF Research Technician, on importing and QA/QC of data files for the SWSHP Bristol Bay Thermal Diversity Project.
 
-Hours view-able at this Google Sheet, submitted weekly to UAonline: https://docs.google.com/spreadsheets/d/1iS4BnXhsgqgQmZyixOiFC9R6uyZO4FeliF3bUjpRauo/edit#gid=0
+Hours view-able at this Google Sheet, submitted bi-weekly to UAonline: https://docs.google.com/spreadsheets/d/1iS4BnXhsgqgQmZyixOiFC9R6uyZO4FeliF3bUjpRauo/edit#gid=0
 
 <br> 
 
