@@ -37,4 +37,5 @@ The final fields that I would like to have for each dataset:
 * Calculate simple summary metrics and make some figures.
 * Map showing locations of sites across the bay. Maybe also add watershed boundaries for 9 major rivers. In R or ArcGIS.
 
-# test edit Ben Meyer 11/2/20
+# Original data stored on google drive
+https://drive.google.com/drive/u/3/folders/1XQ2rkLnbsHB_hTaNCUnd6u8-iO_cuuNV
