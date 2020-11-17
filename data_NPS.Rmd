@@ -66,15 +66,14 @@ colnames(nps.data.1) <- c("a","DateTime","Temperature","b","c","d","File for B_S
 nps.data.1 <- nps.data.1 %>% select(-a,-b,-c,-d)
 
 # assign AgencyID and waterbody name
-nps.data.1 <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
+nps.data.1  <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
   select("Agency_ID","File for B_Shaftel","Waterbody_Name") %>%
   right_join(nps.data.1) %>%
   select(-"File for B_Shaftel") %>%
   # make up a SiteID name for plotting
-  mutate(SiteID = paste0(Agency_ID,"_",Waterbody_Name)) %>%
+  #mutate(SiteID = paste0(Agency_ID,"_",Waterbody_Name)) %>%
   # format col type
   transform(Temperature = as.numeric(Temperature))
-
 
 # read and format in "All_Pilot_Sites_20201104.csv"
 nps.data.2 <- read.csv("data/NPS Bartz/Pilot_sites/All_Pilot_Sites_20201104.csv") %>%
@@ -85,45 +84,25 @@ nps.data.2 <- read.csv("data/NPS Bartz/Pilot_sites/All_Pilot_Sites_20201104.csv"
   select(-X,-Date,-Time,-m,-d,-y) %>%
   # create long format
   pivot_longer(!DateTime, names_to = "SiteID", values_to = "Temperature") %>%
-  transform(Temperature = as.numeric(Temperature))
+  transform(Temperature = as.numeric(Temperature)) %>%
+  rename(Waterbody_Name = SiteID) %>%
+  filter(!is.na(Temperature))
 
-# we want to use SiteID to associate with metadata.  However, there are two issues:
+# we want to use SiteID to associate with metadata.  However, site names (column names) in "All_Pilot_Sites_20201104.csv" do not have an exact match anywhere in the "Site_Info.xlsx" metadata file.  Thus we will manually generate a dataframe to match site names to metadata
 
-# primary issue: site names (column names) in "All_Pilot_Sites_20201104.csv" do not have an exact match anywhere in the "Site_Info.xlsx" metadata file.  Thus we will manually generate a dataframe to match site names to metadata
+# FYI: the two Tlikila sites are 36m apart; but should still be QA/QC'd separately, so keep separate at this stage of analysis
 
-# a secondary issue: in "Site_Info.xlsx", neither the "Agency_ID" column nor "Waterbody_Name" columns have unique IDs for each site.  
-
-# Solution: manually create join table to associate names in "Site_Info.xlsx" with names in "All_Pilot_Sites_20201104.csv"
-
-# FYI: the two sites are 36m apart; but should still be QA/QC'd separately, so keep separate at this stage of analysis
-
-sitenames.1 <- data.frame(c("Margot_Water","Up_A_Tree_Water",
-                      "Idavain_Water","Chulitna_Water",
-                      "Kijik_Beach_Water","Port_Alsworth_Water",
-                      "Little_Kijik_Water","Tazimina_Water",
-                      "Tlikakila_Water_A","Tlikakila_Water_B",
-                      "Savonoski_Water"))
-colnames(sitenames.1) <- "SiteID"
-
-
-sitenames.2 <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
-  select("Agency_ID","File for B_Shaftel","Waterbody_Name") %>%
-  filter(`File for B_Shaftel` == "All_Pilot_Sites_20201104") %>%
-  select(-`File for B_Shaftel`) 
-
-sitenames <- bind_cols(sitenames.1,sitenames.2)
-
-# join nps.data.2 to assigned site names 
-nps.data.2 <- left_join(nps.data.2,sitenames,by = "SiteID") %>%
-  filter(!is.na(Temperature)) %>%
-   # make up a SiteID name for plotting
-   mutate(SiteID = paste0(Agency_ID,"_",Waterbody_Name))
+# format waterbody names from fws-provided metadata
+nps.data.2.names <- read_excel("data/NPS Bartz/NPS_sitename_conflicts_resolved.xlsx", skip = 4, sheet = "Sheet1") %>%
+   select(Agency_ID,Waterbody_Name)
+  
+# site names alternately use "water" or river" after site name...
+nps.data.2 <- left_join(nps.data.2,nps.data.2.names,by = "Waterbody_Name")
 
 # join "pilot data" with other single-logger-per-site data
 nps.data <- bind_rows(nps.data.1,nps.data.2)
 
 # assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
-
 nps.data <- nps.data %>%
   transform(DateTime = ymd_hms(DateTime)) %>%
   filter(!is.na(DateTime)) %>%
@@ -132,7 +111,7 @@ nps.data <- nps.data %>%
   select(-DateTime)
 
 # remove extraneous objects
-rm(nps.data.1,nps.data.2,sitenames,sitenames.1,sitenames.2)
+rm(nps.data.1,nps.data.2,nps.data.2.names)
 ```
 
 <br>
@@ -192,11 +171,8 @@ nps.lakes <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
   select(-`File.for.B_Shaftel`,-DateTime) %>%
   # make depth a numeric value
   mutate(Depth = gsub("Depth","",Depth),
-         Depth = as.numeric(gsub("m","",Depth))) %>%
-  mutate(SiteID = paste0(Agency_ID,"_",Waterbody_Name))
+         Depth = as.numeric(gsub("m","",Depth))) 
 
-  
-# Note: to reiterate; neither "Waterbody_Name" nor "Agency_ID" alone contain unique identifiers for each site.  In combination however, Waterbody_Name + Agency_ID is a unique identifier.
 
 ```
 
@@ -209,7 +185,7 @@ Create a quick visualization and summary table to see extent and form of origina
 # create data summary table
 nps.data.summary <- nps.data %>%
   mutate(year = year(sampleDate)) %>%
-  group_by(SiteID,year) %>%
+  group_by(Agency_ID,Waterbody_Name,year) %>%
   summarize(meanTemp = mean(Temperature, na.rm = T),
             maxTemp = max(Temperature, na.rm = T),
             minTemp = min(Temperature, na.rm = T),
@@ -255,11 +231,11 @@ nps.data %>%
   select(-sampleTime) %>%
   mutate(year = as.factor(year(sampleDate)),
          day = yday(sampleDate)) %>%
-  group_by(day,SiteID,Waterbody_Name,year) %>%
+  group_by(day,Agency_ID,Waterbody_Name,year) %>%
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
   geom_point() +
-  facet_wrap(. ~ SiteID) +
+  facet_wrap(. ~ Agency_ID) +
   ggtitle("Streams & Beaches, Original Logger Data by Site and Year - Daily Mean")
 
 ```
@@ -279,16 +255,16 @@ Process to identify and remove streams & beaches erroneous data:
 ```{r}
 
 # list of suspect sites to manually examine w/ ggplotly 
-suspect.nps.sites <-data.frame(c("KATM_lbrooo_lvl_Lake Brooks",
-                                 "KATM_lbrooo_temp_Lake Brooks",
-                                 "KATM_naknlo_lvl_Naknek Lake",
-                                 "KATM_naknlo_temp_Naknek Lake",
-                                 "LACL_kijilo_lvl_Kijik Lake",
-                                 "LACL_lclaro_lvl_Lake Clark",
-                                 "LACL_porta_beach_water_Lake Clark",
-                                 "KATM_savor_stream_water_Savonoski River",
-                                 "KATM_naknlo_continuous_wq_Naknek Lake"))
-colnames(suspect.nps.sites) <- "SiteID"
+suspect.nps.sites <-data.frame(c("KATM_lbrooo_lvl",
+                                 "KATM_lbrooo_temp",
+                                 "KATM_naknlo_lvl",
+                                 "KATM_naknlo_temp",
+                                 "LACL_kijilo_lvl",
+                                 "LACL_lclaro_lvl",
+                                 "LACL_porta_beach_water",
+                                 "KATM_savor_stream_water",
+                                 "KATM_naknlo_continuous_wq"))
+colnames(suspect.nps.sites) <- "Agency_ID"
 
 # specify year or years to visualize
 y <- c("2013","2014")
@@ -300,18 +276,18 @@ ggplotly(
   select(-sampleTime) %>%
   mutate(year = as.factor(year(sampleDate)),
          day = yday(sampleDate)) %>%
-  group_by(day,SiteID,year) %>%
+  group_by(day,Agency_ID,year) %>%
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   
   # modified SiteID one at a time here to visually inspect datasets
-  filter(SiteID == "KATM_savor_stream_water_Savonoski River"
+  filter(Agency_ID == "KATM_savor_stream_water"
          # put hash tag at next line to see all years for the site
          #,year %in% y
          ) %>%
   
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
   geom_point() +
-  facet_wrap(. ~ SiteID) +
+  facet_wrap(. ~ Agency_ID) +
   ggtitle("Daily Mean Data")
   )
 
@@ -336,14 +312,14 @@ nps_flagged_data <- read.csv("data/flagged_data/NPS_flagged_data.csv") %>%
 # create table of data to be flagged w/ "useData = 0"
 nps_flagged_data <- nps.data %>% 
   mutate(year = year(sampleDate)) %>%
-  inner_join(nps_flagged_data,by = c("SiteID","year")) %>%
+  inner_join(nps_flagged_data,by = c("Agency_ID","year")) %>%
   mutate(day = yday(sampleDate)) %>%
   filter(day >= day_start & day <= day_end) %>%
   mutate(useData = 0) %>%
   select(-day_start,-day_end,-year,-day)
 
 # remove 
-nps_nonflagged_data <- anti_join(nps.data,nps_flagged_data,by = c("SiteID","sampleDate","sampleTime")) %>%
+nps_nonflagged_data <- anti_join(nps.data,nps_flagged_data,by = c("Agency_ID","sampleDate","sampleTime")) %>%
   mutate(useData = 1)
 
 # rejoin flagged and non-flagged data in same dataframe
@@ -366,11 +342,11 @@ nps.data %>%
   select(-sampleTime) %>%
   mutate(year = as.factor(year(sampleDate)),
          day = yday(sampleDate)) %>%
-  group_by(day,SiteID,Waterbody_Name,year) %>%
+  group_by(day,Agency_ID,Waterbody_Name,year) %>%
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
   geom_point() +
-  facet_wrap(. ~ SiteID) +
+  facet_wrap(. ~ Agency_ID) +
   ggtitle("Streams & Beaches, Corrected Logger Data by Site and Year - Daily Mean")
 
 ```
@@ -395,6 +371,37 @@ nps.lakes %>%
    #                  labels = c("May","June","July","Aug","Sept", "Oct","Nov")) 
 
 ```
+
+<br>
+
+Assign AKOATS_IDs to observations
+```{r}
+
+# working here 11/17/20 1:50 PM
+
+
+
+# streams & beaches
+nps.names.1 <- data.frame(unique(nps.data$SiteID))
+colnames(nps.names.1) <- "SiteID"
+
+# streams & beaches
+nps.names.2 <- data.frame(unique(nps.lakes$SiteID))
+colnames(nps.names.2) <- "SiteID"
+
+# join all nps sites
+nps.names <- bind_rows(nps.names.1,nps.names.2) %>%
+  mutate(test = "test")
+# agh?
+
+# copied above list into excel...
+
+nps.sites <- read_excel("data/NPS Bartz/NPS_sitename_conflicts_resolved.xlsx", sheet = "Sheet3")
+
+z <- left_join(nps.data,nps.names,by="SiteID")
+
+```
+
 
 <br>
 
