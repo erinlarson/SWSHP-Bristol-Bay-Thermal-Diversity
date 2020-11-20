@@ -59,3 +59,9 @@ Completed read-in of USGS and CIK data.  Working on resolving numerous site name
 
 11/16/20
 Completed read-in of all data.  Working on metdata summary. Just about to hit ~40 hrs total time worked.
+
+11/17/20
+Completed NPS data read in after discovering errors.
+
+11/18/20
+Nearly completed integration & QC of new UW data.  Lots of inconsistencies to resolve.
