@@ -173,7 +173,6 @@ nps.lakes <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
   mutate(Depth = gsub("Depth","",Depth),
          Depth = as.numeric(gsub("m","",Depth))) 
 
-
 ```
 
 <br>
@@ -378,27 +377,15 @@ Assign AKOATS_IDs to observations
 ```{r}
 
 # working here 11/17/20 1:50 PM
-
-
-
-# streams & beaches
-nps.names.1 <- data.frame(unique(nps.data$SiteID))
-colnames(nps.names.1) <- "SiteID"
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_working.xlsx") %>%
+  rename(AKOATS_ID = seq_id) %>%
+  select(AKOATS_ID,Agency_ID)
 
 # streams & beaches
-nps.names.2 <- data.frame(unique(nps.lakes$SiteID))
-colnames(nps.names.2) <- "SiteID"
+nps.data <- left_join(nps.data,akoats.meta)
 
-# join all nps sites
-nps.names <- bind_rows(nps.names.1,nps.names.2) %>%
-  mutate(test = "test")
-# agh?
-
-# copied above list into excel...
-
-nps.sites <- read_excel("data/NPS Bartz/NPS_sitename_conflicts_resolved.xlsx", sheet = "Sheet3")
-
-z <- left_join(nps.data,nps.names,by="SiteID")
+# lakes
+nps.lakes <- left_join(nps.lakes,akoats.meta)
 
 ```
 
@@ -413,18 +400,15 @@ Save output data
 # write streams & beaches csv
 ## reorder columns
 x <- nps.data %>% 
-  mutate(AKOATS_ID = NA) %>%
-  select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
+  select(AKOATS_ID,Agency_ID,sampleDate,sampleTime,Temperature,useData)
 # export csv
 write.csv(x,"output/NPS_streams_beaches.csv", row.names = F)
 
 # write lakes csv
 ## reorder columns
 x <- nps.lakes %>% 
-  mutate(AKOATS_ID = NA,
-         SiteID = paste0(Agency_ID,"_",Waterbody_Name),
-         useData = 1) %>%
-  select(AKOATS_ID,SiteID,Depth,sampleDate,sampleTime,Temperature,useData) 
+  mutate(useData = 1) %>%
+  select(AKOATS_ID,Agency_ID,Depth,sampleDate,sampleTime,Temperature,useData) 
 
 # export csv
 write.csv(x,"output/Lakes/NPS_lakes.csv", row.names = F)
