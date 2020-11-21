@@ -49,7 +49,7 @@ Create list of unique data sets by site and year from read-in folder (`\data`)
 dat <-list.files(path = paste0("output"),
                pattern = "*.csv", 
                full.names = T) %>%
-     map_df(function(x) read_csv(x,skip = 1,col_names = F) %>% 
+     map_df(function(x) read_csv(x,skip = 1,col_types = cols(.default = "c"),col_names = F) %>% 
             mutate(filename = gsub(".csv","",basename(x))))
 # rename columns
 colnames(dat) <- c("AKOATS_ID","SiteID","Date","Time","Temperature","useData","filename")
@@ -80,13 +80,13 @@ Visualization exercise: if each water temperature observation in our enormous da
 # earth circumference = 40,007.863 km
 # distance from Seattle to Tokyo = 7,712 km
 
-sockeye.length.km <- 609.6 / 1000000
+sockeye.length.km <- 609.6 / 1000000 # length of one sockeye in km
 total_obs <- n_obs_sb + n_obs_lakes
-dist <- total_obs * sockeye.length.km # =7862 km
+dist <- total_obs * sockeye.length.km # = 8100 km
 
 ```
 
-If each of the observations in our data set were an average sized sockeye salmon (~2 ft), they would stretch `r dist` km end to end from Seattle to Tokyo!
+If each of the observations in our data set were an average sized sockeye salmon (~2 ft), they would stretch `r dist` km end to end, that's 300 km more than the distance from Seattle to Tokyo!
 
 We have a total of `r n_obs_sb` individual streams & beaches temperature observations!  And, we have a total of `r n_obs_lakes` observations from multi-level buoy lake sites!  
 
@@ -95,10 +95,12 @@ We have a total of `r n_obs_sb` individual streams & beaches temperature observa
 
 Associate metadata with all temp data sets.  Proceed one agency at a time, as it is not all in a consistent format.
 
+Note: original approach involved collating all metadata to a single table, then using left_join to assign to overall data frame either by AKOATS_ID or SiteID.  However computer processing power was insufficient to handle this task.  Thus metadata is joined one-at-a-time by agency.
+
 * AKOATS metadata
 
 ```{r}
-akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE") %>%
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
   select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
   rename(AKOATS_ID = seq_id,
          SiteID = Agency_ID)
@@ -111,12 +113,13 @@ akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_
 ```{r}
 # UW metadata
 # read in UW metadata resolutions emailed from R Shaftel on 11/13/20
-uw.meta <- read_excel("data/Jackie Carter UW/uw sites_JC_rss.xlsx", sheet = "Sheet1") %>%
+uw.meta <- read_excel("data/Jackie Carter UW/uw_metadata_thru_2017.xlsx", sheet = "Sheet1") %>%
   # still waiting on Lynx Creek SiteID reslutions, so exclude for now
-  filter(data_SiteID != "UW-FRI_LynxCreekALL_Temps") %>%
+  # filter(data_SiteID != "UW-FRI_LynxCreekALL_Temps") %>%
   # use only one AKOATS_ID for sites with multiple entries
   separate(AKOATS_ID, sep = " and", into = "AKOATS_ID") %>%
-  select(-Notes) %>%
+  separate(AKOATS_ID, sep = " or", into = "AKOATS_ID") %>%
+  select(-rss_notes, -`jc_notes Nov13`, -BM_notes,-fileName) %>%
   # remove degree symbols
   mutate(Latitude = as.double(gsub("°","",Latitude)),
          Longitude = as.double(gsub("°","",Longitude))) %>%
@@ -124,18 +127,45 @@ uw.meta <- read_excel("data/Jackie Carter UW/uw sites_JC_rss.xlsx", sheet = "She
   mutate(Contact_person = "Jackie Carter",
          Contact_email = "jlcarter@uw.edu",
          SourceName = "uwASP",
-         Contact_telephone = "206-543-7563") %>%
-  rename(SiteID = data_SiteID)
+         Contact_telephone = "206-543-7563",
+         Sensor_accuracy = "",
+         Waterbody_name = "")  %>%
+  # retain only sites missing an AKOATS_ID and instead have coords provided by UW
+  filter(AKOATS_ID == "NA") %>%
+  rename(SiteID = StationName) %>%
+  mutate_all(as.character)
 
 # join with AKOATS-provided metadata where possible, and use UW provided metadata where not
-## uw sites WITHOUT AKOATS_ID values
-uw.meta <- uw.meta %>%
-  filter(AKOATS_ID == "NA") %>%
-  transform(AKOATS_ID = as.double(AKOATS_ID))
 
-# all uw metadata
-uw.meta <- bind_rows(akoats.meta,uw.meta) %>%
-  filter(SourceName == "uwASP")
+# all uw metadata w/ AKOATS IDs
+uw.meta.1 <- bind_rows(akoats.meta,uw.meta) %>%
+  filter(SourceName == "uwASP",
+         !is.na(AKOATS_ID))
+
+# join uw.meta.1 metadata to overall dataframe (join by AKOATS_ID)
+dat.uw.1 <- dat %>%
+  filter(filename == "UW",
+         !is.na(filename)) %>%
+  select(-SiteID) %>%
+  inner_join(uw.meta.1, by = "AKOATS_ID")
+
+
+# all uw metadata WITHOUT AKOATS IDs
+uw.meta.2 <- bind_rows(akoats.meta,uw.meta) %>%
+  filter(SourceName == "uwASP",
+         is.na(AKOATS_ID)) %>%
+  select(-AKOATS_ID)
+
+# join uw.meta.2 metadata to overall dataframe (join by SiteID)
+dat.uw.2 <- dat %>%
+  filter(filename == "UW",
+         is.na(AKOATS_ID)) %>%
+  inner_join(uw.meta.2, by = "SiteID")
+
+uw.dat <- bind_rows(dat.uw.1,dat.uw.2) %>%
+  mutate_all(as.character)
+
+rm(uw.meta,uw.meta.1,uw.meta.2,dat.uw.1,dat.uw.2)
 
 ```
 
@@ -145,15 +175,24 @@ uw.meta <- bind_rows(akoats.meta,uw.meta) %>%
 
 ```{r}
 
-# CIK metadata
-cik.meta <- akoats.meta %>%
-  filter(SourceName == "CIK") 
+# CIK metadata from AKOATS database
+cik.meta.1 <- akoats.meta %>%
+  filter(SourceName == "CIK") %>%
+  mutate_all(as.character)
+
+# CIK metadata from provided excel file
+cik.meta.2 <- read_excel("data/CIK Bristol Bay village and lodge sites/cik_metadata/CIK Bristol Bay village and lodge sites.xlsx") %>%
+  separate(`KNB ID`, sep = "_",into = c("a","AKOATS_ID")) %>%
+  select(SiteID,AKOATS_ID,Waterbody_name) %>%
+  filter(!is.na(AKOATS_ID)) %>%
+  distinct() %>%
+  mutate_all(as.character)
 
 # "Ben Courtney Creek" location missing.  Coordinates provided via email from Sue Mauger on 11/16/20 @ 59.272417; -156.357567
 
 # create ben courtney creek metadata
 cik.meta.bc <- data.frame("Ben Courtney Creek") %>%
-  mutate(AKOATS_ID = as.double("NA"),
+  mutate(AKOATS_ID = as.character(""),
          SiteID = "Ben Courtney Creek",
          Contact_person = "Sue Mauger",
          SourceName = "CIK",
@@ -162,12 +201,24 @@ cik.meta.bc <- data.frame("Ben Courtney Creek") %>%
          Latitude = 59.272417,
          Longitude = -156.357567,
          Sensor_accuracy = "") %>%
-  select(-X.Ben.Courtney.Creek.)
+  select(-X.Ben.Courtney.Creek.) %>%
+  mutate_all(as.character)
+
+# also missing Roadhouse Creek info!
 
 # join ben courtney creek metadata to other CIK metadata
-cik.meta <- bind_rows(cik.meta,cik.meta.bc)
+cik.meta <- bind_rows(cik.meta.1,cik.meta.2,cik.meta.bc) %>%
+  filter(!is.na(SourceName))
 
-rm(cik.meta.bc)
+# join with AKOATS-provided metadata where possible, and use CIK provided metadata where not
+dat.cik <- dat %>%
+  filter(filename == "CIK") %>%
+  select(-AKOATS_ID) %>%
+  left_join(cik.meta, by = "SiteID") %>%
+  distinct() %>%
+  mutate_all(as.character)
+
+rm(cik.meta,cik.meta.1,cik.meta.2,cik.meta.bc)
 ```
 
 <br>
@@ -182,7 +233,9 @@ egegik.meta <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata"
 fws.meta <- bind_rows(togiak1.meta,togiak2.meta,egegik.meta)
 
 # specify strings to remove
-strings <- c("I have no data for Togiak Lake","I have no data for Togiak lake","New Sites:",
+strings <- c("I have no data for Togiak Lake",
+             "I have no data for Togiak lake",
+             "New Sites:",
              "was wrongly named as 571001154134300",
              "was wrongly named as 571359154244300",
              "was wrongly named as 580223156504200")
@@ -192,11 +245,19 @@ fws.meta <- fws.meta %>%
   # choose columns to retain
   select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
   filter(SiteID %ni% strings,
-         !is.na(SiteID))
+         !is.na(SiteID)) %>%
+  distinct() 
 
-# note: in the metadata tab in "WRB_Oct2020.xlsx", there are three rows describing previous "wrongly named" sites, their associated AKOATS_ID, and the correct names.  Changes are highlighted by row in yellow in "data/AKOATS_DATA_2020_working.xlsx"
+# join fws data to metadata
+fws.dat <- dat %>%
+  filter(filename == "FWS") %>%
+  select(-AKOATS_ID) %>%
+  left_join(fws.meta,by = "SiteID") %>%
+  mutate_all(as.character)
 
-rm(togiak1.meta,togiak2.meta,egegik.meta)
+# note: in the metadata tab in "WRB_Oct2020.xlsx", there are three rows describing previous "wrongly named" sites, their associated AKOATS_ID, and the correct names.  Changes made are highlighted by row in yellow in "data/AKOATS_DATA_2020_working.xlsx"
+
+rm(togiak1.meta,togiak2.meta,egegik.meta,fws.meta)
 ```
 
 <br>
@@ -205,10 +266,18 @@ rm(togiak1.meta,togiak2.meta,egegik.meta)
 
 ```{r}
 # UAA-ACCS metadata
-accs.meta <- read.csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
+accs.meta <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv", col_types = cols(.default = "c")) %>%
   select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) 
 
-# perfect!
+
+# join uaa-accs data to metadata
+accs.dat <- dat %>%
+  filter(filename == "UAA-ACCS") %>%
+  select(-SiteID) %>%
+  left_join(accs.meta,by = "AKOATS_ID") %>%
+  mutate_all(as.character)
+
+rm(accs.meta)
 
 ```
 
@@ -236,7 +305,8 @@ nps.names.lakes <- dat.lakes %>%
   select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) 
 
 # combine
-nps.meta.1 <- bind_rows(nps.names.sb,nps.names.lakes)
+nps.meta.1 <- bind_rows(nps.names.sb,nps.names.lakes) %>%
+  mutate_all(as.character)
 
 # which NPS sites are missing from AKOATS-provided metadata?
 
@@ -272,12 +342,26 @@ nps.meta.2 <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
          Contact_telephone = "(907) 644-3685",
          SourceName = "npsSWAN",
          Sensor_accuracy = "") %>%
-  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) 
+  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  mutate_all(as.character)
 
 # join all available NPS metadata
 nps.meta <- bind_rows(nps.meta.1,nps.meta.2)
 
-rm(nps.meta.1,nps.meta.2,nps.names.sb,nps.names.missing,nps.names.lakes)
+# join NPS streams & beaches data to metadata
+nps.dat.sb <- dat %>%
+  filter(filename == "NPS_streams_beaches") %>%
+  select(-AKOATS_ID) %>%
+  left_join(nps.meta,by = "SiteID") %>%
+  mutate_all(as.character)
+
+# join NPS lakes data to metadata
+nps.dat.lakes <- dat.lakes %>%
+  select(-AKOATS_ID) %>%
+  left_join(nps.meta,by = "SiteID") %>%
+  mutate_all(as.character)
+
+rm(nps.meta,nps.meta.1,nps.meta.2,nps.names.sb,nps.names.missing,nps.names.lakes)
 ```
 
 <br>
@@ -291,7 +375,7 @@ usgs.sites <- c("15302000","15300300","15302250","15302812")
 usgs.meta <- readNWISsite(usgs.sites)
 
 # examine akoats meta data for usgs sites
-usgs.meta.akoats <- akoats.meta %>%filter(SiteID %in% usgs.sites)
+usgs.meta.akoats <- akoats.meta %>% filter(SiteID %in% usgs.sites)
 
 # note: there is no AKOATS_ID yet for USGS site 15302812 ("KOKWOK R 22 MI AB NUSHAGAK R NR EKWOK AK)
 
@@ -309,47 +393,92 @@ usgs.meta.1 <- usgs.meta %>%
   rename(SiteID = site_no,
          Latitude = dec_lat_va,
          Longitude = dec_long_va) %>%
-  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) 
+  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  mutate_all(as.character)
 
 # format usgs-provided metadata to match other metadata
 usgs.meta.2 <- usgs.meta %>%
   filter(site_no != "15302812") %>%
   rename(SiteID = site_no) %>%
   left_join(usgs.meta.akoats,by = "SiteID") %>%
-  transform(AKOATS_ID = as.character(AKOATS_ID)) %>%
-  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) 
+  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  mutate_all(as.character)
 
 # join usgs metadata to single table
-usgs.meta <- bind_rows(usgs.meta.1,usgs.meta.2) %>%
-  transform(AKOATS_ID = as.double(AKOATS_ID))
+usgs.meta <- bind_rows(usgs.meta.1,usgs.meta.2) 
 
-rm(usgs.meta.1,usgs.meta.2,usgs.meta.akoats)
+# join usgs data to metadata
+usgs.dat <- dat %>%
+  filter(filename == "USGS") %>%
+  select(-AKOATS_ID) %>%
+  left_join(usgs.meta,by = "SiteID") %>%
+  mutate_all(as.character)
 
-```
-
-<br>
-
-Join all metadata tables to one single metadata table
-```{r}
-z <- bind_rows(uw.meta,cik.meta,accs.meta,fws.meta,usgs.meta)
-
-,nps.meta)
-
+rm(usgs.meta,usgs.meta.1,usgs.meta.2,usgs.meta.akoats)
 
 ```
 
 <br>
 
-Join all metadata to all streams & beaches data
-```{r}
 
-# some missing akoatsids; make manual table to join by site name where needed?
+Join all data in to one table (takes a few minutes...)
+```{r}
+# combine
+dat <- bind_rows(uw.dat,dat.cik,fws.dat,accs.dat,nps.dat.sb,usgs.dat) 
+rm(uw.dat,dat.cik,fws.dat,accs.dat,nps.dat.sb,usgs.dat)
+
+# prep for summary table
+## streams & beaches
+dat <- dat %>%
+  filter(useData == 1,
+         !is.na(Temperature),
+         !is.na(Time)) %>%
+  rename(sampleTime = Time,
+         sampleDate = Date) %>%
+  transform(sampleTime = hms::as_hms(sampleTime),
+            sampleDate = as.Date(sampleDate),
+            Temperature = as.numeric(Temperature)) %>%
+  mutate(year = year(sampleDate)) 
+
+## lakes
+dat.lakes <- nps.dat.lakes %>%
+  filter(useData == 1,
+         !is.na(Temperature)) %>%
+  rename(sampleTime = Time,
+         sampleDate = Date) %>%
+  transform(sampleTime = hms::as_hms(sampleTime),
+            sampleDate = as.Date(sampleDate),
+            Tempreature = as.numeric(Temperature)) %>%
+  mutate(year = year(sampleDate)) 
+
 ```
+
+<br>
+
+Create summary metadata table
+```{r}
+z <- dat %>%
+  
+  group_by(AKOATS_ID,SiteID,Contact_person,SourceName,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  summarise(start_year = min(year),
+            end_year = max(year),
+            max_temp = max(Temperature),
+            min_temp = min(Temperature),
+            mean_temp = mean(Temperature)
+            )
+
+# Panaraquk Creek and Gibralter River should have coords, see CIK metadata file
+
+```
+
+
+
 
 <br>
 
 Join all metadata to all lakes data
 ```{r}
+z <- nps.dat.lakes %>%
 
 ```
 
