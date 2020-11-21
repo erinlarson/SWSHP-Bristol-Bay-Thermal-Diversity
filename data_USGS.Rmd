@@ -138,13 +138,26 @@ usgsData <- left_join(usgsData,usgsMetadata)
 # transform and rename columns
 usgsData <- usgsData %>%
   mutate(sampleDate = date(dateTime),
-         sampleTime = hms::as_hms(dateTime),
-         AKOATS_ID = NA) %>%
+         sampleTime = hms::as_hms(dateTime)) %>%
   rename(Temperature = Wtemp_Inst,
-         SiteID = station_nm) %>%
-  select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature)
+         SiteID = site_no) %>%
+  select(SiteID,sampleDate,sampleTime,Temperature)
 
 ```
+
+<br>
+Assign AKOATS_IDs where possible
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE") %>%
+  filter(SourceName == "USGS") %>%
+  select(seq_id,Agency_ID) %>%
+  rename(AKOATS_ID = seq_id,
+         SiteID = Agency_ID)
+
+usgsData <- left_join(usgsData,akoats.meta,by = "SiteID")
+```
+
+
 
 <br>
 
@@ -179,7 +192,10 @@ usgsData <- usgsData %>%
 
 Export csv of combined datasets to data folder associated with this .Rproj
 ```{r}
+# reorder columns
+x <- usgsData %>% select("AKOATS_ID","SiteID","sampleDate","sampleTime","Temperature","useData")
+
 # export csv
- write.csv(usgsData,"output/USGS.csv", row.names = F)
+ write.csv(x,"output/USGS.csv", row.names = F)
 
 ```
