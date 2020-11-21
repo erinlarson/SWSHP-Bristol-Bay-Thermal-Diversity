@@ -279,20 +279,30 @@ Associate and AKOATS_ID with each site where possible
 - See notes column in UW metadata for suggestions on how to resolve these conflicts
 
 ```{r}
+# remove sites specified not be used in metadata notes
+sites_remove <- c("Nerka Lynx Creek Beach","Nerka Lynx Creek Middle")
+# apply exclusions
+uw.data <- uw.data %>%
+  filter(SiteID %ni% sites_remove) 
+
+# rename "Nerka Lynx Creek Upper" as "Nerka Lynx Lake Tributary" as specified in metadata notes
+uw.data <- uw.data %>%
+  mutate(SiteID = str_replace(SiteID,"Nerka Lynx Creek Upper","Nerka Lynx Lake Tributary"))
+
+
 # read in UW metadata resolutions emailed from R Shaftel on 11/13/20
 uw.metadata <- read_excel("data/Jackie Carter UW/uw_metadata_thru_2017.xlsx", sheet = "Sheet1") %>%
   # filter out unresolved sites
-  filter(AKOATS_ID != "?") %>%
-
-   # use only one AKOATS_ID for sites with multiple entries
+  filter(AKOATS_ID != "?",
+         AKOATS_ID != "NA") %>%
+  # use only one AKOATS_ID for sites with multiple entries
   separate(AKOATS_ID, sep = " and", into = "AKOATS_ID") %>%
   separate(AKOATS_ID, sep = " or", into = "AKOATS_ID") %>%
-  select(fileName,AKOATS_ID) %>%
-  rename(data_SiteID = fileName)
+  select(StationName,AKOATS_ID) %>%
+  rename(SiteID = StationName) 
 
-# join AKOATS_IDs to UW water temp data.  Make sure to use the "data_SiteID" column as a join key
- uw.data <- left_join(uw.data,uw.metadata,by = "data_SiteID") %>% 
-   distinct()
+# join AKOATS IDs
+uw.data <- left_join(uw.data,uw.metadata, by = "SiteID")
  
 # there will later be some further resolution of UW metadata and SiteIDs in "metadata_AllSites.Rmd", as some UW sites not have assigned AKOATS_ID values
 
@@ -540,7 +550,7 @@ uw_flagged_data <- uw.data %>%
   mutate(useData = 0) %>%
   select(-day_start,-day_end,-year,-day)
 
-# remove 
+# apply flags
 uw_nonflagged_data <- anti_join(uw.data,uw_flagged_data,by = c("SiteID","sampleDate","sampleTime")) %>%
   mutate(useData = 1)
 
@@ -554,6 +564,10 @@ rm(above.25,l,p,uw_flagged_data,uw_nonflagged_data,alk)
 uw.data %>%
   group_by(useData) %>%
   summarise(ct = n())
+
+# calc % of flagged data
+# (11457/(1089838 +11457))*100
+# 1.04% of data is flagged
 
 ```
 
@@ -572,13 +586,6 @@ Export csv of combined datasets, with newly identified "do not use data" signifi
 # prep for export
  uw.data <- uw.data %>%
    select(-data_SiteID) 
-
-
-# 11/18/20
-
-# some sites that should have an AKOATS_ID do not yet.  need to find out why.  working here 11/18/20
-
-
 
 # reorder columns
 x <- uw.data %>% select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
