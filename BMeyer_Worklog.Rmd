@@ -65,3 +65,14 @@ Completed NPS data read in after discovering errors.
 
 11/18/20
 Nearly completed integration & QC of new UW data.  Lots of inconsistencies to resolve.
+
+11/19/20
+Completed metadata output summary table.  But, found min/max temperatures still within the range of < -20 C and > 30 C.  Working to diagnose cause.  First suspicion: doing QC at daily mean level rather than instantaneous masks occasional extremes and/or logger exposure and malfunction.
+
+11/20/20
+Note to self: investigate the topic of using machine learning to identify anomalies in time series (e.g. continuous water quality data)
+
+11/21/20
+Completed draft of metadata summary tables and leaflet map.
+
+UW anomalous data still not being properly excised.  Discuss on Monday afternoon?
