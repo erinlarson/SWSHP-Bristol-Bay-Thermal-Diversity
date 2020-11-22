@@ -42,8 +42,6 @@ Read in Excel files, one at a time.  Note: data is structured such that individu
 
 Read in "Togiak_Oct2020_Part1.xlsx"
 ```{r}
-#becky's togiak 1 dataset
-#togiak1 <- "S:/Stream Temperature Data/USFWS Perdue - complete 2020/Togiak_Oct2020_Part1.xlsx"
 
 # ben's togiak1 dataset path
 togiak1 <- "data/FWS/Togiak_Oct2020_Part1.xlsx"
@@ -116,6 +114,10 @@ fws.data <- bind_rows(tog1_dat,tog2_dat,egegik_dat) %>%
             sampleDate = as.Date(sampleDate),
             sampleTime = hms::as.hms(sampleTime)) %>%
   filter(!is.na(Temperature))
+
+# exclude data from the Koyukuk River, a river in Northern Alaska not in the Bristol Bay region
+fws.data <- fws.data %>%
+  filter(SiteID != "665429151405100")
 
 ```
 
