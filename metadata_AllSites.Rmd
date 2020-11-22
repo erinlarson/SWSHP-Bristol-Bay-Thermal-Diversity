@@ -33,6 +33,7 @@ library(hms)
 library(plotly)
 library(DT)
 library(dataRetrieval)
+library(rsay)
 
 # define function to exclude multiple strings in a column
 '%ni%' <- Negate('%in%')
@@ -183,7 +184,7 @@ cik.meta.1 <- akoats.meta %>%
 # CIK metadata from provided excel file
 cik.meta.2 <- read_excel("data/CIK Bristol Bay village and lodge sites/cik_metadata/CIK Bristol Bay village and lodge sites.xlsx") %>%
   separate(`KNB ID`, sep = "_",into = c("a","AKOATS_ID")) %>%
-  select(SiteID,AKOATS_ID,Waterbody_name) %>%
+  #select(SiteID,AKOATS_ID,Waterbody_name) %>%
   filter(!is.na(AKOATS_ID)) %>%
   distinct() %>%
   mutate_all(as.character)
@@ -212,10 +213,18 @@ cik.meta <- bind_rows(cik.meta.1,cik.meta.2,cik.meta.bc) %>%
 
 # join with AKOATS-provided metadata where possible, and use CIK provided metadata where not
 dat.cik <- dat %>%
+  #  correct mis-spellings at one site to match metadata
+  mutate(SiteID = str_replace(SiteID,"Panaraqak Creek","Panaruqak Creek")) %>%
+  mutate(SiteID = str_replace(SiteID,"Panaraquk Creek","Panaruqak Creek")) %>%
+  # modify one site name to match metadata
+  mutate(SiteID = str_replace(SiteID,"Gibraltar River","Gibraltar Creek")) %>%
   filter(filename == "CIK") %>%
   select(-AKOATS_ID) %>%
   left_join(cik.meta, by = "SiteID") %>%
   distinct() %>%
+  select("AKOATS_ID","Date","Time","Temperature","useData","filename","SiteID",
+         "Contact_person","SourceName","Contact_email","Contact_telephone",
+         "Latitude","Longitude","Sensor_accuracy","Waterbody_name") %>%
   mutate_all(as.character)
 
 rm(cik.meta,cik.meta.1,cik.meta.2,cik.meta.bc)
@@ -421,16 +430,25 @@ rm(usgs.meta,usgs.meta.1,usgs.meta.2,usgs.meta.akoats)
 <br>
 
 
+
 Join all data in to one table (takes a few minutes...)
 ```{r}
 # combine
 dat <- bind_rows(uw.dat,dat.cik,fws.dat,accs.dat,nps.dat.sb,usgs.dat) 
 rm(uw.dat,dat.cik,fws.dat,accs.dat,nps.dat.sb,usgs.dat)
+```
 
+
+Note 11/22/20: there are a few sites that have instantaneous minimum temperatures still ~ -2 to -5 C even after extensive double-checking that daily mean temps in this range have been labeled with useData = 0.  Likely diagnosis: there are some instantaneous min temps in this range that are masked when doing QC at the daily mean level.
+
+Solution applied on 11/22/20: all temps < -1 C are excluded here at this step.
+
+```{r}
 # prep for summary table
 ## streams & beaches
 dat <- dat %>%
   filter(useData == 1,
+         Temperature > -1,
          !is.na(Temperature),
          !is.na(Time)) %>%
   rename(sampleTime = Time,
@@ -440,6 +458,7 @@ dat <- dat %>%
             Temperature = as.numeric(Temperature)) %>%
   mutate(year = year(sampleDate)) 
 
+
 ## lakes
 dat.lakes <- nps.dat.lakes %>%
   filter(useData == 1,
@@ -448,8 +467,10 @@ dat.lakes <- nps.dat.lakes %>%
          sampleDate = Date) %>%
   transform(sampleTime = hms::as_hms(sampleTime),
             sampleDate = as.Date(sampleDate),
-            Tempreature = as.numeric(Temperature)) %>%
+            Temperature = as.numeric(Temperature)) %>%
   mutate(year = year(sampleDate)) 
+
+rm(nps.dat.lakes)
 
 ```
 
@@ -457,9 +478,9 @@ dat.lakes <- nps.dat.lakes %>%
 
 Create summary metadata table
 ```{r}
-z <- dat %>%
-  
-  group_by(AKOATS_ID,SiteID,Contact_person,SourceName,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+fnl.tbl <- dat %>%
+  group_by(AKOATS_ID,SiteID,Contact_person,SourceName,Latitude,
+           Longitude,Sensor_accuracy,Waterbody_name) %>%
   summarise(start_year = min(year),
             end_year = max(year),
             max_temp = max(Temperature),
@@ -467,41 +488,35 @@ z <- dat %>%
             mean_temp = mean(Temperature)
             )
 
-# Panaraquk Creek and Gibralter River should have coords, see CIK metadata file
+# temperature exclusion pipes appear to not be functioning in data_UW.Rmd as of 11/21/20, thus min/max/mean most sites incorrect.  gah.
+
+write.csv(fnl.tbl, "output/summary_tables/summary_table.csv", row.names = F)
+
+# announce completion
+speak("All done! Check it out!")
 
 ```
 
 
-
-
 <br>
 
-Join all metadata to all lakes data
+Create lakes summary metadata table
 ```{r}
-z <- nps.dat.lakes %>%
+# 
+fnl.tbl.lakes <- dat.lakes %>%
+  group_by(AKOATS_ID,Depth,SiteID,Contact_person,SourceName,Latitude,
+           Longitude,Sensor_accuracy,Waterbody_name) %>%
+  summarise(start_year = min(year),
+            end_year = max(year),
+            max_temp = max(Temperature),
+            min_temp = min(Temperature),
+            mean_temp = mean(Temperature)
+            )
+
+write.csv(fnl.tbl.lakes, "output/summary_tables/summary_table_lakes.csv", row.names = F)
+
+# announce completion
+rsay("All done! Check it out!")
 
 ```
-
-
-
-
-
-working here 11/16/20
-
-
-<br>
-
-Join to AKOATS metadata table
-
-Summarize by year, site, agency
-- min/max/mean/sd
-- n_obs
-- frequency obs
-- years extent
-
-<br>
-
-Export metadata summary table
-
-Create leaflet map (in diff script maybe)
 
