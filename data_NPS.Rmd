@@ -262,11 +262,13 @@ suspect.nps.sites <-data.frame(c("KATM_lbrooo_lvl",
                                  "LACL_lclaro_lvl",
                                  "LACL_porta_beach_water",
                                  "KATM_savor_stream_water",
-                                 "KATM_naknlo_continuous_wq"))
+                                 "KATM_naknlo_continuous_wq",
+                                 "KATM_margc_stream_water",
+                                 "LACL_tlikr_stream_sediment"))
 colnames(suspect.nps.sites) <- "Agency_ID"
 
 # specify year or years to visualize
-y <- c("2013","2014")
+y <- c("2019")
 
 # create ggplotly chart
 ggplotly(
@@ -279,7 +281,7 @@ ggplotly(
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   
   # modified SiteID one at a time here to visually inspect datasets
-  filter(Agency_ID == "KATM_savor_stream_water"
+  filter(Agency_ID == "KATM_lbrooo_temp"
          # put hash tag at next line to see all years for the site
          #,year %in% y
          ) %>%
@@ -315,7 +317,9 @@ nps_flagged_data <- nps.data %>%
   mutate(day = yday(sampleDate)) %>%
   filter(day >= day_start & day <= day_end) %>%
   mutate(useData = 0) %>%
-  select(-day_start,-day_end,-year,-day)
+  select(-day_start,-day_end,-year
+         #,-day
+         )
 
 # remove 
 nps_nonflagged_data <- anti_join(nps.data,nps_flagged_data,by = c("Agency_ID","sampleDate","sampleTime")) %>%
