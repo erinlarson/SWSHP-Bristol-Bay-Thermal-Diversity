@@ -255,7 +255,7 @@ rm(uw.data.x,month.conv)
 
 <br>
 
-Join and format all data frames read-in
+Join and format all data frames that have been read-in
 ```{r}
 
 uw.data <- bind_rows(uw.data,uw.data.2) %>%
@@ -495,9 +495,9 @@ ggplotly(
 l <- data.frame(unique(uw.data$SiteID))
 
 # specify year or years to display here
-y <- c("2020","2019","2015")
+y <- c("2011")
 # specify site
-site <- "Nerka Teal Creek"
+site <- "Nerka Rainbow Creek"
 
 # create ggplotly chart
 ggplotly(
@@ -511,7 +511,7 @@ ggplotly(
   # modified SiteID one at a time here to visually inspect datasets
   filter(SiteID == site
          # hashtag line below if want to see all years for a site
-         #,year %in% y
+         ,year %in% y
          ) %>%
   
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
@@ -529,6 +529,7 @@ If further data is is identified to be flagged, edit the csv file at "data/flagg
 
 <br>
 
+
 Apply flags for good/bad data
 ```{r}
 # created table of erroneous data to be flagged/excised
@@ -536,19 +537,44 @@ Apply flags for good/bad data
 
 # use flagged data table to assign "useData = 0" to erroneous observations
 
+
 # read in start/end dates for flagged data
-uw_flagged_data <- read.csv("data/flagged_data/UW_flagged_data.csv") %>%
+uw_flags <- read.csv("data/flagged_data/UW_flagged_data.csv") %>%
   filter(!is.na(day_start)) %>%
   select(-Notes) 
 
 # create table of data to be flagged w/ "useData = 0"
 uw_flagged_data <- uw.data %>% 
   mutate(year = year(sampleDate)) %>%
-  inner_join(uw_flagged_data,by = c("SiteID","year")) %>%
+  inner_join(uw_flags,by = c("SiteID","year")) %>%
   mutate(day = yday(sampleDate)) %>%
   filter(day >= day_start & day <= day_end) %>%
   mutate(useData = 0) %>%
   select(-day_start,-day_end,-year,-day)
+
+
+
+
+############ NOTE ###############
+
+### Note: the "inner_join" step of the above pipe is behaving oddly.  In this step we want to create a table of all rows to be flagged with useData = 0.  However only a (seemingly random) subset of the sites, years, and days specified in "UW_flagged_data.csv" are being recognized by inner_join.  As a result, not all of the data specified to be flagged as useData = 0 is being flagged.
+
+# Checked through spelling and column classes several times to ensure matches.  As of 11/21/20 not yet diagnosed what is happening at this step.  
+
+# Verbal description of code pipes intended to label data with useData = 0:
+# A.) Periods of daily means ID'd to be excluded are manually specified in "UW_flagged_data.csv" by SiteID, start day, end day, and year.
+
+# B.) A dataframe of data to be labeled with useData = 0 is generated using an inner_join pipe with the manually ID'd data.
+
+# C.) A dataframe of data to be labeled with useData = 1 in generated using an anti_join pipe; labeing all data not specified as useData = 0 as useData = 1.
+
+# D.) The two flagged dataframes are joined using bind_rows.
+
+# Step B of the above procedure is not functining.  E.g., search for "Aleknagik Ice Creek" in "uw_flags" and "uw_flagged_data" dataframes.
+##################################
+
+
+
 
 # apply flags
 uw_nonflagged_data <- anti_join(uw.data,uw_flagged_data,by = c("SiteID","sampleDate","sampleTime")) %>%
