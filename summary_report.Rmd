@@ -1,0 +1,94 @@
+---
+title: "Summary Report"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
+---
+
+Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# clear environment
+rm(list=ls())
+
+# load packages
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+library(DT)
+library(leaflet)
+
+# define function to exclude multiple strings in a column
+'%ni%' <- Negate('%in%')
+```
+
+<br>
+
+Streams & Beaches summary table
+```{r}
+datatable(read.csv("output/summary_tables/summary_table.csv"),
+          filter = 'top', 
+          options = list(pageLength = 5, autoWidth = TRUE)) %>%
+  formatRound(columns=c("Latitude","Longitude"),digits = 5) %>%
+  formatRound(columns=c("mean_temp","max_temp","min_temp"), digits=2) 
+
+```
+
+<br>
+
+Lakes summary table
+```{r}
+datatable(read.csv("output/summary_tables/summary_table_lakes.csv"),
+          filter = 'top', 
+          options = list(pageLength = 5, autoWidth = TRUE)) %>%
+    formatRound(columns=c("Latitude","Longitude"),digits = 5) %>%
+  formatRound(columns=c("mean_temp","max_temp","min_temp"), digits=2) 
+```
+
+Join all metadata
+```{r}
+
+sb <- read.csv("output/summary_tables/summary_table.csv") %>%
+  mutate(Depth = as.integer(""))
+lakes <- read.csv("output/summary_tables/summary_table_lakes.csv")
+
+dat.meta <- bind_rows(sb,lakes)
+
+```
+
+
+<br>
+
+Study Locations
+```{r}
+# create map
+leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
+  #setView(-150.210169, 60.487694, zoom = 8) %>%
+  addMarkers(lng = dat.meta$Longitude, lat = dat.meta$Latitude,
+             popup = paste("Waterbody Name = ", dat.meta$Waterbody_name, "<br>",
+                           "SiteID = ", dat.meta$SiteID, "<br>",
+                           "Data Source = ", dat.meta$SourceName, "<br>",
+                           "AKOATS_ID = ", dat.meta$AKOATS_ID, "<br>",
+                           "Start Year = ", dat.meta$start_year, "<br>",
+                           "End Year = ", dat.meta$end_year, "<br>",
+                           "Sensor Accuracy = ", dat.meta$Sensor_accuracy, "<br>"))
+
+```
