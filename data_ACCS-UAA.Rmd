@@ -48,7 +48,7 @@ accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
 accs.data <- accs.data %>%
   select(AKOATS_ID,sampleDate,sampleTime,Temperature) %>%
   transform(sampleDate = as.Date(mdy(sampleDate)),
-            sampleTime = hms::as.hms(sampleTime),
+            sampleTime = hms::as_hms(sampleTime),
             Temperature = as.numeric(Temperature)) 
 
 
@@ -99,30 +99,103 @@ accs.data %>%
   summarise(daily_mean_Temperature = mean(Temperature)) %>%
   ggplot(aes(day,daily_mean_Temperature, color = year)) +
   geom_point() +
-  facet_wrap(. ~ Waterbody_name) +
+  facet_wrap(. ~ SiteID, scales = "free_y") +
   ggtitle("Original Logger Data by Site and Year")
 
 ```
 
 <br>
 
-Looks like we have some malfunctioning loggers at site Bonanza Creek.  Lets identify 2015 and 2016 data from this site as not usable by identifying with a "0" in the "useData" column.
+Looks like we have some malfunctioning loggers at site 1664 and maybe some exposure data at other sites.  Lets identify these data as not usable by assigning a "0" in the "useData" column.
+
+Process to identify and remove streams & beaches erroneous data:
+
+* Visually identify data that does not seem reasonable
+* Plot unreasonable datasets by individual year and site
+* Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
 
 ```{r}
-# FYI this can be done in a more fine-tuned fashion; eliminating specific data by day or individual observation(s), by creating this file externally as a csv and listing individual  observations to be eliminated
-year <- c(2015, 2016)
-AKOATS_ID <- c("1664","1664")
-useData <- c(0,0)
-bad_data <- data.frame(year,AKOATS_ID,useData) %>%
-  transform(useData = as.character(useData))
 
-accs.data <- accs.data %>%
-  left_join(bad_data) %>%
-  mutate(useData = replace_na(useData, "1")) %>%
-  distinct() %>%
-  mutate(year = year(sampleDate))
+# list of suspect sites to manually examine w/ ggplotly 
+suspect.accs.sites <-data.frame(c("Bonanza Creek",
+                                  "Tazimina River",
+                                  "mutsk02",
+                                  "mutsk09",
+                                  "muekm23"))
+colnames(suspect.accs.sites) <- "SiteID"
+
+# specify year or years to visualize
+y <- c("2014")
+
+# create ggplotly chart
+ggplotly(
+  p <- accs.data %>%
+  inner_join(suspect.accs.sites) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == "muekm23"
+         # put hash tag at next line to see all years for the site
+          ,year %in% y
+         ) %>%
+  
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data")
+  )
 
 ```
+
+<br>
+
+If further data is is identified to be flagged, edit the csv file at "data/flagged_data/NPS_flagged_data.csv"
+
+
+
+<br>
+
+Apply flags for good/bad data
+```{r}
+# created table of erroneous data to be flagged/excised
+## @ data/flagged_data/UW_flagged_data.csv
+
+# use flagged data table to assign "useData = 0" to erroneous observations
+
+# read in start/end dates for flagged data
+accs_flagged_data <- read.csv("data/flagged_data/ACCS_flagged_data.csv") %>%
+  filter(!is.na(day_start)) %>%
+  select(-Notes) 
+
+# create table of data to be flagged w/ "useData = 0"
+accs_flagged_data <- accs.data %>% 
+  rename(Agency_ID = SiteID) %>%
+  mutate(year = year(sampleDate)) %>%
+  inner_join(accs_flagged_data,by = c("Agency_ID","year")) %>%
+  mutate(day = yday(sampleDate)) %>%
+  filter(day >= day_start & day <= day_end) %>%
+  mutate(useData = 0) %>%
+  select(-day_start,-day_end,-year,-day) %>%
+  rename(SiteID = Agency_ID) 
+
+# remove 
+accs_nonflagged_data <- anti_join(accs.data,accs_flagged_data,by = c("SiteID","sampleDate","sampleTime")) %>%
+  mutate(useData = 1)
+
+# rejoin flagged and non-flagged data in same dataframe
+accs.data <- bind_rows(accs_flagged_data,accs_nonflagged_data)
+
+# remove extraneous objects
+rm(p,accs_flagged_data,accs_nonflagged_data,suspect.accs.sites)
+
+# data to be excised is now designated with "useData = 0"
+
+```
+
 
 <br>
 
@@ -153,6 +226,7 @@ Interactive data summary table
 # create data summary table
 accs.data.summary <- accs.data %>%
   filter(useData == 1) %>%
+  mutate(year = year(sampleDate)) %>%
   group_by(SiteID,AKOATS_ID,Waterbody_name,year) %>%
   summarize(meanTemp = mean(Temperature, na.rm = T),
             maxTemp = max(Temperature, na.rm = T),
