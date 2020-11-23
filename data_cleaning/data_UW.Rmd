@@ -20,6 +20,7 @@ Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 # clear environment
 rm(list=ls())
@@ -37,22 +38,45 @@ library(tidyverse)
 
 <br>
 
-Read in data from folder "Jackie Carter UW"
-```{r}
+Read in data from folder "Jackie Carter UW". These are the 51 files of stream temperature data originally provided for SASAP project, but never archived on KNB. Data are through 2017. Keep file name when reading in data in case it is needed to inspect date-time formats or other formatting problems. Also, keep other information from Jackie, such as Lake and sample type. We will want sample type to indicate logger accuracy for AKTEMP. And, lake information is a good check that we are locating sites in the correct region of the Wood River watershed. Exclude the original Lynx Creek data file in this folder. Jackie provided a new version with only 5 station names and correct locations later.
 
-# most data pre-2017
+
+```{r}
 uw.data <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
                pattern = "*.csv", 
                full.names = T) %>%
-# include file name read in for later use in resolving site name conflicts
    map_df(function(x) read_csv(x,col_types = cols(.default = "c"),col_names = T) %>% 
-            mutate(data_SiteID = gsub(".csv","",basename(x)))) %>%
-    select(-X9,-SampleType,-MeasurementType,-Lake,-YearSampled) %>%
-  # exclude Lynx creek sites, as corrected versions were provided separately in an email on 11/17/20
-  dplyr::filter(!grepl("Lynx",StationName)) %>%
-  rename(sampleDate = Date,
-         sampleTime = Time)
+            mutate(file_name = gsub(".csv","",basename(x)))) %>%
+    select(-X9, -MeasurementType, -YearSampled) %>%
+  dplyr::filter(!grepl("Lynx",StationName)) 
+```
 
+50 files were read in and there are a total of 55 sites with data.
+
+```{r}
+uw.data %>% 
+  distinct(file_name, StationName) %>% 
+  count(file_name) %>% 
+  arrange(desc(n))
+```
+
+Look at date file formats. It looks like most are "%m/%d/%y" 2-digit year. But, Big Whitefish and Little Whitefish have different format, "%d-%b-%y". 
+
+```{r}
+uw.data %>% 
+  group_by(StationName) %>%
+  slice_head() %>% 
+  arrange(StationName)
+
+uw.data <- uw.data %>% 
+  mutate(sampleDate = case_when(grepl("Whitefish", StationName) ~ as.Date(Date, format = "%d-%b-%y"),
+                                TRUE ~ as.Date(Date, format = "%m/%d/%y"))) 
+```
+
+
+
+
+```{r}
 # separately-provided data pre-2017 (emailed on 11/17/20)
 ## lynx creek sites
 uw.lynx <- read_csv("data/Jackie Carter UW/Jackie Carter - 2020 data request/UW-FRI_LynxCreekALL_Temps_JC.csv", col_types = cols(.default = "c")) %>%
