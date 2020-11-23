@@ -25,13 +25,14 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 
 # load packages
-library(tidyverse)
 library(lubridate)
 library(readr)
 library(readxl)
 library(hms)
 library(plotly)
 library(DT)
+library(tidyverse)
+
 ```
 
 <br>

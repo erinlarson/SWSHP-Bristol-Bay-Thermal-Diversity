@@ -45,8 +45,9 @@ accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
 # note: some files have a "location description" column and others do not
 
 # rename, transform, and eliminate columns to match final field names described in Project_notes.Rmd
+# keep the UseData field created by NCEAS for KNB archive, they should have at least flagged the bad (highly negative) data at Bonanza.
 accs.data <- accs.data %>%
-  select(AKOATS_ID,sampleDate,sampleTime,Temperature) %>%
+  select(AKOATS_ID,sampleDate,sampleTime,Temperature, UseData) %>%
   transform(sampleDate = as.Date(mdy(sampleDate)),
             sampleTime = hms::as_hms(sampleTime),
             Temperature = as.numeric(Temperature)) 
@@ -55,7 +56,7 @@ accs.data <- accs.data %>%
 # for visualization and data QA/QC, we want waterbody name and/or SiteID associated with each dataset
 
 # read in metadata file and associate SiteID with AKOATS_ID
-md <- read.csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
+md <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
   select(AKOATS_ID,SiteID,Waterbody_name)
 
 # use info from pdf at "data/ACCS-UAA/metadata/doi_10.5063_F1028PR9-METADATA.pdf" to assign waterbody names in blank spaces
@@ -92,6 +93,7 @@ accs.data <- left_join(accs.data,md,by = "AKOATS_ID")
 Perform a quick visualization to see extent and form of data
 ```{r}
 accs.data %>%
+  filter(UseData == 1) %>% 
   select(-sampleTime) %>%
   mutate(year = as.factor(year(sampleDate)),
          day = yday(sampleDate)) %>%

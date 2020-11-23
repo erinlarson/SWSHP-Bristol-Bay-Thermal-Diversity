@@ -11,23 +11,33 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Bristol Bay data providers and data sets include 
 
-* UAA-ACCS. We have data from 14 sites 2015-2019. We may have installed loggers at a few of our long term sites in 2014 or earlier. Dan Bogan archived all Bristol Bay data on KNB through 2017. I have data from all 14 sites for three downloads after 2017, June 2018, June 2019, and October 2019. These data need to be reviewed before sharing. **TO DO: Dustin or Becky can review and share.**
+* UAA-ACCS. We have data from 14 sites 2015-2019. We may have installed loggers at a few of our long term sites in 2014 or earlier. Dan Bogan archived all Bristol Bay data on KNB through 2017. I have data from all 14 sites for three downloads after 2017: June 2018, June 2019, and October 2019. These data need to be reviewed before sharing. **TO DO: Dustin or Becky can review and share.**
 * USGS. Site numbers can be identified on NWIS online and data can be downloaded using dataRetrieval library in R.
-* University of Washington. We have files for 51 sites through 2017, but file names are difficult to tie to AKOATS IDs and it was never submitted to KNB. Jackie has file names and will link them to AKOATS IDs for us so we have locations. She will also query and send over data post-2017.
-* NPS. Krista Bartz plans to send all data from their Southwest Monitoring Network. (Note that data through 2017 was also archived on KNB, but don't bother becuase we'll be getting all years for all sites from Krista.)
+* University of Washington. Jackie Carter has provided metadata and data for streams through 2020. The data are provided as two sets - through 2017 and 2018-2020. 
+* NPS. Krista Bartz plans to send all data from their Southwest Monitoring Network. (Note that data through 2017 was also archived on KNB, but don't bother because we'll be getting all years for all sites from Krista.)
 * UWFWS. Meg has shared all FWS data for the State. We will be using data from Togiak refuge for this project. Check to see if they have any other data from Bristol Bay... OSM weirs?
 * Cook Inletkeeper. Sue has collected some data with village and lodge partners, but we don't have that data. It has been requested.
 
 # Temperature cleaning
 
-The final fields that I would like to have for each dataset:
+The plan is to import data from each provider and format it consistently so that it can be imported into AKTEMP and also merged for this project. There will be a data table and a metadata table for the sites from each provider. The SiteID field will be unique for each dataset (i.e. data from one provider) and can be used to link the information between the two tables. (Note: when data are brought into AKTEMP, the SiteID must  be unique across all providers. When needed, we will add a numeric suffix to make a SiteID unique, but will maintain the SiteID name from the data provider in the sites table in AKTEMP as well.)
 
-* AKOATS_ID - when this is available. Some sites may be new and not in AKOATS. Possibly only one ID will be in the data tables, either AKOATS or a SiteID and it may be necessary to read in a separate metadata sheet to link the two.
+Data table:
+
 * SiteID - this should be the original site id as provided by the agency. 
 * sampleDate - Date class.
 * sampleTime - hms class.
 * Temperature - numeric.
 * useData - this should be a 0/1. I set everything mutate(useData = 1) first. If some data don't look clean (e.g. air temps or really dampened daily variation indicating burial), we can talk about scripts for setting useData = 0.
+
+Metadata table:
+
+* SiteID - this should be the original site id as provided by the agency.
+* AKOATS_ID - when this is available. Some sites may be new and not in AKOATS. Possibly only one ID will be in the data tables, either AKOATS or a SiteID and it may be necessary to read in a separate metadata sheet to link the two.
+* Source_Name - name of agency or organization.
+* Contact_Person - name of data provider.
+* Latitude 
+* Longitude
 
 
 # Temperature Summary
