@@ -35,13 +35,13 @@ library(DT)
 library(leaflet)
 
 # define function to exclude multiple strings in a column
-'%ni%' <- Negate('%in%')
+# '%ni%' <- Negate('%in%')
 ```
 
 <br>
 
 Streams & Beaches summary table
-```{r}
+```{r eval = FALSE}
 datatable(read.csv("output/summary_tables/summary_table.csv"),
           filter = 'top', 
           options = list(pageLength = 5, autoWidth = TRUE)) %>%
@@ -53,7 +53,7 @@ datatable(read.csv("output/summary_tables/summary_table.csv"),
 <br>
 
 Lakes summary table
-```{r}
+```{r eval = FALSE}
 datatable(read.csv("output/summary_tables/summary_table_lakes.csv"),
           filter = 'top', 
           options = list(pageLength = 5, autoWidth = TRUE)) %>%
@@ -62,7 +62,7 @@ datatable(read.csv("output/summary_tables/summary_table_lakes.csv"),
 ```
 
 Join all metadata
-```{r}
+```{r eval = FALSE}
 
 sb <- read.csv("output/summary_tables/summary_table.csv") %>%
   mutate(Depth = as.integer(""))
@@ -72,11 +72,49 @@ dat.meta <- bind_rows(sb,lakes)
 
 ```
 
+```{r}
+uw.md <- read_rds("output/uw_metadata.rds")
+uw.sum <- read_rds("output/uw_data_summ.rds")
+uw.dat <- left_join(uw.md, uw.sum)
+
+```
+
+```{r}
+accs.md <- read_rds("output/accs_metadata.rds")
+accs.sum <- read_rds("output/accs_data_summ.rds")
+accs.dat <- left_join(accs.md, accs.sum)
+
+```
+
+Combine for mapping.
+
+```{r}
+all.dat <- bind_rows(uw.dat, accs.dat)
+```
+
+
+
+
+```{r}
+# create map
+leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
+  #setView(-150.210169, 60.487694, zoom = 8) %>%
+  addMarkers(lng = all.dat$Longitude, lat = all.dat$Latitude,
+             popup = paste("SiteID = ", all.dat$SiteID, "<br>",
+                           "Data Source = ", all.dat$SourceName, "<br>",
+                           "Start Year = ", all.dat$startYear, "<br>",
+                           "End Year = ", all.dat$endYear, "<br>",
+                           "Total Years of Data = ", all.dat$totYears, "<br>"))
+
+```
+
 
 <br>
 
 Study Locations
-```{r}
+```{r eval = FALSE}
 # create map
 leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles

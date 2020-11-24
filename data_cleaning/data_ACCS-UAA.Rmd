@@ -20,6 +20,9 @@ Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+# source(file = "Temp_flags_function.R")
 
 # clear environment
 rm(list=ls())
@@ -34,31 +37,59 @@ library(plotly)
 library(DT)
 ```
 
+# Data
 
-Read in data from ACCS folder
+
+Read in data from ACCS folder. Rename, transform, and eliminate columns to match final field names described in Project_notes.
+Keep the UseData field created by NCEAS for KNB archive, they should have at least flagged the bad (highly negative) data at Bonanza.
+
+Note: some files have a "location description" column and others do not
+
 ```{r}
 accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
                pattern = "*.csv", 
                full.names = T) %>% 
-    map_df(~read_csv(., col_types = cols(.default = "c"),col_names = T)) 
+    map_df(~read_csv(., col_types = cols(.default = "c"), col_names = T)) 
 
-# note: some files have a "location description" column and others do not
-
-# rename, transform, and eliminate columns to match final field names described in Project_notes.Rmd
-# keep the UseData field created by NCEAS for KNB archive, they should have at least flagged the bad (highly negative) data at Bonanza.
 accs.data <- accs.data %>%
-  select(AKOATS_ID,sampleDate,sampleTime,Temperature, UseData) %>%
-  transform(sampleDate = as.Date(mdy(sampleDate)),
-            sampleTime = hms::as_hms(sampleTime),
-            Temperature = as.numeric(Temperature)) 
+  select(-Location_Description) %>%
+  mutate(sampleDate = as.Date(mdy(sampleDate)),
+         sampleTime = hms::as_hms(sampleTime),
+         Temperature = as.numeric(Temperature),
+         AKOATS_ID = as.numeric(AKOATS_ID)) 
 
 
-# for visualization and data QA/QC, we want waterbody name and/or SiteID associated with each dataset
+summary(accs.data)
+```
 
-# read in metadata file and associate SiteID with AKOATS_ID
+For visualization and data QA/QC, we want SiteID associated with each dataset, which we need from the metadata. Read in metadata file and associate SiteID with AKOATS_ID.
+
+```{r}
 md <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
-  select(AKOATS_ID,SiteID,Waterbody_name)
+  select(AKOATS_ID, SiteID)
 
+accs.data <- left_join(accs.data, md, by = "AKOATS_ID")
+  
+```
+
+Summary csv to add as attributes to leaflet map.
+
+```{r}
+accs.data %>% 
+  group_by(SiteID) %>% 
+  summarize(startYear = min(year(sampleDate)),
+            endYear = max(year(sampleDate)),
+            totYears = length(unique(year(sampleDate)))) %>% 
+  saveRDS("output/accs_data_summ.rds")
+
+```
+
+
+
+
+Code for getting waterbody names. Probably not needed....
+
+```{r eval = FALSE}
 # use info from pdf at "data/ACCS-UAA/metadata/doi_10.5063_F1028PR9-METADATA.pdf" to assign waterbody names in blank spaces
 md.x <- md %>%
   filter(AKOATS_ID <= 764) %>%
@@ -83,28 +114,99 @@ md <- md %>%
   bind_rows(md.x) %>%
   transform(AKOATS_ID = as.character(AKOATS_ID))
 
-# associate SiteID and Waterbody_name with overall UAA-ACCS temperature dataset
-accs.data <- left_join(accs.data,md,by = "AKOATS_ID")
-  
 ```
 
-<br>
 
-Perform a quick visualization to see extent and form of data
+# Data review
+
+Perform a quick visualization to see extent and form of data.
+
 ```{r}
+
 accs.data %>%
   filter(UseData == 1) %>% 
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,Waterbody_name,SiteID,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  mutate(DT = parse_date_time(paste(sampleDate, sampleTime), "Y-m-d H:M:S")) %>%
+  ggplot(aes(x = DT, y = Temperature)) +
   geom_point() +
-  facet_wrap(. ~ SiteID, scales = "free_y") +
+  facet_wrap(~ SiteID) +
   ggtitle("Original Logger Data by Site and Year")
 
 ```
+
+Note that processes below were created to flag data after viewing daily values. We really need to check at the subdaily level.
+Add DT field for dates and times so can look at hourly changes in flagging function.
+
+```{r}
+source("Temp_flags_function.R", local = knitr::knit_global())
+
+accs.data.qa <- accs.data %>%
+  mutate(dateTime = parse_date_time(paste(sampleDate, sampleTime), "Y-m-d H:M:S"))
+
+accs.data.qa2 <- accs.data.qa %>% 
+  group_by(SiteID) %>% 
+  do(data.frame(add_temp_flags(.)))
+
+accs.data.qa2 <- flag_low_temps2(accs.data.qa) 
+
+accs.data.qa2 <- accs.data.qa2 %>% 
+  mutate(flag_any = case_when((flag_highTemps == 1|flag_lowTemps == 1|flag_hourlyChange == 1|flag_dailyChange == 1) ~ 1,
+                              TRUE ~ 0)) 
+
+accs.data.qa2 %>% 
+  count(flag_highTemps)
+
+accs.data.qa2 %>% 
+  count(SiteID, flag_lowTemps, UseData)
+
+accs.data.qa2 %>% 
+  filter(SiteID == "muekm23", flag_lowTemps == 1, UseData == 1)
+
+plot_flags(accs.data.qa %>% filter(UseData == 1), "accs")
+```
+
+
+
+
+```{r}
+accs.sites <- accs.data.qa %>% distinct(SiteID) %>% pull(SiteID)
+
+
+pdf("output/accs data review.pdf")
+
+for(i in accs.sites) {
+  dat <- accs.data.qa %>% filter(SiteID == i)
+  dat %>% 
+    filter(UseData == 1) %>% 
+    ggplot(aes(x = dateTime, y = Temperature, color = as.factor(flag_any))) +
+    geom_line() +
+    facet_wrap(~year(sampleDate), scales = "free_x")
+}
+
+
+p1 <- accs.data.qa %>%
+  filter(SiteID == "Bonanza Creek", UseData == 1) %>% 
+  ggplot(aes(x = dateTime, y = Temperature, color = as.factor(flag_any))) +
+  geom_line() +
+  facet_wrap(~year(sampleDate), scales = "free_x")
+
+ggplotly(p1)
+
+accs.data.qa %>% 
+  filter(SiteID == "Bonanza Creek", UseData == 1, flag_any == 1) 
+  
+
+```
+
+
+
+
+
+
+
+
+
+## Daily flags by Ben -- currently not run.
+
 
 <br>
 
@@ -155,7 +257,7 @@ ggplotly(
 
 <br>
 
-If further data is is identified to be flagged, edit the csv file at "data/flagged_data/NPS_flagged_data.csv"
+If further data is is identified to be flagged, edit the csv file at "data/flagged_data/ACCS_flagged_data.csv"
 
 
 

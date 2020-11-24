@@ -31,6 +31,25 @@ flag_low_temps <- function(data, low_temp_value = -1) {
     mutate(flag_lowTemps = ifelse(sampleDate %in% dates_to_flag, 1, 0))
 }
 
+data <- accs.data.qa
+
+flag_low_temps2 <- function(data, low_temp_value = -1) {
+  dates_to_flag <- data %>% 
+    filter(Temperature < low_temp_value) %>% 
+    distinct(SiteID, sampleDate) %>% 
+    mutate(flag_lowTemps = 1)
+  data %>% 
+    left_join(dates_to_flag)
+}
+
+data %>% 
+  filter(Temperature < low_temp_value, SiteID == "muekm23") #%>% 
+  distinct(sampleDate)
+data %>% 
+  left_join(dates_to_flag) %>% 
+  filter(SiteID == "muekm23", flag_lowTemps == 1) %>% print(n=100)
+
+
 flag_hourly_change <- function(data, hourly_change_value = 3) {
   dates_to_flag <- data %>% 
     group_by(sampleDate, as.POSIXct(round(dateTime, units = "hours"))) %>% 

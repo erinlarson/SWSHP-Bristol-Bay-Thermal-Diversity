@@ -33,13 +33,15 @@ library(hms)
 library(plotly)
 library(DT)
 library(dataRetrieval)
-library(rsay)
+# library(rsay)
 
 # define function to exclude multiple strings in a column
 '%ni%' <- Negate('%in%')
 ```
 
 <br>
+
+# Data
 
 Summarize extent and metadata of all successfully read-in data so date
 
@@ -94,6 +96,9 @@ We have a total of `r n_obs_sb` individual streams & beaches temperature observa
 
 <br>
 
+
+# Metadata
+
 Associate metadata with all temp data sets.  Proceed one agency at a time, as it is not all in a consistent format.
 
 Note: original approach involved collating all metadata to a single table, then using left_join to assign to overall data frame either by AKOATS_ID or SiteID.  However computer processing power was insufficient to handle this task.  Thus metadata is joined one-at-a-time by agency.
@@ -104,12 +109,61 @@ Note: original approach involved collating all metadata to a single table, then 
 akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
   select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
   rename(AKOATS_ID = seq_id,
-         SiteID = Agency_ID)
+         SiteID = Agency_ID) %>% 
+  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+akoats.meta
+
 ```
 
 <br>
 
 * UW metadata
+
+Focus on just getting lat/longs for a map. Read in all records, convert akoats id to numeric, which will remove the sites with multiple entries. That's ok because Jackie provided lat/longs for all of those sites. Also, remove sites with missing info - which are the two lynx creek sites with unknown locations.
+
+```{r}
+uw.meta <- read_excel("data/Jackie Carter UW/uw_metadata_thru_2017.xlsx", sheet = "Sheet1") %>%
+  select(StationName:Long) %>%
+  mutate(Latitude = as.double(gsub("°","",Lat)),
+         Longitude = as.double(gsub("°","",Long)),
+         AKOATS_ID = as.numeric(AKOATS_ID)) %>% 
+  filter(!(is.na(Lat) & is.na(AKOATS_ID))) %>% 
+  select(-Lat, -Long)
+
+uw.meta2 <- read_excel("data/Jackie Carter UW/Jackie Carter - 2020 data request/forRS_UAA_2018-2020_WoodRiverStreamAndLakeTemps.xlsx", sheet = "AKOATS links") %>% 
+    mutate(Latitude = as.double(gsub("°","",Lat)),
+         Longitude = as.double(gsub("°","",Long)),
+         AKOATS_ID = as.numeric(AKOATS_ID)) %>% 
+  rename(StationName = "UW_2018-2020 location") %>% 
+  select(-Lat, -Long, -`...5`)
+
+#get sites from 2018-2020 spreadsheet that are new and bind to metadata for sites through 2017.
+uw.new.sites <- uw.meta2[!(uw.meta2 %>% pull(StationName)) %in% (uw.meta %>% pull(StationName)),] %>% 
+  filter(!StationName == "Kulik K-1")
+  
+uw.meta <- bind_rows(uw.meta, uw.new.sites)
+  
+#get lat/longs from akoats for uw sites with ids
+uw.akoats.sites <- left_join(uw.meta %>% 
+                               filter(!is.na(AKOATS_ID)) %>% 
+                               select(StationName, AKOATS_ID), 
+                             akoats.meta %>% 
+                               select(SourceName, AKOATS_ID, Latitude, Longitude), by = "AKOATS_ID")
+
+uw.meta <- bind_rows(uw.meta %>% 
+                       filter(is.na(AKOATS_ID)),
+                     uw.akoats.sites) %>% 
+  rename(SiteID = StationName) %>% 
+  mutate(SourceName = "uwASP")
+
+uw.meta %>% 
+  saveRDS("output/uw_metadata.rds")
+```
+
+
 
 ```{r}
 # UW metadata
@@ -120,10 +174,10 @@ uw.meta <- read_excel("data/Jackie Carter UW/uw_metadata_thru_2017.xlsx", sheet 
   # use only one AKOATS_ID for sites with multiple entries
   separate(AKOATS_ID, sep = " and", into = "AKOATS_ID") %>%
   separate(AKOATS_ID, sep = " or", into = "AKOATS_ID") %>%
-  select(-rss_notes, -`jc_notes Nov13`, -BM_notes,-fileName) %>%
+  select(-rss_notes, -`jc_notes Nov13`, -fileName) %>%
   # remove degree symbols
   mutate(Latitude = as.double(gsub("°","",Latitude)),
-         Longitude = as.double(gsub("°","",Longitude))) %>%
+         Longitude = as.double(gsub("°","",Longitude))) #%>%
   # create other metadata as possible as known
   mutate(Contact_person = "Jackie Carter",
          Contact_email = "jlcarter@uw.edu",
@@ -272,6 +326,23 @@ rm(togiak1.meta,togiak2.meta,egegik.meta,fws.meta)
 <br>
 
 * UAA-ACCS metadata
+
+Just get lat/longs for reading into a map.
+
+```{r}
+# UAA-ACCS metadata
+accs.meta <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv", col_types = cols(.default = "c")) %>%
+  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) 
+
+accs.meta <- accs.meta %>% 
+  select(SourceName, SiteID, AKOATS_ID, Latitude, Longitude) %>% 
+  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+
+saveRDS(accs.meta, "output/accs_metadata.rds")
+```
 
 ```{r}
 # UAA-ACCS metadata

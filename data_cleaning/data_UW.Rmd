@@ -38,29 +38,48 @@ library(tidyverse)
 
 <br>
 
+# Read in data and format
+
+Some data problems found below that I can email Jackie about:
+
+* missing time entries for Nerka Pick Creek in 2011/2012
+* missing time entries for Aleknagik Eagle Creek in 2011
+* bad time entries (missing hour) for Aleknagik Wood River in September 2009
+
+## Data files through 2017 - SASAP project
+
 Read in data from folder "Jackie Carter UW". These are the 51 files of stream temperature data originally provided for SASAP project, but never archived on KNB. Data are through 2017. Keep file name when reading in data in case it is needed to inspect date-time formats or other formatting problems. Also, keep other information from Jackie, such as Lake and sample type. We will want sample type to indicate logger accuracy for AKTEMP. And, lake information is a good check that we are locating sites in the correct region of the Wood River watershed. Exclude the original Lynx Creek data file in this folder. Jackie provided a new version with only 5 station names and correct locations later.
 
 
 ```{r}
-uw.data <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
-               pattern = "*.csv", 
-               full.names = T) %>%
-   map_df(function(x) read_csv(x,col_types = cols(.default = "c"),col_names = T) %>% 
-            mutate(file_name = gsub(".csv","",basename(x)))) %>%
-    select(-X9, -MeasurementType, -YearSampled) %>%
-  dplyr::filter(!grepl("Lynx",StationName)) 
+uw.data <- list.files(path = ("data/Jackie Carter UW/Jackie Carter/"),
+                      pattern = "*.csv", 
+                      full.names = T) %>%
+  map_df(function(x) read_csv(x,col_types = cols(.default = "c"),col_names = T) %>% 
+           mutate(file_name = gsub(".csv","",basename(x)))) %>%
+  select(-X9, -YearSampled) %>% 
+  mutate(Temperature = as.numeric(Temperature))
+
 ```
 
-50 files were read in and there are a total of 55 sites with data.
+Ben noticed some strange date entries for "Alegnagik Wood River" where there were numbers after dates and the hours are missing in the time field. Only three days of bad data, best to remove it altogether since date-time are unknown. Added to list to email Jackie about. (Note that there are a few valid times on these dates, but not enough to correctly calculate daily statistics. Remove all for now and see if these are fixable.)
 
 ```{r}
 uw.data %>% 
-  distinct(file_name, StationName) %>% 
-  count(file_name) %>% 
-  arrange(desc(n))
+  filter(StationName == "Aleknagik Wood River") %>% 
+  mutate(date_len = nchar(Date)) %>% 
+  distinct(StationName, Date, date_len) 
+
+#remove 65 entries with bad dates/times for Aleknagik Wood River
+uw.data <- uw.data %>%
+  mutate(date_len = nchar(Date)) %>% 
+  filter(!(StationName == "Aleknagik Wood River" & date_len == 11)) %>% 
+  select(-date_len)
+
 ```
 
-Look at date file formats. It looks like most are "%m/%d/%y" 2-digit year. But, Big Whitefish and Little Whitefish have different format, "%d-%b-%y". 
+Format dates and times. Most dates are "%m/%d/%y" 2-digit year. But, Big Whitefish and Little Whitefish have different format, "%d-%b-%y". There are a some sites with missing time entries, about ~2000 total data records. These have been listed out at top along with the site. For now, can just filter to remove these. Email Jackie once all data formatting issues are found and see if any can be fixed.
+
 
 ```{r}
 uw.data %>% 
@@ -68,227 +87,82 @@ uw.data %>%
   slice_head() %>% 
   arrange(StationName)
 
+#1936 with missing times
+uw.data %>% 
+  filter(is.na(Time)) %>% 
+  count(file_name, StationName, SampleType, MeasurementType)
+
 uw.data <- uw.data %>% 
-  mutate(sampleDate = case_when(grepl("Whitefish", StationName) ~ as.Date(Date, format = "%d-%b-%y"),
-                                TRUE ~ as.Date(Date, format = "%m/%d/%y"))) 
-```
+  mutate(sampleDate = parse_date_time(Date, orders = c("d-b-y", "m/d/y")),
+         sampleTime = as_hms(parse_date_time(Time, orders = c("I:M:S p", "H:M:S"))))
 
+#1 parsing error remaining that is  filled with NA
+uw.data %>% 
+  filter(is.na(sampleTime), !is.na(Time)) 
 
-
-
-```{r}
-# separately-provided data pre-2017 (emailed on 11/17/20)
-## lynx creek sites
-uw.lynx <- read_csv("data/Jackie Carter UW/Jackie Carter - 2020 data request/UW-FRI_LynxCreekALL_Temps_JC.csv", col_types = cols(.default = "c")) %>%
-  mutate(data_SiteID = "UW-FRI_LynxCreekALL_Temps_JC") %>%
-  transform(Date = as.Date(mdy(Date))) %>%
-  select(-SampleType,-MeasurementType) %>%
-  mutate_all(as.character)
-
-## aleknagik bear creek site (one site)
-uw.aleknagik.bear <- read_excel("data/Jackie Carter UW/Jackie Carter - 2020 data request/froRSS_AleknagikBearTemps_2008-2017.xlsx") %>%
-  mutate(data_SiteID = "") %>%
-  # fix time format
-  separate(Time,sep = " ", into = c("yr","Time")) %>%
-  transform(Time = hms::as_hms(Time),
-            Date = as.Date(Date)) %>%
-  select(-yr) %>%
-  mutate_all(as.character)
-
-# data post-2017 (44 sites)
-uw.post2017 <- read_excel("data/Jackie Carter UW/Jackie Carter - 2020 data request/forRS_UAA_2018-2020_WoodRiverStreamAndLakeTemps.xlsx", sheet = "2018-2020 data") %>%
-  filter(!is.na(Temperature)) %>%
-  select(-MeasurementType,-SampleType) %>%
-  # fix time format
-  separate(Time,sep = " ", into = c("yr","Time")) %>%
-  transform(Time = hms::as_hms(Time),
-            Date = as.Date(Date)) %>%
-  select(-yr) %>%
-  mutate(data_SiteID = "") %>%
-  mutate_all(as.character) 
+#remove records with missing time information
+uw.data <- uw.data %>% 
+  filter(!is.na(sampleTime))
 
 ```
 
-<br>
+50 files were read in and there are a total of 55 sites with data.
 
-Join the multiple data frames in to single object
 ```{r}
-# join data tables that are ready
-uw.data.2 <- bind_rows(uw.lynx,uw.aleknagik.bear,uw.post2017) %>%
-  # prep and rename
-  rename(SiteID = StationName,
-         sampleDate = Date,
-         sampleTime = Time) %>%
-  transform(sampleDate = ymd(sampleDate)) %>%
-  select(SiteID,sampleDate,sampleTime,Temperature,data_SiteID) 
-
-# remove extraneous objects
-rm(uw.lynx,uw.aleknagik.bear,uw.post2017)
-```
-
-<br>
-
-Notes on data format consistency: 
-
-* The data frame "uw.data needs some special treatment and prep before joining with the other data due to various format inconsistencies
-
-* Date format for sites "Aleknagik Big Whitefish Creek" and "Aleknagik Little Whitefish Creek" is in format "01-Apr-12", which lubridate will not parse.  
-
-* Date and time formats for part of the "Aleknagik Wood River" file for 2009 have some errors and/or inconsistencies.  Some of the cells in the time column begin with ":". Also, some cells in the date column end with a single digit 1-10, and the year is sometimes formatted with either 2 digits or 4 digits.  Some of these features are likely artifacts of some previous data sorting/cleaning process.
-
-
-<br>
-
-Separate specified data sets discussed above
-```{r}
-# define function to exclude multiple strings in a column
-'%ni%' <- Negate('%in%')
-
-# specify datasets to be excluded (all years)
-exclude_wf <- c("Aleknagik Big Whitefish Creek","Aleknagik Little Whitefish Creek")
-
-# specify datasets to be excluded (one watershed, one year)
-StationName <- "Aleknagik Wood River"
-YearSampled <- "2009"
-exclude_wr <- data.frame(StationName,YearSampled)
-
-# apply exclusions
-uw.data <- uw.data %>%
-  anti_join(exclude_wr) %>%
-  filter(StationName %ni% exclude_wf) %>% 
-  # format dates
-  mutate(sampleDate = mdy(sampleDate))
+uw.data %>% 
+  count(file_name, StationName, year = year(sampleDate)) %>%
+  arrange(year, file_name, StationName) %>% 
+  pivot_wider(names_from = year, values_from = n)
 
 ```
 
 
-<br>
+## Date files received in November 2020
 
-Perform separate import & prep process for the three datasets previously described
+Becky emailed with Jackie in November 2020 to get metadata information for the 51 data files sent over in 2017 for the SASAP project and also received some new data files.
 
-* Import and correct Aleknagik wood river 2009 data
+* data file for sites on Lynx Creek - 5 stations
+* data file for Aleknagik Bear Creek for data through 2017
+* data file for all stream sites from 2018 through 2020  
+
+
+
 ```{r}
-# Aleknagik wood river 2009
-uw.data.x <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
-               pattern = "*.csv", 
-               full.names = T) %>%
-  map_df(function(x) read_csv(x,col_types = cols(.default = "c"),col_names = T) %>% 
-            mutate(data_SiteID = gsub(".csv","",basename(x)))) %>%
-  # retain only wood river 2009 data
-  inner_join(exclude_wr) %>%
-  rename(sampleDate = Date,
-         sampleTime = Time) %>%
-  select(StationName,sampleDate,sampleTime,Temperature,data_SiteID) %>%
-  
-  ## fix date column
-  # remove extraneous digits from date column by taking it apart and putting it back together 
-  separate(sampleDate, sep = "/", into = c("month","day","year")) %>%
-  separate(year, sep = " ", into = "year") %>%
-  # we know these observations are from 2009 from the original YearSampled column, thus:
-  mutate(year = "2009",
-         sampleDate = ymd(paste0(year,"-",month,"-",day))) %>%
-  select(-month,-day,-year) %>%
-  transform(Temperature = as.numeric(Temperature),
-            sampleDate = as.character(sampleDate))
-
-  ## fix time column
-  ### for dates 9/1/2009 - 9/3/2009, there is some potentially confusing data.  Based on looking at the original data, here is my best guess for what happened: 9 observations were made at appx. 14:00 on 9/1/2009 and 9/2/2009, and 4 observations at appx. 14:00 on 9/3/2009.  Plan of action: average values on a daily basis and assign a single temperature value to time 14:00 for each of those days.
-
-### specify erroneous dates
-erroneous_dates <- data.frame(c("2009-09-01","2009-09-02","2009-09-03"))
-colnames(erroneous_dates) <- "sampleDate"
-erroneous_dates <- erroneous_dates %>% transform(sampleDate = as.character(sampleDate))
-
-### create corrected data subset for 9/1/2009 - 9/3/2009
-uw.data.y <- uw.data.x %>%
-  inner_join(erroneous_dates) %>%
-  transform(Temperature = as.numeric(Temperature)) %>%
-  group_by(sampleDate) %>%
-  summarise(Temperature = mean(Temperature)) %>%
-  mutate(StationName = "Aleknagik Wood River",
-         sampleTime = "14:00:00")
-
-### remove erroneous original data from Aleknagik wood river 2009 data
-uw.data.x <- uw.data.x %>% anti_join(erroneous_dates)
-
-### rejoin corrected subset to Aleknagik wood river 2009 data
-uw.data.x <- bind_rows(uw.data.x,uw.data.y)
-  
-# ensure column classes are identical to overall UW dataset
-uw.data.x <- uw.data.x %>%
-  transform(sampleTime = hms::as_hms(sampleTime),
-            Temperature = as.character(Temperature),
-            sampleDate = ymd(sampleDate)) 
-
-# rejoin Aleknagik wood river 2009 data to overall UW dataset
-uw.data <- bind_rows(uw.data,uw.data.x)
-
-rm(uw.data.x,uw.data.y,erroneous_dates,exclude_wr)
-```
-
-<br>
-
-* Import Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek
-```{r}
-# Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek
-uw.data.x <-list.files(path = paste0("data/Jackie Carter UW/Jackie Carter/"),
-               pattern = "*.csv", 
-               full.names = T) %>% 
-  map_df(function(x) read_csv(x,col_types = cols(.default = "c"),col_names = T) %>% 
-            mutate(data_SiteID = gsub(".csv","",basename(x)))) %>%
-  # retain only data from "Aleknagik Big Whitefish Creek" and "Aleknagik Little Whitefish Creek"
-  filter(StationName %in% exclude_wf) %>%
-  rename(SiteID = StationName,
-         sampleDate = Date,
-         sampleTime = Time) %>%
-  select(SiteID,sampleDate,sampleTime,Temperature,data_SiteID) 
-
-
-## fix date column
-## months are in month abbreviation format.  need to convert to digits    
-## create dataframe matching months to numeric digits
-month <- month.abb
-month.num <- 1:12
-month.conv <- data.frame(month,month.num)
-
-# make date format parse-able by lubridate by taking it apart and putting it back together 
-uw.data.x <- uw.data.x %>% 
-  # convert month format from abbrevaition to numeric
-  separate(sampleDate, sep = "-", into = c("day","month","year"), remove = F) %>%
-  left_join(month.conv) %>%
-  select(-month) %>%
-  rename(month = month.num) %>%
-  # convert year from two digits to four
-  mutate(year = paste0(20,year)) %>%
-  # create correctly formatted date column
-  mutate(sampleDate = ymd(paste0(year,"-",month,"-",day))) %>%
-  select(-year,-month,-day) %>%
-  transform(sampleTime = hms::as.hms(sampleTime)) %>%
-  mutate_all(as.character) %>%
-  transform(sampleDate = ymd(sampleDate))
-
-# prep uw.data to join rest of data
-uw.data <- uw.data %>%
-  rename(SiteID = StationName) 
-
-# rejoin Aleknagik Big Whitefish Creek and Aleknagik Little Whitefish Creek back to overall UW dataset
-uw.data <- bind_rows(uw.data,uw.data.x)
-
-rm(uw.data.x,month.conv)
-
-```
-
-<br>
-
-Join and format all data frames that have been read-in
-```{r}
-
-uw.data <- bind_rows(uw.data,uw.data.2) %>%
-  transform(sampleDate = as.Date(sampleDate),
-            sampleTime = hms::as_hms(sampleTime),
+uw.lynx <- read_csv("data/Jackie Carter UW/Jackie Carter - 2020 data request/UW-FRI_LynxCreekALL_Temps_JC.csv", 
+                    col_types = cols(.default = "c")) %>%
+  mutate(file_name = "UW-FRI_LynxCreekALL_Temps_JC") %>%
+  transform(sampleDate = as.Date(mdy(Date)),
+            sampleTime = as_hms(parse_date_time(Time, "I:M:S p")),
             Temperature = as.numeric(Temperature)) 
 
-rm(uw.data.2)
+uw.aleknagik.bear <- read_excel("data/Jackie Carter UW/Jackie Carter - 2020 data request/froRSS_AleknagikBearTemps_2008-2017.xlsx") %>%
+  mutate(file_name = "froRSS_AleknagikBearTemps_2008-2017",
+         sampleTime = as_hms(Time),
+         sampleDate = as.Date(Date),
+         Temperature = as.numeric(Temperature)) 
+
+uw.post2017 <- read_excel("data/Jackie Carter UW/Jackie Carter - 2020 data request/forRS_UAA_2018-2020_WoodRiverStreamAndLakeTemps.xlsx", sheet = "2018-2020 data", cell_rows(1:329775)) %>%
+  mutate(sampleTime = hms::as_hms(Time),
+         sampleDate = as.Date(Date),
+         Temperature = as.numeric(Temperature),
+         file_name = "forRS_UAA_2018-2020_WoodRiverStreamAndLakeTemps")
+
+```
+
+Explore data.
+
+```{r}
+summary(uw.lynx)
+uw.lynx %>% 
+  count(StationName, year(sampleDate))
+
+summary(uw.aleknagik.bear)
+uw.aleknagik.bear %>% 
+  count(StationName, year(sampleDate))
+
+summary(uw.post2017)
+uw.post2017 %>% 
+  count(StationName, year(sampleDate))
 
 ```
 
@@ -296,7 +170,48 @@ rm(uw.data.2)
 
 <br>
 
-Associate and AKOATS_ID with each site where possible
+Join the multiple data frames in to single object. Start with all information, then pare down to just the fields that we need. For AKTEMP, may try to extract more metadata information from measurement type field to get sensor accuracy for data table.
+
+```{r}
+keep <- c("file_name", "Lake", "StationName", "SampleType", "MeasurementType", "sampleDate", "sampleTime", "Temperature")
+
+uw.data.2 <- bind_rows(uw.data %>% select(one_of(keep)),
+                       uw.lynx %>% select(one_of(keep)),
+                       uw.aleknagik.bear %>% select(one_of(keep)),
+                       uw.post2017 %>% select(one_of(keep))) %>% 
+  rename(SiteID = StationName)
+
+uw.data.2 %>% 
+  filter(SiteID == "Aleknagik Bear Creek") %>% 
+  summary()
+
+# remove extraneous objects
+rm(uw.data, uw.lynx, uw.aleknagik.bear, uw.post2017)
+```
+
+Summary csv to add as attributes to leaflet map.
+
+```{r}
+uw.data.2 %>% 
+  group_by(SiteID) %>% 
+  summarize(startYear = min(year(sampleDate)),
+            endYear = max(year(sampleDate)),
+            totYears = length(unique(year(sampleDate)))) %>% 
+  saveRDS("output/uw_data_summ.rds")
+
+uw.data.2 %>% 
+  filter(SiteID == "Agulukpak River") %>% 
+  count(year(sampleDate))
+```
+
+
+
+<br>
+
+# Metadata information
+
+
+Associate an AKOATS_ID with each site where possible
 
 * Naming Conflict Resolution Tasks
 
@@ -564,9 +479,12 @@ Apply flags for good/bad data
 
 
 # read in start/end dates for flagged data
-uw_flags <- read.csv("data/flagged_data/UW_flagged_data.csv") %>%
+uw_flags <- read_csv("data_cleaning/flagged_data/UW_flagged_data.csv") %>%
   filter(!is.na(day_start)) %>%
   select(-Notes) 
+
+
+
 
 # create table of data to be flagged w/ "useData = 0"
 uw_flagged_data <- uw.data %>% 
