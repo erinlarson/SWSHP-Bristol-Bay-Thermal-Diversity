@@ -20,6 +20,7 @@ Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 # clear environment
 rm(list=ls())
