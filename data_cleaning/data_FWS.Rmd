@@ -20,6 +20,7 @@ Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 # clear environment
 rm(list=ls())
@@ -33,8 +34,8 @@ library(hms)
 library(plotly)
 ```
 
+Note that we need to get the knb download for Meg's data. 
 
-<br>
 
 ### Data Import
 
@@ -43,7 +44,6 @@ Read in Excel files, one at a time.  Note: data is structured such that individu
 Read in "Togiak_Oct2020_Part1.xlsx"
 ```{r}
 
-# ben's togiak1 dataset path
 togiak1 <- "data/FWS/Togiak_Oct2020_Part1.xlsx"
 
 sheets <- excel_sheets(togiak1)
@@ -51,18 +51,18 @@ sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata 
 tog1_dat <- tibble()
 for(i in sheets){
   dat <- read_excel(togiak1, sheet = i, skip = 1, col_types = c("date", "date", "text"), 
-                    col_names = c("date", "time", "temp")) %>%
+                    col_names = c("sampleDate", "sampleTime", "Temperature")) %>%
     mutate(SiteID = i)
   tog1_dat <- bind_rows(tog1_dat, dat)
 }
 
+tog1_dat
 ```
 
-<br>
+
 
 Read in "Togiak_Oct2020_Part2.xlsx"
 ```{r}
-# ben's togiak2 dataset path
 togiak2 <- "data/FWS/Togiak_Oct2020_Part2.xlsx"
 
 sheets <- excel_sheets(togiak2)
@@ -73,79 +73,83 @@ for(i in sheets){
                     sheet = i, 
                     skip = 1, 
                     col_types = c("date", "date", "text"), 
-                    col_names = c("date", "time", "temp")) %>%
+                    col_names = c("sampleDate", "sampleTime", "Temperature")) %>%
     mutate(SiteID = i)
   tog2_dat <- bind_rows(tog2_dat, dat)
 }
 
+tog2_dat
 ```
 
 <br>
 
 Read in Egegik data, "WRB_Oct2020.xlsx"
 ```{r}
-# ben's egegik dataset path
-egegik <- "data/FWS/WRB_Oct2020.xlsx"
+egegik <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "580223156504200", skip = 1, 
+                    col_types = c("date", "date", "text"), col_names = c("sampleDate", "sampleTime", "Temperature")) %>% 
+  mutate(SiteID = "580223156504200")
 
-sheets <- excel_sheets(egegik)
-sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
-egegik_dat <- tibble()
-for(i in sheets){
-  dat <- read_excel(egegik, 
-                    sheet = i, 
-                    skip = 1, 
-                    col_types = c("date", "date", "text"), 
-                    col_names = c("date", "time", "temp")) %>%
-    mutate(SiteID = i)
-  egegik_dat <- bind_rows(egegik_dat, dat)
-}
-
+egegik
 ```
 
 <br>
 
 Combine the three data sources and format as specified in Project_notes.Rmd
 ```{r}
-fws.data <- bind_rows(tog1_dat,tog2_dat,egegik_dat) %>%
-  rename(Temperature = temp,
-         sampleTime = time,
-         sampleDate = date) %>%
-  transform(Temperature = as.numeric(Temperature),
-            sampleDate = as.Date(sampleDate),
-            sampleTime = hms::as.hms(sampleTime)) %>%
+fws.data <- bind_rows(tog1_dat,tog2_dat,egegik) %>%
+  mutate(Temperature = as.numeric(Temperature),
+         sampleTime = hms::as_hms(sampleTime)) %>%
   filter(!is.na(Temperature))
 
-# exclude data from the Koyukuk River, a river in Northern Alaska not in the Bristol Bay region
-fws.data <- fws.data %>%
-  filter(SiteID != "665429151405100")
+fws.data %>% 
+  distinct(SiteID)
 
 ```
+
 
 <br>
 
 Read in metadata and use to assign AKOATS_IDs
+
+
 ```{r}
-# togiak1
-togiak1_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part1.xlsx", sheet = "AKOATS_metadata")
+togiak1_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part1.xlsx", sheet = "AKOATS_metadata") %>% 
+  filter(!is.na(SourceName))
 
-#togiak2
-togiak2_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part2.xlsx", sheet = "AKOATS_metadata")
+togiak2_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part2.xlsx", sheet = "AKOATS_metadata") %>% 
+  filter(!is.na(SourceName))
 
-#egegik
-egegik_metadata <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata")
+wrb_metadata <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata", n_max = 15) %>% 
+  mutate(SiteID = as.character(SiteID)) %>% 
+  filter(Waterbody_name %in% c("Egegik River"))
 
 # combine metadata sheets
-fws.metadata <- bind_rows(togiak1_metadata,togiak2_metadata,egegik_metadata) %>%
-  select(AKOATS_ID,SiteID,Waterbody_name)
+fws.metadata <- bind_rows(togiak1_metadata, togiak2_metadata, wrb_metadata) %>%
+  select(SourceName, AKOATS_ID, SiteID, Waterbody_name, Latitude, Longitude)
+
+saveRDS(fws.metadata, "output/fws_metadata.rds")
 
 # join metadata to data
-fws.data <- left_join(fws.data,fws.metadata,by = "SiteID") %>%
-  distinct()
+fws.data <- left_join(fws.data, fws.metadata %>% select(SiteID, Waterbody_name), by = "SiteID") 
 
 # remove extraneous objects
 rm(togiak1_metadata,togiak2_metadata,egegik_metadata,egegik_dat,tog1_dat,tog2_dat,dat)
 
 ```
+
+
+Summary csv to add as attributes to leaflet map.
+
+```{r}
+fws.data %>% 
+  group_by(SiteID, Waterbody_name) %>% 
+  summarize(startYear = min(year(sampleDate)),
+            endYear = max(year(sampleDate)),
+            totYears = length(unique(year(sampleDate)))) %>% 
+  saveRDS("output/fws_data_summ.rds")
+
+```
+
 
 <br>
 

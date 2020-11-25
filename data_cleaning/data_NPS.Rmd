@@ -55,6 +55,7 @@ Read-in notes:
 * Some other lake sites are single-logger per site (e.g. lake shore sites)
 
 Read in single-logger-per-site datasets (streams, beaches)
+
 ```{r}
 # read in all sites that are not multi-level lake logger sites or pilot sites
 nps.data.1 <- list.files(path = "data/NPS Bartz",

@@ -4,9 +4,24 @@ knit: (function(input_file, encoding) {
   rmarkdown::render(input_file,
  encoding=encoding,
  output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+title: "Bristol Bay Temperature Data Summary"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
 ---
 
-Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+Document created by Benjamin Meyer (benjamin.meyer.ak@gmail.com) and last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu). 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -24,68 +39,86 @@ library(plotly)
 library(DT)
 library(leaflet)
 
-# define function to exclude multiple strings in a column
-# '%ni%' <- Negate('%in%')
-```
-
-<br>
-
-Streams & Beaches summary table
-```{r eval = FALSE}
-datatable(read.csv("output/summary_tables/summary_table.csv"),
-          filter = 'top', 
-          options = list(pageLength = 5, autoWidth = TRUE)) %>%
-  formatRound(columns=c("Latitude","Longitude"),digits = 5) %>%
-  formatRound(columns=c("mean_temp","max_temp","min_temp"), digits=2) 
 
 ```
 
-<br>
+stopping notes - need to go through nps data. also wrb could have data for egegik, maybe others in knb download. meg just provided post 2017 data for them. maybe focus on nps data for streams and beaches first, then do lake arrays later. 
 
-Lakes summary table
-```{r eval = FALSE}
-datatable(read.csv("output/summary_tables/summary_table_lakes.csv"),
-          filter = 'top', 
-          options = list(pageLength = 5, autoWidth = TRUE)) %>%
-    formatRound(columns=c("Latitude","Longitude"),digits = 5) %>%
-  formatRound(columns=c("mean_temp","max_temp","min_temp"), digits=2) 
-```
 
-Join all metadata
-```{r eval = FALSE}
-
-sb <- read.csv("output/summary_tables/summary_table.csv") %>%
-  mutate(Depth = as.integer(""))
-lakes <- read.csv("output/summary_tables/summary_table_lakes.csv")
-
-dat.meta <- bind_rows(sb,lakes)
-
-```
+# Cook Inletkeeper
 
 ```{r}
+cik.data <- read_rds("output/cik_data.rds")
+
+cik.data %>% 
+  filter(SiteID == "Lost Dog Creek")
+
+cik.data %>%
+  group_by(SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+  ggplot(aes(x = sampleDate, y = meanT)) +
+  geom_line() +
+  facet_wrap(~ SiteID, scales = "free_x") +
+  ggtitle("Original Logger Data by Site and Year")
+
+cik.data %>%
+  group_by(SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+  ggplot(aes(x = sampleDate, y = meanT, color = SiteID)) +
+  geom_line() +
+  # facet_wrap(~ SiteID, scales = "free_x") +
+  ggtitle("Original Logger Data by Site and Year")
+
+```
+
+
+
+# Map of sites and years of data
+
+This leaflet map shows the location of all of the sites that we have data for. Selecting each marker will show the data provider, the site name, the start year, the end year, and the number of years of data. Currently, only streams and rivers sites have been included.
+
+```{r uw}
 uw.md <- read_rds("output/uw_metadata.rds")
 uw.sum <- read_rds("output/uw_data_summ.rds")
 uw.dat <- left_join(uw.md, uw.sum)
 
 ```
 
-```{r}
+```{r accs}
 accs.md <- read_rds("output/accs_metadata.rds")
 accs.sum <- read_rds("output/accs_data_summ.rds")
 accs.dat <- left_join(accs.md, accs.sum)
 
 ```
 
-Combine for mapping.
+```{r cik}
+cik.md <- read_rds("output/cik_metadata.rds")
+cik.sum <- read_rds("output/cik_data_summ.rds")
+cik.dat <- left_join(cik.md, cik.sum)
 
-```{r}
-all.dat <- bind_rows(uw.dat, accs.dat)
+cik.dat
+```
+
+```{r fws}
+fws.md <- read_rds("output/fws_metadata.rds")
+fws.sum <- read_rds("output/fws_data_summ.rds")
+fws.dat <- left_join(fws.md, fws.sum)
+
+fws.dat
+
 ```
 
 
 
+```{r combine}
+all.dat <- bind_rows(uw.dat, accs.dat, cik.dat, fws.dat)
+```
 
-```{r}
+
+```{r leaflet map}
+
 # create map
 leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
@@ -101,22 +134,4 @@ leaflet() %>%
 ```
 
 
-<br>
 
-Study Locations
-```{r eval = FALSE}
-# create map
-leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
-  #setView(-150.210169, 60.487694, zoom = 8) %>%
-  addMarkers(lng = dat.meta$Longitude, lat = dat.meta$Latitude,
-             popup = paste("Waterbody Name = ", dat.meta$Waterbody_name, "<br>",
-                           "SiteID = ", dat.meta$SiteID, "<br>",
-                           "Data Source = ", dat.meta$SourceName, "<br>",
-                           "AKOATS_ID = ", dat.meta$AKOATS_ID, "<br>",
-                           "Start Year = ", dat.meta$start_year, "<br>",
-                           "End Year = ", dat.meta$end_year, "<br>",
-                           "Sensor Accuracy = ", dat.meta$Sensor_accuracy, "<br>"))
-
-```

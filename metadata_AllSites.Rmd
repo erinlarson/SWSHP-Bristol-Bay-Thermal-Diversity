@@ -228,6 +228,34 @@ rm(uw.meta,uw.meta.1,uw.meta.2,dat.uw.1,dat.uw.2)
 
 * CIK metadata
 
+Just site names and lat/long right now. Sue didn't provide lat/longs in her metadata file so need to try and match names in akoats. Still missing Roadhouse creek, checking w Dan to see if that is a site we sample... sounds familiar.
+
+```{r}
+
+# CIK metadata from AKOATS database
+cik.meta <- akoats.meta %>%
+  filter(SourceName == "CIK") %>% 
+  select(SiteID, SourceName, Latitude, Longitude)
+
+#remove sites in cook inlet.
+cik.meta <- cik.meta[!grepl("CIK", cik.meta$SiteID),]
+
+cik.meta <- bind_rows(cik.meta,
+                      data.frame(SiteID = "Ben Courtney Creek",
+                                 SourceName = "CIK",
+                                 Latitude = 59.272417,
+                                 Longitude = -156.357567))
+
+cik.meta <- cik.meta %>% 
+  mutate(SiteID = case_when(grepl("Gibraltar", SiteID) ~ "Gibraltar River",
+                            TRUE ~ SiteID))
+  
+saveRDS(cik.meta, "output/cik_metadata.rds")
+
+```
+
+
+
 ```{r}
 
 # CIK metadata from AKOATS database

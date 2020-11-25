@@ -20,6 +20,7 @@ Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 # clear environment
 rm(list=ls())
@@ -40,40 +41,66 @@ library(dataRetrieval)
 Read in temp observation data from CIK folder
 ```{r}
 # read in
-cik.data <-list.files(path = paste0("data/CIK Bristol Bay village and lodge sites"),
+cik.files <-list.files(path = paste0("data/CIK Bristol Bay village and lodge sites"),
                pattern = "*.xlsx", 
-               full.names = T) %>%
-     map_df(function(x) read_excel(x,skip = 1,col_names = F) %>% 
-            mutate(filename = gsub(".xlsx","",basename(x))))
+               full.names = T)
 
-# assign colnames
-colnames(cik.data) <- c("sampleDate","DateTime","Temperature","SiteID") 
+#remove metadata file
+cik.files <- cik.files[!(grepl("CIK Bristol Bay village and lodge sites/CIK Bristol", cik.files))]
 
-# modify column structure and formats
-cik.data <- cik.data %>%
-  # remove file name dates
-  separate(SiteID, sep = "_", into = "SiteID") %>%
-  transform(sampleTime = hms::as_hms(DateTime),
-            sampleDate = date(sampleDate)) %>%
-  select(-DateTime,-Var.5) %>%
-  filter(!is.na(Temperature))
+
+cik.data <- cik.files %>% 
+  map_df(function(x) read_excel(x,skip = 1,col_names = F) %>% 
+  mutate(file_name = gsub(".xlsx","",basename(x))))
+
+cik.data <- cik.data %>% 
+  mutate(sampleDate = as.Date(`...1`),
+         sampleTime = as_hms(`...2`),
+         Temperature = `...3`,
+         SiteID = sub("\\_.*", "", file_name)) %>%  
+  select(-`...1`, -`...2`, -`...3`, -`...4`, -`...5`) 
+
+#fix big creek naknek. 
+cik.data <- cik.data %>% 
+  mutate(SiteID = case_when(grepl("Naknek", file_name) ~ "Big Creek_Naknek",
+                            grepl("Roadhouse", file_name) ~ "Roadhouse Creek",
+                            grepl("Panar", file_name) ~ "Panaruqak Creek",
+                            TRUE ~ SiteID))
+
 
 ```
+
+
+Summary csv to add as attributes to leaflet map.
+
+```{r}
+cik.data %>% 
+  group_by(SiteID) %>% 
+  summarize(startYear = min(year(sampleDate)),
+            endYear = max(year(sampleDate)),
+            totYears = length(unique(year(sampleDate)))) %>% 
+  saveRDS("output/cik_data_summ.rds")
+
+```
+
+```{r}
+cik.data %>% 
+  saveRDS("output/cik_data.rds")
+```
+
 
 <br>
 
 Perform a quick visualization to see extent and form of data
 ```{r}
 cik.data %>%
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,SiteID,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  mutate(DT = parse_date_time(paste(sampleDate, sampleTime), "Y-m-d H:M:S")) %>%
+  ggplot(aes(x = DT, y = Temperature)) +
   geom_point() +
-  facet_wrap(. ~ SiteID) +
+  facet_wrap(~ SiteID) +
   ggtitle("Original Logger Data by Site and Year")
+
+cik.data %>% distinct(SiteID)
 
 ```
 <br>
