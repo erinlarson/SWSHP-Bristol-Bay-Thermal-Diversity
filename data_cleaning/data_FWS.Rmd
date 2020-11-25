@@ -98,7 +98,8 @@ Combine the three data sources and format as specified in Project_notes.Rmd
 ```{r}
 fws.data <- bind_rows(tog1_dat,tog2_dat,egegik) %>%
   mutate(Temperature = as.numeric(Temperature),
-         sampleTime = hms::as_hms(sampleTime)) %>%
+         sampleTime = hms::as_hms(sampleTime),
+         sampleDate = as.Date(sampleDate)) %>%
   filter(!is.na(Temperature))
 
 fws.data %>% 
@@ -109,22 +110,22 @@ fws.data %>%
 
 <br>
 
-Read in metadata and use to assign AKOATS_IDs
+Read in metadata and use to assign AKOATS_IDs. Note same metadata in both workbooks, only need one.
 
 
 ```{r}
 togiak1_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part1.xlsx", sheet = "AKOATS_metadata") %>% 
   filter(!is.na(SourceName))
 
-togiak2_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part2.xlsx", sheet = "AKOATS_metadata") %>% 
-  filter(!is.na(SourceName))
+# togiak2_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part2.xlsx", sheet = "AKOATS_metadata") %>% 
+#   filter(!is.na(SourceName))
 
 wrb_metadata <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata", n_max = 15) %>% 
   mutate(SiteID = as.character(SiteID)) %>% 
   filter(Waterbody_name %in% c("Egegik River"))
 
 # combine metadata sheets
-fws.metadata <- bind_rows(togiak1_metadata, togiak2_metadata, wrb_metadata) %>%
+fws.metadata <- bind_rows(togiak1_metadata, wrb_metadata) %>%
   select(SourceName, AKOATS_ID, SiteID, Waterbody_name, Latitude, Longitude)
 
 saveRDS(fws.metadata, "output/fws_metadata.rds")
@@ -133,7 +134,7 @@ saveRDS(fws.metadata, "output/fws_metadata.rds")
 fws.data <- left_join(fws.data, fws.metadata %>% select(SiteID, Waterbody_name), by = "SiteID") 
 
 # remove extraneous objects
-rm(togiak1_metadata,togiak2_metadata,egegik_metadata,egegik_dat,tog1_dat,tog2_dat,dat)
+rm(togiak1_metadata,togiak2_metadata,tog1_dat,tog2_dat,dat)
 
 ```
 
@@ -148,6 +149,12 @@ fws.data %>%
             totYears = length(unique(year(sampleDate)))) %>% 
   saveRDS("output/fws_data_summ.rds")
 
+```
+
+Save data for summary table and figure.
+
+```{r}
+saveRDS(fws.data, "output/fws_data.rds")
 ```
 
 

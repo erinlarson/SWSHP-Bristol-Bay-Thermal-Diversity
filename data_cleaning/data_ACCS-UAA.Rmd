@@ -66,9 +66,19 @@ For visualization and data QA/QC, we want SiteID associated with each dataset, w
 
 ```{r}
 md <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
-  select(AKOATS_ID, SiteID)
+  select(AKOATS_ID, Waterbody_name, SiteID)
 
 accs.data <- left_join(accs.data, md, by = "AKOATS_ID")
+
+accs.data %>% distinct(Waterbody_name, SiteID)
+
+accs.data <- accs.data %>% 
+  mutate(Waterbody_name = case_when(SiteID == "mussm15" ~ "Trib. to SF Koktuli",
+                                    SiteID == "mutsk09" ~ "Trib. to SF Koktuli",
+                                    SiteID == "mutsk02" ~ "Trib. to SF Koktuli",
+                                    SiteID == "muekm23" ~ "Trib. to SF Koktuli",
+                                    SiteID == "iltnr19" ~ "Trib. to Newhalen",
+                                    TRUE ~ Waterbody_name))
   
 ```
 
@@ -76,7 +86,7 @@ Summary csv to add as attributes to leaflet map.
 
 ```{r}
 accs.data %>% 
-  group_by(SiteID) %>% 
+  group_by(SiteID, Waterbody_name) %>% 
   summarize(startYear = min(year(sampleDate)),
             endYear = max(year(sampleDate)),
             totYears = length(unique(year(sampleDate)))) %>% 
@@ -84,6 +94,12 @@ accs.data %>%
 
 ```
 
+
+Save a copy of the data for a summary table and figure.
+
+```{r}
+saveRDS(accs.data, "output/accs_data.rds")
+```
 
 
 

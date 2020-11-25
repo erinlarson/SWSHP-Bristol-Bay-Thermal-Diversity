@@ -24,7 +24,7 @@ editor_options:
 Document created by Benjamin Meyer (benjamin.meyer.ak@gmail.com) and last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu). 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 # clear environment
 rm(list=ls())
@@ -47,32 +47,168 @@ stopping notes - need to go through nps data. also wrb could have data for egegi
 
 # Cook Inletkeeper
 
+Sue provided temperature data collected in partnership with lodges and villages around Bristol Bay from 16 sites from 2014 to 2020. Data were reviewed prior to submission and bad data removed.
+
 ```{r}
 cik.data <- read_rds("output/cik_data.rds")
 
-cik.data %>% 
-  filter(SiteID == "Lost Dog Creek")
+cik.data.summary <- cik.data %>%
+  mutate(year = year(sampleDate)) %>%
+  group_by(SiteID, year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+cik.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+```
+
+```{r cik_figure, fig.height=10, fig.width=8}
 
 cik.data %>%
   group_by(SiteID, sampleDate) %>% 
   summarize(meanT = mean(Temperature)) %>%
   complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
-  ggplot(aes(x = sampleDate, y = meanT)) +
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
   geom_line() +
-  facet_wrap(~ SiteID, scales = "free_x") +
-  ggtitle("Original Logger Data by Site and Year")
+  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  facet_wrap(~ SiteID) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year",
+       title = "CIK Original Logger Data by Site and Year") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
 
-cik.data %>%
-  group_by(SiteID, sampleDate) %>% 
+# ACCS
+
+UAA has data from 14 sites in the Kvichak and Nushagak watersheds from 2013 to 2019. Data shown here are through 2017. These data are part of the KNB archive through the SASAP project. 
+
+```{r}
+accs.data <- read_rds("output/accs_data.rds")
+
+accs.data.summary <- accs.data %>%
+  filter(UseData == 1) %>% 
+  mutate(year = year(sampleDate)) %>%
+  group_by(SiteID, Waterbody_name, year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+accs.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+```
+
+```{r accs_figure, fig.width=8, fig.height=10}
+
+accs.data %>%
+  filter(UseData == 1) %>% 
+  group_by(Waterbody_name, SiteID, sampleDate) %>% 
   summarize(meanT = mean(Temperature)) %>%
   complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
-  ggplot(aes(x = sampleDate, y = meanT, color = SiteID)) +
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
   geom_line() +
-  # facet_wrap(~ SiteID, scales = "free_x") +
-  ggtitle("Original Logger Data by Site and Year")
+  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+    facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 22, multi_line = TRUE)) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "ACCS Original Logger Data by Site and Year") +
+  theme_bw() +
+  theme(legend.position = "bottom")
 
 ```
 
+# USFWS
+
+Meg provided data from 23 sites in the Togiak Refuge and also from the Egegik River from 2001 to 2019. 
+
+```{r}
+fws.data <- read_rds("output/fws_data.rds")
+
+fws.data.summary <- fws.data %>%
+  mutate(year = year(sampleDate)) %>%
+  group_by(SiteID, Waterbody_name, year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+fws.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+```
+
+```{r fws_figure, fig.height=15, fig.width=8}
+
+fws.data %>%
+  group_by(Waterbody_name, SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+  geom_line() +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 18, multi_line = TRUE)) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "FWS Original Logger Data by Site and Year") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+  
+
+```
+
+# UW
+
+Daniel Schindler and Jackie Carter provided data from the University of Washington for 70 stream and river sites from 2006 to 2020. Jackie will send over all of their lake data once they receive the loggers back from 2020.
+
+```{r}
+uw.data <- read_rds("output/uw_data.rds")
+
+uw.data.summary <- uw.data %>%
+  filter(UseData == 1) %>% 
+  mutate(year = year(sampleDate)) %>%
+  group_by(SiteID, year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+uw.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+```
+
+```{r uw_figure, fig.height=20, fig.width=10}
+
+uw.data %>%
+  filter(UseData == 1) %>% 
+  group_by(SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+  geom_line() +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  facet_wrap(~ SiteID, labeller = label_wrap_gen(width = 15, multi_line = TRUE)) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year") +
+  theme_bw() +
+  ggtitle("UW Original Logger Data by Site and Year")
+
+```
 
 
 # Map of sites and years of data
@@ -98,15 +234,12 @@ cik.md <- read_rds("output/cik_metadata.rds")
 cik.sum <- read_rds("output/cik_data_summ.rds")
 cik.dat <- left_join(cik.md, cik.sum)
 
-cik.dat
 ```
 
 ```{r fws}
 fws.md <- read_rds("output/fws_metadata.rds")
 fws.sum <- read_rds("output/fws_data_summ.rds")
 fws.dat <- left_join(fws.md, fws.sum)
-
-fws.dat
 
 ```
 
