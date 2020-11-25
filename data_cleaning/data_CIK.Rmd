@@ -16,7 +16,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+Document created by Benjamin Meyer (benjamin.meyer.ak@gmail.com) and last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -36,11 +36,12 @@ library(DT)
 library(dataRetrieval)
 ```
 
-<br>
+
+# Data
 
 Read in temp observation data from CIK folder
+
 ```{r}
-# read in
 cik.files <-list.files(path = paste0("data/CIK Bristol Bay village and lodge sites"),
                pattern = "*.xlsx", 
                full.names = T)
@@ -60,7 +61,7 @@ cik.data <- cik.data %>%
          SiteID = sub("\\_.*", "", file_name)) %>%  
   select(-`...1`, -`...2`, -`...3`, -`...4`, -`...5`) 
 
-#fix big creek naknek. 
+#fix site names. 
 cik.data <- cik.data %>% 
   mutate(SiteID = case_when(grepl("Naknek", file_name) ~ "Big Creek_Naknek",
                             grepl("Roadhouse", file_name) ~ "Roadhouse Creek",
@@ -69,7 +70,6 @@ cik.data <- cik.data %>%
 
 
 ```
-
 
 Summary csv to add as attributes to leaflet map.
 
@@ -88,9 +88,6 @@ cik.data %>%
   saveRDS("output/cik_data.rds")
 ```
 
-
-<br>
-
 Perform a quick visualization to see extent and form of data
 ```{r}
 cik.data %>%
@@ -103,11 +100,65 @@ cik.data %>%
 cik.data %>% distinct(SiteID)
 
 ```
-<br>
+
+
+# Metadata
+
+Just site names and lat/long right now. Sue didn't provide lat/longs in her metadata file so need to try and match names in AKOATS. Sue emailed lat/long for Ben Courtney Creek and Roadhouse Creek lat/long from Dan.
+
+AKOATS metadata
+
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  rename(AKOATS_ID = seq_id,
+         SiteID = Agency_ID) %>% 
+  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+akoats.meta
+
+```
+
+
+```{r}
+
+# CIK metadata from AKOATS database
+cik.meta <- akoats.meta %>%
+  filter(SourceName == "CIK") %>% 
+  select(SiteID, SourceName, Latitude, Longitude)
+
+#remove sites in cook inlet.
+cik.meta <- cik.meta[!grepl("CIK", cik.meta$SiteID),]
+
+cik.meta <- bind_rows(cik.meta,
+                      data.frame(SiteID = "Ben Courtney Creek",
+                                 SourceName = "CIK",
+                                 Latitude = 59.272417,
+                                 Longitude = -156.357567))
+
+cik.meta <- bind_rows(cik.meta,
+                      data.frame(SiteID = "Roadhouse Creek",
+                                 SourceName = "CIK",
+                                 Latitude = 59.7573,
+                                 Longitude = -154.8499))
+
+cik.meta <- cik.meta %>% 
+  mutate(SiteID = case_when(grepl("Gibraltar", SiteID) ~ "Gibraltar River",
+                            TRUE ~ SiteID))
+  
+saveRDS(cik.meta, "output/cik_metadata.rds")
+
+```
+
+
+# Data review
+
+(Currently from Ben and not updated or run, may develop scripts for sub-daily data and run on everything later.)
 
 CIK QA methods describe having already deleted anomalous data.  However, we will more carefully examine data from a few sites to decide if it too should be excised.
 
-<br>
 
 Process to identify and remove erroneous data:
 
@@ -115,7 +166,7 @@ Process to identify and remove erroneous data:
 * Plot unreasonable datasets by individual year and site
 * Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
 
-```{r}
+```{r eval = FALSE}
 
 # list of suspect sites to manually examine w/ ggplotly 
 suspect.cik.sites <-data.frame(c("Ben Courtney Creek",
@@ -149,54 +200,13 @@ ggplotly(
 
 ```
 
-<br>
 
 Notes: 2019 Ben Courtney Creek: temps >20C looked potentially suspect, but closer visual examination does not suggest exposure or logger error.  2019 temps at Gibraltar River are of similar form, suggesting common pattern across sites in the region for that time period.
 
-<br>
 
 Assign "useData =1" for all CIK data
-```{r}
+```{r eval = FALSE}
 cik.data <- cik.data %>% mutate(useData = 1)
 ```
 
-<br>
-
-Assign AKOATS_ID where possible
-
-```{r}
-# CIK metadata from Sue M
-cik.meta <- read_excel("data/CIK Bristol Bay village and lodge sites/cik_metadata/CIK Bristol Bay village and lodge sites.xlsx") %>%
-  rename(Agency_ID = SiteID)
-
-# CIK metadata from AKOATS
-akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE") %>%
-  select(seq_id,Agency_ID,SourceName) %>%
-  filter(SourceName == "CIK") %>%
-  rename(AKOATS_ID = seq_id) %>%
-  select(-SourceName)
-
-# associate CIK site names with AKOATS_IDs
-cik.meta.1 <- inner_join(akoats.meta,cik.meta,by = "Agency_ID") %>%
-  rename(SiteID = Agency_ID) %>%
-  select(AKOATS_ID,SiteID)
-
-# join AKOATS_IDs to overall data set
-cik.data <- left_join(cik.data,cik.meta.1,by = "SiteID") %>%
-  distinct()
-
-```
-
-<br>
-
-Export CIK to `\data` folder associated with this .Rproj
-```{r}
-# write CIK csv
-## reorder columns
-x <- cik.data %>% 
-  select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
-# export csv
-write.csv(x,"output/CIK.csv", row.names = F)
-
-```
 

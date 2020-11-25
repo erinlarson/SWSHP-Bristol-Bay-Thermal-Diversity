@@ -16,6 +16,9 @@ editor_options:
   chunk_output_type: inline
 ---
 
+Note: Put this code in each data cleaning script so this is not needed.
+
+
 Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
 
 ```{r setup, include=FALSE}
@@ -245,6 +248,12 @@ cik.meta <- bind_rows(cik.meta,
                                  SourceName = "CIK",
                                  Latitude = 59.272417,
                                  Longitude = -156.357567))
+
+cik.meta <- bind_rows(cik.meta,
+                      data.frame(SiteID = "Roadhouse Creek",
+                                 SourceName = "CIK",
+                                 Latitude = 59.7573,
+                                 Longitude = -154.8499))
 
 cik.meta <- cik.meta %>% 
   mutate(SiteID = case_when(grepl("Gibraltar", SiteID) ~ "Gibraltar River",
