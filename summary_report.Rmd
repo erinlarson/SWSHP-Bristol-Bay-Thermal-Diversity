@@ -1,26 +1,15 @@
 ---
-title: "Summary Report"
-output:
-  html_document: 
-    df_print: paged
-    fig_width: 10
-    fig_height: 6
-    fig_caption: yes
-    code_folding: hide
-    toc: true
-    toc_depth: 4
-    toc_float:
-      collapsed: false
-      smooth_scroll: false
-editor_options: 
-  chunk_output_type: inline
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 ---
 
 Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 # clear environment
 rm(list=ls())
