@@ -43,21 +43,55 @@ NPS provided a sites info file in excel that has the agency id (aka SiteID) and 
 
 FYI: the two Tlikila sites are 36m apart; but should still be QA/QC'd separately, so keep separate at this stage of analysis. For aktemp, these can be separate points assigned to same siteid in data table.
 
-```{r}
-nps.metadata  <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) 
+Edited the site info worksheet so that the site_name field in the pilot data is a separate entry for joining. Also, transferred the A and B descriptors for the Tlikakila sites to the agency id and removed them from the waterbody name.
 
-nps.metadata %>% 
-  select(SiteID = Agency_ID, Waterbody_name = Waterbody_Name, Latitude = Lat, Longitude = Long) %>% 
-  saveRDS("output/nps_metadata.rds")
+No Akoats ids on their site info worksheet. Could try to merge witk the akoats metadata, but not really important right now since they gave us lat/longs for all of their sites.
+
+```{r}
+nps.metadata  <- read_excel("data/NPS Bartz/Site_Info_RSS.xlsx", skip = 4) %>% 
+  mutate(SourceName = "npsSWAN", 
+         Contact_person = "Krista Bartz") %>% 
+  select(SiteID = Agency_ID, Waterbody_name = Waterbody_Name, Latitude = Lat, Longitude = Long, SourceName, Contact_person)
+
+
+nps.metadata
+
 ```
 
+
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA") %>%
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  rename(AKOATS_ID = seq_id,
+         SiteID = Agency_ID) %>% 
+  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+akoats.meta
+
+```
+
+Looks like Telaquana Lake array is not in AKOATS, but that lake is outside Bristol Bay anyways so should be removed. Also, No Avonoski River in AKOATS and there is a Tlikikila River in AKOATS - 4 entries so not sure which to assign here. Some will just be left NA.
+
+```{r}
+nps.metadata <- left_join(nps.metadata, akoats.meta %>% filter(Contact_person == "Krista Bartz") %>% select(SiteID, AKOATS_ID)) 
+  
+saveRDS(nps.metadata, "output/nps_metadata.rds")
+```
+
+
+
+
 # Data 
+
+NOTE - there are some updates from Paul and Krista, new qaed data that should be fixed below.
 
 Read in data from folder "NPS Bartz"
 
 Read-in notes:
 
-* The file "All_Pilot_Sites_20201104.csv" is not in a format consistent with all other stream-site csv files.  Read in separately.
+* The file "All_Pilot_Sites_20201204.csv" is not in a format consistent with all other stream-site csv files.  Read in separately.
 
 * The following csv files are site files containing all data from an anchored line in a lake w/ loggers at various (5m-10m) depth increments.  Read in and address these separately:
 
@@ -116,12 +150,14 @@ nps.data.1
 Pilot sites.
 
 ```{r}
-nps.data.2 <- read.csv("data/NPS Bartz/All_Pilot_Sites_20201104.csv") %>%
+nps.data.2 <- read.csv("data/NPS Bartz/All_Pilot_Sites_20201204.csv") %>%
   mutate(sampleDate = as.Date(Date, format = "%m/%d/%Y"),
          sampleTime = as_hms(parse_date_time(Time, orders = "I:M:S p"))) %>%
   select(-X,-Date,-Time) %>%
   pivot_longer(cols = Little_Kijik_Water:Savonoski_Water, names_to = "site_name", values_to = "Temperature") %>%
   filter(!is.na(Temperature))
+
+nps.data.2 %>% distinct(site_name)
 ```
 
 Site names in data file don't match waterbody names or agency ids and unfortunately neither are unique - same agency id for two datasets on tlikikila river and two sites on lake clark. Add agency id and deal with tlikikila river separately.
@@ -129,24 +165,7 @@ Site names in data file don't match waterbody names or agency ids and unfortunat
 ```{r}
 nps.data.2 %>% distinct(site_name)
 
-nps.data.2 <- nps.data.2 %>% 
-  mutate(Agency_ID = case_when(site_name == "Little_Kijik_Water" ~ "LACL_lkijr_stream_water",
-                                    site_name == "Kijik_Beach_Water" ~ "LACL_kijil_beach_water",
-                                    site_name == "Chulitna_Water" ~ "LACL_chull_beach_water",
-                                    site_name == "Tazimina_Water" ~ "LACL_tazir_stream_water",
-                                    site_name == "Up_A_Tree_Water" ~ "KATM_upatc_stream_water",
-                                    site_name == "Margot_Water" ~ "KATM_margc_stream_water",
-                                    site_name == "Port_Alsworth_Water" ~ "LACL_porta_beach_water",
-                                    site_name == "Tlikakila_Water_A" ~ "LACL_tlikr_stream_water",
-                                    site_name == "Idavain_Water" ~ "KATM_idavc_stream_water",
-                                    site_name == "Tlikakila_Water_B" ~ "LACL_tlikr_stream_water",
-                                    site_name == "Savonoski_Water" ~ "KATM_savor_stream_water"))
-
-nps.data.2 <- left_join(nps.data.2, nps.metadata %>% filter(!Waterbody_Name == "Tlikikila River B") %>% 
-            select(Agency_ID, Waterbody_Name)) %>% 
-  mutate(Waterbody_Name = case_when(site_name == "Tlikakila_Water_B" ~ "Tlikikila River B",
-                                    TRUE ~ Waterbody_Name)) %>% 
-  select(-site_name)
+nps.data.2 <- left_join(nps.data.2, nps.metadata)
 
 nps.data.2 %>% distinct(Agency_ID, Waterbody_Name)
 ```

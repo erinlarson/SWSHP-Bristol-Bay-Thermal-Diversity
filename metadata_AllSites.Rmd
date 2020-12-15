@@ -16,16 +16,12 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Note: Put this code in each data cleaning script so this is not needed.
+NOTE: these metadata have been moved into the respective data cleaning sheets so that site names or other info as needed can be linked to data files. THIS Is NOT CURRENT METADATA.
 
 
-Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
-# clear environment
-rm(list=ls())
 
 # load packages
 library(tidyverse)
@@ -38,78 +34,47 @@ library(DT)
 library(dataRetrieval)
 # library(rsay)
 
-# define function to exclude multiple strings in a column
-'%ni%' <- Negate('%in%')
 ```
 
-<br>
-
-# Data
-
-Summarize extent and metadata of all successfully read-in data so date
-
-Create list of unique data sets by site and year from read-in folder (`\data`)
-```{r warning=FALSE}
-
-# read in streams & beaches
-dat <-list.files(path = paste0("output"),
-               pattern = "*.csv", 
-               full.names = T) %>%
-     map_df(function(x) read_csv(x,skip = 1,col_types = cols(.default = "c"),col_names = F) %>% 
-            mutate(filename = gsub(".csv","",basename(x))))
-# rename columns
-colnames(dat) <- c("AKOATS_ID","SiteID","Date","Time","Temperature","useData","filename")
-
-# how many streams & beaches observations? (7,429,464)
-n_obs_sb <- nrow(dat)
-
-# read in lakes
-dat.lakes <-list.files(path = paste0("output/Lakes"),
-               pattern = "*.csv", 
-               full.names = T) %>%
-     map_df(function(x) read_csv(x,skip = 1,col_names = F) %>% 
-            mutate(filename = gsub(".csv","",basename(x))))
-# rename columns
-colnames(dat.lakes) <- c("AKOATS_ID","SiteID","Depth","Date","Time","Temperature","useData","filename")
-
-# how many lakes observations? (5,467,621)
-n_obs_lakes <- nrow(dat.lakes)
-
-```
-
-<br>
-
-Visualization exercise: if each water temperature observation in our enormous data set were an average sized sockeye, what distance would it stretch end to end?
-```{r Analogy}
-
-# average sockeye FL = 2 ft = 609.6 mm
-# earth circumference = 40,007.863 km
-# distance from Seattle to Tokyo = 7,712 km
-
-sockeye.length.km <- 609.6 / 1000000 # length of one sockeye in km
-total_obs <- n_obs_sb + n_obs_lakes
-dist <- total_obs * sockeye.length.km # = 8100 km
-
-```
-
-If each of the observations in our data set were an average sized sockeye salmon (~2 ft), they would stretch `r dist` km end to end, that's 300 km more than the distance from Seattle to Tokyo!
-
-We have a total of `r n_obs_sb` individual streams & beaches temperature observations!  And, we have a total of `r n_obs_lakes` observations from multi-level buoy lake sites!  
-
-
-<br>
 
 
 # Metadata
 
-Associate metadata with all temp data sets.  Proceed one agency at a time, as it is not all in a consistent format.
 
-Note: original approach involved collating all metadata to a single table, then using left_join to assign to overall data frame either by AKOATS_ID or SiteID.  However computer processing power was insufficient to handle this task.  Thus metadata is joined one-at-a-time by agency.
 
-* AKOATS metadata
+Read in metadata for all the sites from the different providers/projects. Combine into one data frame:
+
+* data_SiteID - this is the correct site id to link to the data table, if needed.
+* SiteID - this is the site id provided by the agency, but not always unique or linked directly to the data as provided
+* AKOATS_ID
+* waterbody_name - we will need this to confirm correct catchment location
+* latitude
+* longitude
+* Source_Name
+* Contact_Name
+
+These data are being used for two projects, the Southwest partnership project, which is primarly based on the empirical data. And also the AKSSF, where we need accurate locations so that we can extract hydrologically-correct variables for modeling. The final metadata file at the end of this script is being read into the AKSSF repo to have one complete metadata file for all data in the AKSSF regions. The locations will be reviewed in GIS to link to catchments (e.g. add a catchment_ID) so that we can extract daymet air temperatures and correctly link them to sites.
+
+
+Read in from metadata from data preparation scripts and combine as one for plotting.
+
+# STOPPED HERE, KEEP FIXING METADATA IN DATA PREP SCRIPTS AND COMBINE HERE SO CAN BE BROUGHT INTO AKSSF, COMBINED THERE, EXPORTED TO GIS AND EXAMINED FOR LOCATION ACCURACY. NOTE SOME SITES MAY BE OUTSIDE BB - E.G. NPS.
 
 ```{r}
-akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
+fws <- readRDS("output/fws_metadata.rds")
+
+nps <- readRDS("output/nps_metadata.rds") 
+
+
+
+```
+
+
+
+## AKOATS metadata
+
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA", col_types = "text") %>%
   select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
   rename(AKOATS_ID = seq_id,
          SiteID = Agency_ID) %>% 
@@ -121,9 +86,8 @@ akoats.meta
 
 ```
 
-<br>
 
-* UW metadata
+## UW metadata
 
 Focus on just getting lat/longs for a map. Read in all records, convert akoats id to numeric, which will remove the sites with multiple entries. That's ok because Jackie provided lat/longs for all of those sites. Also, remove sites with missing info - which are the two lynx creek sites with unknown locations.
 
@@ -321,48 +285,12 @@ dat.cik <- dat %>%
 rm(cik.meta,cik.meta.1,cik.meta.2,cik.meta.bc)
 ```
 
-<br>
 
-* FWS metadata
 
-```{r}
-# FWS metadata
-togiak1.meta <- read_excel("data/FWS/Togiak_Oct2020_Part1.xlsx", sheet = "AKOATS_metadata")
-togiak2.meta <- read_excel("data/FWS/Togiak_Oct2020_Part2.xlsx", sheet = "AKOATS_metadata")
-egegik.meta <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata")
-fws.meta <- bind_rows(togiak1.meta,togiak2.meta,egegik.meta)
 
-# specify strings to remove
-strings <- c("I have no data for Togiak Lake",
-             "I have no data for Togiak lake",
-             "New Sites:",
-             "was wrongly named as 571001154134300",
-             "was wrongly named as 571359154244300",
-             "was wrongly named as 580223156504200")
 
-# format fws metadata
-fws.meta <- fws.meta %>% 
-  # choose columns to retain
-  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
-  filter(SiteID %ni% strings,
-         !is.na(SiteID)) %>%
-  distinct() 
 
-# join fws data to metadata
-fws.dat <- dat %>%
-  filter(filename == "FWS") %>%
-  select(-AKOATS_ID) %>%
-  left_join(fws.meta,by = "SiteID") %>%
-  mutate_all(as.character)
-
-# note: in the metadata tab in "WRB_Oct2020.xlsx", there are three rows describing previous "wrongly named" sites, their associated AKOATS_ID, and the correct names.  Changes made are highlighted by row in yellow in "data/AKOATS_DATA_2020_working.xlsx"
-
-rm(togiak1.meta,togiak2.meta,egegik.meta,fws.meta)
-```
-
-<br>
-
-* UAA-ACCS metadata
+## UAA-ACCS metadata
 
 Just get lat/longs for reading into a map.
 
@@ -398,9 +326,8 @@ rm(accs.meta)
 
 ```
 
-<br>
 
-* NPS metadata
+## NPS metadata - OLD
 
 ```{r}
 # We will use AKOATS provided metadata where available.  However a number of NPS sites do not have AKOATs_ID values,  so use NPS-provided metadata in these cases.
@@ -481,9 +408,8 @@ nps.dat.lakes <- dat.lakes %>%
 rm(nps.meta,nps.meta.1,nps.meta.2,nps.names.sb,nps.names.missing,nps.names.lakes)
 ```
 
-<br>
 
-* USGS metadata
+## USGS metadata
 
 ```{r}
 # USGS metadata
@@ -534,8 +460,6 @@ usgs.dat <- dat %>%
 rm(usgs.meta,usgs.meta.1,usgs.meta.2,usgs.meta.akoats)
 
 ```
-
-<br>
 
 
 

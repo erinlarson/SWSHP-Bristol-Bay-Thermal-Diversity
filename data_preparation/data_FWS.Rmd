@@ -22,8 +22,6 @@ Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 
-# clear environment
-rm(list=ls())
 
 # load packages
 library(tidyverse)
@@ -36,8 +34,37 @@ library(plotly)
 
 Note that we need to get the knb download for Meg's data. 
 
+# Metadata
+
+Read in metadata and use to assign AKOATS_IDs. Note same metadata in both workbooks, only need one. Get sites from OSM as well.
+
+```{r}
+togiak1_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part1.xlsx", sheet = "AKOATS_metadata") %>% 
+  filter(!is.na(SourceName))
+
+wrb_metadata <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata", n_max = 15) %>% 
+  mutate(SiteID = as.character(SiteID)) %>% 
+  filter(Waterbody_name %in% c("Egegik River"))
+
+osm_md <- read_excel("S:\\Stream Temperature Data\\USFWS Perdue - complete 2020\\OSM_Oct2020.xlsx", sheet = "OSM_Sites_AKOATS") %>% 
+  filter(Agency_ID == "Newhalen River") %>% 
+  mutate(AKOATS_ID = 1571)
+
+# combine metadata sheets
+fws.metadata <- bind_rows(togiak1_metadata, wrb_metadata) %>%
+  select(SourceName, Contact_person, AKOATS_ID, SiteID, Waterbody_name, Latitude, Longitude)
+
+fws.metadata <- bind_rows(osm_md %>% select(SourceName, Contact_person, AKOATS_ID, SiteID = Agency_ID, Waterbody_name, Latitude, Longitude), fws.metadata)
+
+saveRDS(fws.metadata, "output/fws_metadata.rds")
+
+```
+
+
 
 # Data Import
+
+
 
 Read in Excel files, one at a time.  Note: data is structured such that individual sites are separated by tabs, with one tab for metadata.
 
@@ -50,7 +77,7 @@ sheets <- excel_sheets(togiak1)
 sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
 tog1_dat <- tibble()
 for(i in sheets){
-  dat <- read_excel(togiak1, sheet = i, skip = 1, col_types = c("date", "date", "text"), 
+  dat <- read_excel(togiak1, sheet = i, skip = 1, col_types = c("date", "date", "numeric"), na = "---", 
                     col_names = c("sampleDate", "sampleTime", "Temperature")) %>%
     mutate(SiteID = i)
   tog1_dat <- bind_rows(tog1_dat, dat)
@@ -58,7 +85,6 @@ for(i in sheets){
 
 tog1_dat
 ```
-
 
 
 Read in "Togiak_Oct2020_Part2.xlsx"
@@ -72,7 +98,7 @@ for(i in sheets){
   dat <- read_excel(togiak2, 
                     sheet = i, 
                     skip = 1, 
-                    col_types = c("date", "date", "text"), 
+                    col_types = c("date", "date", "numeric"), na = "---",
                     col_names = c("sampleDate", "sampleTime", "Temperature")) %>%
     mutate(SiteID = i)
   tog2_dat <- bind_rows(tog2_dat, dat)
@@ -81,22 +107,32 @@ for(i in sheets){
 tog2_dat
 ```
 
-<br>
 
 Read in Egegik data, "WRB_Oct2020.xlsx"
 ```{r}
 egegik <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "580223156504200", skip = 1, 
-                    col_types = c("date", "date", "text"), col_names = c("sampleDate", "sampleTime", "Temperature")) %>% 
+                    col_types = c("date", "date", "numeric"), na = "---", col_names = c("sampleDate", "sampleTime", "Temperature")) %>% 
   mutate(SiteID = "580223156504200")
 
 egegik
 ```
 
-<br>
+Newhalen River data collected by OSM.
+
+```{r}
+newhalen <- read_excel("S:\\Stream Temperature Data\\USFWS Perdue - complete 2020\\OSM_Oct2020.xlsx", sheet = "Newhalen", col_names = TRUE,
+                     col_types = c("date", "date", "numeric"), na = "---") 
+
+newhalen <- newhalen %>% 
+  select(sampleDate = Date, sampleTime = `Time (UTC -8:00)`, Temperature = `TW [°C]`) %>% 
+  mutate(SiteID = "Newhalen River") 
+```
+
+
 
 Combine the three data sources and format as specified in Project_notes.Rmd
 ```{r}
-fws.data <- bind_rows(tog1_dat,tog2_dat,egegik) %>%
+fws.data <- bind_rows(tog1_dat, tog2_dat, egegik, newhalen) %>%
   mutate(Temperature = as.numeric(Temperature),
          sampleTime = hms::as_hms(sampleTime),
          sampleDate = as.Date(sampleDate)) %>%
@@ -107,34 +143,11 @@ fws.data %>%
 
 ```
 
-
-<br>
-
-Read in metadata and use to assign AKOATS_IDs. Note same metadata in both workbooks, only need one.
-
+Join metadata to data to get the waterbody name for each site for figures.
 
 ```{r}
-togiak1_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part1.xlsx", sheet = "AKOATS_metadata") %>% 
-  filter(!is.na(SourceName))
-
-# togiak2_metadata <- read_excel("data/FWS/Togiak_Oct2020_Part2.xlsx", sheet = "AKOATS_metadata") %>% 
-#   filter(!is.na(SourceName))
-
-wrb_metadata <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "AKOATS_metadata", n_max = 15) %>% 
-  mutate(SiteID = as.character(SiteID)) %>% 
-  filter(Waterbody_name %in% c("Egegik River"))
-
-# combine metadata sheets
-fws.metadata <- bind_rows(togiak1_metadata, wrb_metadata) %>%
-  select(SourceName, AKOATS_ID, SiteID, Waterbody_name, Latitude, Longitude)
-
-saveRDS(fws.metadata, "output/fws_metadata.rds")
-
-# join metadata to data
 fws.data <- left_join(fws.data, fws.metadata %>% select(SiteID, Waterbody_name), by = "SiteID") 
 
-# remove extraneous objects
-rm(togiak1_metadata,togiak2_metadata,tog1_dat,tog2_dat,dat)
 
 ```
 
@@ -158,7 +171,17 @@ saveRDS(fws.data, "output/fws_data.rds")
 ```
 
 
-<br>
+#Complete sites and years
+
+Check to see which sites have complete summer data (80% of days in JJA) and also how many years.
+
+```{r}
+fws.data
+```
+
+
+
+
 
 Perform a quick visualization and summary table to see extent and form of original data.
 
@@ -198,7 +221,6 @@ fws.data %>%
 
 ```
 
-<br>
 
 A quick visualization does not reveal many dramatically obvious signs of logger malfunction.  Export for now, will more carefully re-examine later.
 
