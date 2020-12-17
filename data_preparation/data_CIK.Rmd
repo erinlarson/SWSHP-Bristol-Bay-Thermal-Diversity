@@ -16,14 +16,12 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Document created by Benjamin Meyer (benjamin.meyer.ak@gmail.com) and last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 
-# clear environment
-rm(list=ls())
+
 
 # load packages
 library(tidyverse)
@@ -35,6 +33,61 @@ library(plotly)
 library(DT)
 library(dataRetrieval)
 ```
+
+# Metadata
+
+AKOATS metadata
+
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA", col_types = "text") %>%
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  rename(AKOATS_ID = seq_id,
+         SiteID = Agency_ID) %>% 
+  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+akoats.meta
+
+```
+
+CIK metadata
+
+Sue didn't provide lat/longs in her metadata file so need to try and match names in akoats. Sue provided lat/long for Ben Courtney Creek, Dan provided lat/long for Roadhouse creek.
+
+```{r}
+
+cik.meta <- akoats.meta %>%
+  filter(SourceName == "CIK") %>% 
+  select(SiteID, SourceName, Contact_person, Waterbody_name, Latitude, Longitude)
+
+#remove sites in cook inlet.
+cik.meta <- cik.meta[!grepl("CIK", cik.meta$SiteID),]
+
+cik.meta <- bind_rows(cik.meta,
+                      data.frame(SiteID = "Ben Courtney Creek",
+                                 SourceName = "CIK",
+                                 Contact_person = "Sue Mauger",
+                                 Latitude = 59.272417,
+                                 Longitude = -156.357567,
+                                 Waterbody_name = "Ben Courtney Creek"))
+
+cik.meta <- bind_rows(cik.meta,
+                      data.frame(SiteID = "Roadhouse Creek",
+                                 SourceName = "CIK",
+                                 Contact_person = "Sue Mauger",
+                                 Latitude = 59.7573,
+                                 Longitude = -154.8499,
+                                 Waterbody_name = "Roadhouse Creek"))
+
+cik.meta <- cik.meta %>% 
+  mutate(SiteID = case_when(grepl("Gibraltar", SiteID) ~ "Gibraltar River",
+                            TRUE ~ SiteID))
+  
+saveRDS(cik.meta, "output/cik_metadata.rds")
+
+```
+
 
 
 # Data

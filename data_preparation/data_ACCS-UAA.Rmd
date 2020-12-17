@@ -16,7 +16,6 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -24,8 +23,6 @@ knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 # source(file = "Temp_flags_function.R")
 
-# clear environment
-rm(list=ls())
 
 # load packages
 library(tidyverse)
@@ -37,8 +34,31 @@ library(plotly)
 library(DT)
 ```
 
-# Data
+# Metadata
 
+For visualization and data QA/QC, we want SiteID associated with each dataset, which we need from the metadata. Read in metadata file and associate SiteID with AKOATS_ID.
+
+```{r}
+accs_md <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
+  select(AKOATS_ID, Waterbody_name, SiteID, SourceName, Contact_person, Latitude, Longitude)
+
+accs_md <- accs_md %>% 
+  mutate(Waterbody_name = case_when(SiteID == "mussm15" ~ "Trib. to SF Koktuli",
+                                    SiteID == "mutsk09" ~ "Trib. to SF Koktuli",
+                                    SiteID == "mutsk02" ~ "Trib. to SF Koktuli",
+                                    SiteID == "muekm23" ~ "Trib. to SF Koktuli",
+                                    SiteID == "iltnr19" ~ "Trib. to Newhalen",
+                                    TRUE ~ Waterbody_name))
+  
+accs_md
+
+saveRDS(accs_md, "output/accs_metadata.rds")
+```
+
+
+
+
+# Data
 
 Read in data from ACCS folder. Rename, transform, and eliminate columns to match final field names described in Project_notes.
 Keep the UseData field created by NCEAS for KNB archive, they should have at least flagged the bad (highly negative) data at Bonanza.
@@ -65,21 +85,12 @@ summary(accs.data)
 For visualization and data QA/QC, we want SiteID associated with each dataset, which we need from the metadata. Read in metadata file and associate SiteID with AKOATS_ID.
 
 ```{r}
-md <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
-  select(AKOATS_ID, Waterbody_name, SiteID)
 
-accs.data <- left_join(accs.data, md, by = "AKOATS_ID")
+accs.data <- left_join(accs.data, accs_md, by = "AKOATS_ID")
 
 accs.data %>% distinct(Waterbody_name, SiteID)
 
-accs.data <- accs.data %>% 
-  mutate(Waterbody_name = case_when(SiteID == "mussm15" ~ "Trib. to SF Koktuli",
-                                    SiteID == "mutsk09" ~ "Trib. to SF Koktuli",
-                                    SiteID == "mutsk02" ~ "Trib. to SF Koktuli",
-                                    SiteID == "muekm23" ~ "Trib. to SF Koktuli",
-                                    SiteID == "iltnr19" ~ "Trib. to Newhalen",
-                                    TRUE ~ Waterbody_name))
-  
+
 ```
 
 Summary csv to add as attributes to leaflet map.

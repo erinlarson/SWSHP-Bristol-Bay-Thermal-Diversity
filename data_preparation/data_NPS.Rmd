@@ -23,9 +23,6 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 
-# clear environment
-rm(list=ls())
-
 # load packages
 library(tidyverse)
 library(lubridate)
@@ -41,18 +38,18 @@ library(DT)
 
 NPS provided a sites info file in excel that has the agency id (aka SiteID) and waterbody names that need to be added to the data files.
 
-FYI: the two Tlikila sites are 36m apart; but should still be QA/QC'd separately, so keep separate at this stage of analysis. For aktemp, these can be separate points assigned to same siteid in data table.
-
 Edited the site info worksheet so that the site_name field in the pilot data is a separate entry for joining. Also, transferred the A and B descriptors for the Tlikakila sites to the agency id and removed them from the waterbody name.
 
-No Akoats ids on their site info worksheet. Could try to merge witk the akoats metadata, but not really important right now since they gave us lat/longs for all of their sites.
+No Akoats ids on their site info worksheet. Merge with the akoats metadata to identify which sites we have data for. There look to be a lot more sites in AKOATS under Dan Young's name.
+
+FYI: the two Tlikila sites are 36m apart and are basically duplicates. Looking at the data (see below), site B has lots of missing data and air temperatures and doesn't provide any new data to the time series. Just keep site A and use the AKOATS id that Krista provided - see email 
 
 ```{r}
 nps.metadata  <- read_excel("data/NPS Bartz/Site_Info_RSS.xlsx", skip = 4) %>% 
   mutate(SourceName = "npsSWAN", 
          Contact_person = "Krista Bartz") %>% 
-  select(SiteID = Agency_ID, Waterbody_name = Waterbody_Name, Latitude = Lat, Longitude = Long, SourceName, Contact_person)
-
+  select(SiteID = Agency_ID, Waterbody_name = Waterbody_Name, Latitude = Lat, Longitude = Long, 
+         SourceName, Contact_person, `File for B_Shaftel`, site_name)
 
 nps.metadata
 
@@ -72,12 +69,25 @@ akoats.meta
 
 ```
 
-Looks like Telaquana Lake array is not in AKOATS, but that lake is outside Bristol Bay anyways so should be removed. Also, No Avonoski River in AKOATS and there is a Tlikikila River in AKOATS - 4 entries so not sure which to assign here. Some will just be left NA.
+Looks like Telaquana Lake array is not in AKOATS, but that lake is outside Bristol Bay anyways so should be removed. Also, No Savonoski River in AKOATS - Krista said that is a new site. Tlikakila River site A can be assigned to akoats id 1893 and remove site B - see figure using two datasets below.
 
 ```{r}
 nps.metadata <- left_join(nps.metadata, akoats.meta %>% filter(Contact_person == "Krista Bartz") %>% select(SiteID, AKOATS_ID)) 
-  
-saveRDS(nps.metadata, "output/nps_metadata.rds")
+
+nps.metadata <- nps.metadata %>% 
+  filter(!(SiteID %in% c("TELAL_01_TEMP", "LACL_tlikr_stream_water_B"))) %>%
+  mutate(SiteID = case_when(site_name == "Tlikakila_Water_A" ~ "LACL_tlikr_stream_water",
+                             TRUE ~ SiteID),
+         AKOATS_ID = case_when(site_name == "Tlikakila_Water_A" ~ 1893,
+                               TRUE ~ AKOATS_ID))
+          
+
+#extra fields are for linking to data table, don't keep those for combined metadata.
+nps.metadata %>% 
+  select(AKOATS_ID, SiteID:Contact_person) %>% 
+  saveRDS("output/nps_metadata.rds")
+
+
 ```
 
 
@@ -85,7 +95,7 @@ saveRDS(nps.metadata, "output/nps_metadata.rds")
 
 # Data 
 
-NOTE - there are some updates from Paul and Krista, new qaed data that should be fixed below.
+NOTE - Paul sent an updated pilot sites spreadsheet on 120420 that is now being used - these data are QAed.
 
 Read in data from folder "NPS Bartz"
 
@@ -113,8 +123,10 @@ nps.files <- list.files(path = "data/NPS Bartz", pattern="*.csv", full.names = T
 
 lake.file.ind <- c("_01_", "_02_", "_03_")
 
-#lake files only
-nps.lake.files <- nps.files[grepl(paste(lake.file.ind, collapse="|"), nps.files)]
+#lake files only, but remove telaquana lake bc not in bristol bay
+nps.lake.files <- nps.files[grepl(paste(lake.file.ind, collapse="|"), nps.files)] 
+nps.lake.files <- nps.lake.files[!grepl("TELAL", nps.lake.files)]
+
 
 #single site files - removing lake files and pilot sites
 nps.single.files <- nps.files[!grepl(paste0(paste(lake.file.ind, collapse="|"), "|Pilot"), nps.files)]
@@ -141,7 +153,7 @@ nps.data.1 %>% distinct(Approval)
 nps.data.1 %>% distinct(Grade)
 nps.data.1 %>% distinct(Qualifiers)
 
-nps.data.1 <- left_join(nps.data.1, nps.metadata %>% select(Agency_ID, `File for B_Shaftel`, Waterbody_Name), 
+nps.data.1 <- left_join(nps.data.1, nps.metadata %>% select(SiteID, `File for B_Shaftel`, Waterbody_name), 
           by = c("file_name" = "File for B_Shaftel"))
 
 nps.data.1
@@ -160,76 +172,88 @@ nps.data.2 <- read.csv("data/NPS Bartz/All_Pilot_Sites_20201204.csv") %>%
 nps.data.2 %>% distinct(site_name)
 ```
 
-Site names in data file don't match waterbody names or agency ids and unfortunately neither are unique - same agency id for two datasets on tlikikila river and two sites on lake clark. Add agency id and deal with tlikikila river separately.
+Site names in data file don't match waterbody names or agency ids and unfortunately neither are unique - same agency id for two datasets on tlikikila river and two sites on lake clark. Edited the site info file so that Tlikakila sites are unique (A and B) and also added the site_names in this pilot file so that the data can be correctly linked to the agency IDs provided by Krista and Paul.
 
 ```{r}
-nps.data.2 %>% distinct(site_name)
+nps.data.2 <- left_join(nps.data.2, nps.metadata %>% select(site_name, SiteID, Waterbody_name))
 
-nps.data.2 <- left_join(nps.data.2, nps.metadata)
-
-nps.data.2 %>% distinct(Agency_ID, Waterbody_Name)
+nps.data.2 %>% distinct(site_name, SiteID, Waterbody_name)
 ```
 
-Lake data: buoys @ lake centers with tempreatures from different depths.
-
-#STOPPED HERE TIMES NOT PARSING CORRECTLY.
+Check on differences between two tlikakila river sites, these are basically the same site and can be combined. Site B doesn't look very good, lots of missing data and strange values in early 2018. Just use Site A and assign it to the AKOATS ID provided by Krista.
 
 ```{r}
 
+p <- nps.data.2 %>% 
+  filter(site_name %in% c("Tlikakila_Water_A", "Tlikakila_Water_B")) %>% 
+  group_by(SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>% 
+  ggplot(aes(x = sampleDate, y = meanT, color = SiteID, linetype = SiteID)) +
+  geom_line(size = 0.3)
 
+ggplotly(p)
+
+```
+
+```{r}
+nps.data.2 <- nps.data.2 %>% 
+  filter(!(site_name == "Tlikakila_Water_B"))
+```
+
+
+Lake data: buoys @ lake centers with temperatures from different depths.
+
+
+```{r}
 nps.lakes <- tibble()
 for(i in nps.lake.files){
-  dat <- read.csv(i, skip = 3) %>%
-    filter(X != "Timestamp (UTC-08:00)") 
+  dat <- read_csv(i, skip = 3) %>%
+    filter(X1 != "Timestamp (UTC-08:00)") 
   colnames(dat) <- sub("Water.Temp\\.", "", colnames(dat))
   dat <- dat %>%
-    pivot_longer(-X, names_to = "Depth", values_to = "Temperature") %>% 
+    pivot_longer(-X1, names_to = "Depth", values_to = "Temperature") %>% 
     mutate(Temperature = as.numeric(Temperature),
            Depth = as.numeric(gsub("m", "", Depth)),
-           sampleDate = as.Date(parse_date_time(X, orders = "Y-m-d I:M:S")),
-           sampleTime = as_hms(parse_date_time(X, orders = "Y-m-d I:M:S")))
+           sampleDate = as.Date(parse_date_time(X1, orders = "ymdHMS")),
+           sampleTime = as_hms(parse_date_time(X1, orders = "ymdHMS")))
   dat <- dat %>% 
     mutate(file_name = gsub(".csv", "", basename(i))) 
   nps.lakes <- bind_rows(nps.lakes, dat) 
 }
 
 
-# assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
-nps.lakes <- read_excel("data/NPS Bartz/Site_Info.xlsx", skip = 4) %>%
-  select("Agency_ID","File for B_Shaftel","Waterbody_Name") %>%
-  right_join(nps.lakes) %>%
-  transform(DateTime = ymd_hms(DateTime),
-            Temperature = as.numeric(Temperature)) %>%
-  mutate(sampleDate = date(DateTime),
-         sampleTime = hms::as_hms(DateTime)) %>%
-  select(-`File.for.B_Shaftel`,-DateTime) %>%
-  # make depth a numeric value
-  mutate(Depth = gsub("Depth","",Depth),
-         Depth = as.numeric(gsub("m","",Depth))) 
-
+nps.lakes
 ```
 
+Assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
 
 ```{r}
+nps.lakes <- left_join(nps.lakes, nps.metadata %>% select(SiteID, `File for B_Shaftel`, Waterbody_name), 
+          by = c("file_name" = "File for B_Shaftel"))
 
+
+nps.lakes %>% distinct(SiteID, Waterbody_name)
 ```
 
-Merge data and save.
+Merge datasets and add a UseData field. Note that in 2019 it looked like there were valid temps greater than 25 at Lake Brooks, set that cutoff higher so those data are not removed.
 
 ```{r}
-keep <- c("sampleDate", "sampleTime", "Agency_ID", "Temperature", "Waterbody_Name")
+keep <- c("SiteID", "sampleDate", "sampleTime", "Temperature", "Waterbody_name", "Depth")
 
 nps.data <- bind_rows(nps.data.1 %>% select(one_of(keep)),
-                      nps.data.2 %>% select(one_of(keep))) %>% 
-  rename(Waterbody_name = Waterbody_Name,
-         SiteID = Agency_ID) %>% 
+                      nps.data.2 %>% select(one_of(keep)),
+                      nps.lakes %>% select(one_of(keep))) %>% 
   mutate(UseData = case_when(Temperature < -1 ~ 0,
-                             Temperature > 25 ~ 0,
+                             Temperature > 30 ~ 0,
                              TRUE ~ 1))
 
-saveRDS(nps.data, "output/nps_data.rds")
+nps.lakes %>% distinct(SiteID, Waterbody_name)
 
-rm(nps.data.1, nps.data.2)
+#see data review below - some additional flags on lake data before saving.
+# saveRDS(nps.data, "output/nps_data.rds")
+
+
+
 ```
 
 
@@ -249,6 +273,257 @@ nps.data %>%
 
 # Data review
 
+From Krista and Paul - all data from pilot study workbook have been QAed in addition to the lake temperature arrays. Krista has also plotted all level logger data from 6/1-9/30 and everything looked fine. 
+
+Pilot study sites:
+
+```{r}
+pilot_sites <- nps.metadata %>% 
+  filter(!site_name == "NA") %>% 
+  select(SiteID)
+
+left_join(pilot_sites, nps.data) %>% 
+  filter(UseData == 1) %>% 
+  group_by(Waterbody_name, SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+  geom_line() +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 18, multi_line = TRUE)) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "NPS Original Logger Data by Site and Year") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+
+Lake temperature arrays:
+
+
+```{r}
+lake_sites <- nps.metadata %>% 
+  filter(grepl(paste(lake.file.ind, collapse="|"), `File for B_Shaftel`)) %>% 
+  select(SiteID)
+
+pdf("output/Lake array raw data.pdf", width = 11, height = 8.5)
+
+for (i in 1:nrow(lake_sites)){
+  site <- lake_sites %>% slice(i)
+  p1 <- left_join(site, nps.data) %>%
+    filter(UseData == 1) %>% 
+    group_by(Waterbody_name, SiteID, Depth, sampleDate) %>% 
+    summarize(meanT = mean(Temperature)) %>%
+    # complete(SiteID, Depth, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
+    mutate(year = year(sampleDate),
+           mo_day = format(sampleDate, "%m-%d")) %>%
+    ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(Depth))) +
+    geom_line() +
+    scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+    facet_wrap(~ year) 
+    labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+         title = site %>% pull(SiteID)) +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  print(p1)
+  
+}
+
+dev.off()
+
+```
+
+
+All other sites.
+
+```{r}
+other_sites <- nps.metadata %>% 
+  filter(!(SiteID %in% c(lake_sites %>% pull(SiteID), pilot_sites %>% pull(SiteID)))) %>% 
+  select(SiteID)
+
+other_sites
+
+left_join(other_sites, nps.data) %>% 
+  filter(UseData == 1) %>%
+  group_by(Waterbody_name, SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+  geom_line(size = 0.1) +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 18, multi_line = TRUE), ncol = 3) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "NPS Original Logger Data by Site and Year") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+ggsave("output/NPS Other Sites raw data yearround.pdf", width = 8.5, height = 11)
+  
+```
+
+Look at data just from June - September for these sites, which Krista said has been QAed.
+
+```{r}
+left_join(other_sites, nps.data) %>% 
+  filter(UseData == 1) %>% 
+  group_by(Waterbody_name, SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
+  filter(month(sampleDate) %in% 6:9) %>% 
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+  geom_line(size = 0.1) +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b") +
+  facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 18, multi_line = TRUE), ncol = 3) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "NPS Original Logger Data by Site and Year") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+ggsave("output/NPS Other Sites raw data summer.pdf", width = 8.5, height = 11)
+
+```
+
+Lake Brooks only.
+
+```{r}
+
+nps.data %>% 
+  filter(SiteID == "KATM_lbrooo_lvl", UseData == 1) %>% 
+  group_by(Waterbody_name, SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d")) %>% 
+  filter(month(sampleDate) %in% 5:10, !(year %in% c(2009:2011, 2014))) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT)) +
+  geom_line(size = 0.1) +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b") +
+  facet_wrap(~ year, ncol = 3) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "KATM_lbrooo_lvl") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+ggsave("output/Lake Brooks summer.pdf", width = 8.5, height = 11)
+
+
+p <- nps.data %>% 
+  filter(SiteID == "KATM_lbrooo_lvl", UseData == 1, year(sampleDate) == 2006) %>% 
+  mutate(dt = parse_date_time(paste(sampleDate, sampleTime), orders = "ymd HMS")) %>% 
+  complete(SiteID, dt = seq.POSIXt(min(dt), max(dt), by = "hour")) %>%
+  ggplot(aes(x = dt, y = Temperature)) +
+  geom_line()
+
+ggplotly(p)
+
+nps.data %>% 
+  slice(1:5) %>% 
+  mutate(paste(sampleDate, sampleTime))
+```
+
+Lake Clark only.
+
+```{r}
+nps.data %>% 
+  filter(SiteID == "LACL_lclaro_lvl", UseData == 1) %>% 
+  group_by(Waterbody_name, SiteID, sampleDate) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d")) %>% 
+  filter(month(sampleDate) %in% 6:9) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT)) +
+  geom_line(size = 0.1) +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b") +
+  facet_wrap(~ year, ncol = 3) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "KATM_lbrooo_lvl") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+p <- nps.data %>% 
+  filter(SiteID == "LACL_lclaro_lvl", UseData == 1, year(sampleDate) == 2011) %>% 
+  mutate(dt = parse_date_time(paste(sampleDate, sampleTime), orders = "ymd HMS")) %>% 
+  complete(SiteID, dt = seq.POSIXt(min(dt), max(dt), by = "hour")) %>%
+  ggplot(aes(x = dt, y = Temperature)) +
+  geom_line()
+
+ggplotly(p)
+
+
+
+```
+
+
+Read in excel report where I entered the dates flagged as malfunction or air temperatures from Krista's stage deployment.
+Also filter other_sites to just june - september since that is the data that have been qaed.
+
+```{r}
+nps_flags <- read_csv("data_preparation/flagged_data/NPS_flagged_data.csv") %>% 
+  mutate(flag = 0, 
+         sampleDate = as.Date(sampleDate, format = "%m/%d/%Y")) %>% 
+  select(SiteID, sampleDate, flag) %>% 
+  filter(!is.na(SiteID))
+
+nps.data <- left_join(nps.data, nps_flags) %>% 
+  mutate(UseData = case_when(flag == 0 ~ 0,
+                             TRUE ~ UseData)) %>% 
+  select(-flag)
+
+nps.data <- nps.data %>% 
+  mutate(UseData = case_when(SiteID %in% (other_sites %>% pull(SiteID)) & !(month(sampleDate) %in% 6:9) ~ 0,
+                             TRUE ~ UseData))
+         
+nps.data %>% 
+  filter(UseData == 1) %>% 
+  group_by(SiteID, year(sampleDate)) %>% 
+  summarize(mx = max(Temperature, na.rm = TRUE)) %>% 
+  arrange(desc(mx))
+```
+
+Double check that usedata field assigned correctly to october to may.
+
+```{r}
+left_join(other_sites, nps.data) %>% 
+  group_by(Waterbody_name, SiteID, sampleDate, UseData) %>% 
+  summarize(meanT = mean(Temperature)) %>%
+  # complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, group = as.factor(year), color = as.factor(UseData))) +
+  geom_line(size = 0.1) +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 18, multi_line = TRUE), ncol = 3) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "NPS Original Logger Data by Site and Year") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+```
+
+
+
+Everything looks better in original plot above after adding additional flags. Save final dataset.
+
+```{r}
+
+saveRDS(nps.data, "output/nps_data.rds")
+
+```
+
+
+
+# Data review code by Ben
 (not updated, everything below written by Ben.)
 
 Create a quick visualization and summary table to see extent and form of original data.
@@ -258,7 +533,7 @@ Create a quick visualization and summary table to see extent and form of origina
 # create data summary table
 nps.data.summary <- nps.data %>%
   mutate(year = year(sampleDate)) %>%
-  group_by(Agency_ID,Waterbody_Name,year) %>%
+  group_by(SiteID,Waterbody_name,year) %>%
   summarize(meanTemp = mean(Temperature, na.rm = T),
             maxTemp = max(Temperature, na.rm = T),
             minTemp = min(Temperature, na.rm = T),

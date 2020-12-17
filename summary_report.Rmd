@@ -26,8 +26,6 @@ Document created by Benjamin Meyer (benjamin.meyer.ak@gmail.com) and last update
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
-# clear environment
-rm(list=ls())
 
 # load packages
 library(tidyverse)
@@ -151,10 +149,10 @@ nps.data.summary %>%
 ```{r nps_figure, fig.height=15, fig.width=8}
 
 nps.data %>%
-  filter(UseData == 1) %>% 
+  filter(UseData == 1, is.na(Depth)) %>% 
   group_by(Waterbody_name, SiteID, sampleDate) %>% 
   summarize(meanT = mean(Temperature)) %>%
-  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
   mutate(year = year(sampleDate),
          mo_day = format(sampleDate, "%m-%d"),
          facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 

@@ -1,56 +1,51 @@
-﻿Agency_ID,day_start,day_end,year,Notes
-KATM_lbrooo_lvl,17,54,2017, air exposure suspected
-KATM_lbrooo_lvl,157,158,2008, air exposure suspected
-KATM_lbrooo_lvl,257,273,2008, air exposure suspected
-KATM_lbrooo_lvl,157,159,2006, air exposure suspected
-KATM_lbrooo_lvl,268,277,2006, air exposure suspected
-KATM_lbrooo_lvl,269,270,2007, air exposure suspected
-KATM_lbrooo_lvl,114,114,2007, air exposure suspected
-KATM_lbrooo_lvl,264,265,2012, air exposure suspected
-KATM_lbrooo_temp,1,96,2017,air exposure suspected
-KATM_lbrooo_temp,316,366,2016,air exposure suspected
-KATM_naknlo_lvl,45,95,2007,air exposure suspected
-KATM_naknlo_lvl,114,116,2007,air exposure suspected
-KATM_naknlo_lvl,134,152,2008,air exposure suspected
-KATM_naknlo_lvl,275,279,2009,air exposure suspected
-KATM_naknlo_lvl,118,118,2010,air exposure suspected
-KATM_naknlo_lvl,287,295,2010,air exposure suspected
-KATM_naknlo_lvl,126,126,2011,air exposure suspected
-KATM_naknlo_lvl,313,322,2011,air exposure suspected
-KATM_naknlo_lvl,72,108,2013,air exposure suspected
-KATM_naknlo_lvl,126,128,2014,air exposure suspected
-KATM_naknlo_lvl,98,102,2014,
-KATM_naknlo_lvl,328,330,2014,air exposure suspected
-KATM_naknlo_lvl,80,80,2016,air exposure suspected
-KATM_naknlo_lvl,40,95,2017,air exposure suspected
-KATM_naknlo_lvl,20,50,2018,air exposure suspected
-KATM_naknlo_lvl,59,72,2018,air exposure suspected
-KATM_naknlo_lvl,80,99,2018,air exposure suspected
-KATM_naknlo_lvl,19,19,2019,air exposure suspected
-KATM_naknlo_lvl,61,128,2019,"data very scattered after day 61, likely exposed"
-KATM_naknlo_temp,20,20,2018,air exposure suspected
-KATM_naknlo_temp,90,92,2018,air exposure suspected
-LACL_kijilo_lvl,321,366,2016,air exposure suspected
-LACL_kijilo_lvl,1,104,2017,air exposure suspected
-LACL_lclaro_lvl,288,288,2010,air exposure suspected
-LACL_lclaro_lvl,157,159,2011,air exposure suspected
-LACL_lclaro_lvl,289,302,2011,air exposure suspected
-LACL_lclaro_lvl,161,161,2013,air exposure suspected
-LACL_lclaro_lvl,273,274,2013,air exposure suspected
-LACL_lclaro_lvl,274,303,2014,air exposure suspected
-LACL_lclaro_lvl,42,90,2017,air exposure suspected
-LACL_lclaro_lvl,1,19,2018,air exposure suspected
-LACL_lclaro_lvl,364,365,2018,air exposure suspected
-LACL_lclaro_lvl,,,2019,"winter data is scattered between 1 and -1, indicating probably remained submerged"
-LACL_porta_beach_water,303,365,2014,
-LACL_porta_beach_water,1,137,2015,data suddenly become smuch less scattered after day 137
-LACL_porta_beach_water,12,23,2016,"likely partial exposure, or…?"
-LACL_porta_beach_water,101,102,2019,cause undetermined but looks suspect
-KATM_savor_stream_water,160,257,2017,likely exposure
-KATM_savor_stream_water,327,365,2017,"unclear, but min instntaneous temps dip to -8 so likely some xposure in this period"
-KATM_savor_stream_water,1,21,2018,likely exposure
-KATM_savor_stream_water,46,82,2018,dataset overall is fairly scattered
-KATM_naknlo_continuous_wq,136,138,2014,air exposure suspected
-LACL_tlikr_stream_sediment,0,366,2016,BM decided to exclude this site in the script.  The description in AKOATS is that it is installed sub-surface in the sediment near upwelling.  It is the only site in the the available dataset of this description and thus not comparable to all the other ~100 sites in this dataset.
-LACL_tlikr_stream_sediment,0,366,2017,BM decided to exclude this site in the script.  The description in AKOATS is that it is installed sub-surface in the sediment near upwelling.  It is the only site in the the available dataset of this description and thus not comparable to all the other ~100 sites in this dataset.
-LACL_tlikr_stream_sediment,0,366,2018,BM decided to exclude this site in the script.  The description in AKOATS is that it is installed sub-surface in the sediment near upwelling.  It is the only site in the the available dataset of this description and thus not comparable to all the other ~100 sites in this dataset.
+﻿SiteID,sampleDate,flag
+KATM_lbrooo_lvl,6/6/2006,start air
+KATM_lbrooo_lvl,6/7/2006,
+KATM_lbrooo_lvl,6/8/2006,end air
+KATM_lbrooo_lvl,4/29/2007,malfunction
+KATM_lbrooo_lvl,8/11/2007,malfunction
+KATM_lbrooo_lvl,9/20/2007,air
+KATM_lbrooo_lvl,9/26/2007,air
+KATM_lbrooo_lvl,6/5/2008,start air
+KATM_lbrooo_lvl,6/6/2008,end air
+KATM_lbrooo_lvl,9/13/2008,start air
+KATM_lbrooo_lvl,9/14/2008,
+KATM_lbrooo_lvl,9/15/2008,
+KATM_lbrooo_lvl,9/16/2008,
+KATM_lbrooo_lvl,9/17/2008,
+KATM_lbrooo_lvl,9/18/2008,
+KATM_lbrooo_lvl,9/19/2008,
+KATM_lbrooo_lvl,9/20/2008,
+KATM_lbrooo_lvl,9/21/2008,
+KATM_lbrooo_lvl,9/22/2008,end air
+KATM_lbrooo_lvl,9/23/2008,additional air identified by plotting
+KATM_lbrooo_lvl,9/24/2008,additional air identified by plotting
+KATM_lbrooo_lvl,9/25/2008,additional air identified by plotting
+KATM_lbrooo_lvl,9/26/2008,additional air identified by plotting
+KATM_lbrooo_lvl,9/27/2008,additional air identified by plotting
+KATM_lbrooo_lvl,9/28/2008,additional air identified by plotting
+KATM_lbrooo_lvl,9/29/2008,additional air identified by plotting
+KATM_lbrooo_lvl,10/7/2011,air
+KATM_lbrooo_lvl,9/20/2012,air
+KATM_lbrooo_lvl,9/21/2012,air
+KATM_lbrooo_lvl,10/7/2015,air
+KATM_lbrooo_lvl,5/20/2016,air
+KATM_lbrooo_lvl,9/9/2016,air
+KATM_lbrooo_lvl,9/11/2016,air
+KATM_lbrooo_lvl,1/16/2017,start ice
+KATM_lbrooo_lvl,2/26/2017,end ice
+KATM_lbrooo_lvl,9/25/2006,additional air identified by plotting
+KATM_lbrooo_lvl,9/26/2006,additional air identified by plotting
+KATM_lbrooo_lvl,9/27/2006,additional air identified by plotting
+KATM_lbrooo_lvl,9/28/2006,additional air identified by plotting
+KATM_lbrooo_lvl,9/29/2006,additional air identified by plotting
+KATM_lbrooo_lvl,9/30/2006,additional air identified by plotting
+KATM_lbrooo_lvl,10/1/2006,additional air identified by plotting
+KATM_lbrooo_lvl,10/2/2006,additional air identified by plotting
+KATM_lbrooo_lvl,10/3/2006,additional air identified by plotting
+KATM_lbrooo_lvl,10/4/2006,additional air identified by plotting
+LACL_lclaro_lvl,6/6/2011,additional air identified by plotting
+LACL_lclaro_lvl,6/7/2011,additional air identified by plotting
+LACL_lclaro_lvl,6/8/2011,additional air identified by plotting
+,,
+,,

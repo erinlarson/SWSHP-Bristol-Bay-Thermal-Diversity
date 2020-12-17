@@ -16,14 +16,10 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))
-
-# clear environment
-rm(list=ls())
 
 # load packages
 library(lubridate)
@@ -36,19 +32,98 @@ library(tidyverse)
 
 ```
 
-<br>
+# Metadata
 
-# Read in data and format
+Focus on just getting lat/longs for a map. Read in all records, convert akoats id to numeric, which will remove the sites with multiple entries - add those in manually. Also, remove sites with missing info - which are the two lynx creek sites with unknown locations.
 
-Some data problems found below that I can email Jackie about:
+Start with files provided in 2017 for SASAP project. 
 
-* missing time entries for Nerka Pick Creek in 2011/2012
-* missing time entries for Aleknagik Eagle Creek in 2011
-* bad time entries (missing hour) for Aleknagik Wood River in September 2009
+```{r}
+uw.meta <- read_excel("data/Jackie Carter UW/uw_metadata_thru_2017.xlsx", sheet = "Sheet1") %>%
+  select(StationName:Long) %>%
+  mutate(Latitude = as.double(gsub("°","",Lat)),
+         Longitude = as.double(gsub("°","",Long)),
+         AKOATS_ID = as.numeric(AKOATS_ID)) %>% 
+  filter(!(is.na(Lat) & is.na(AKOATS_ID))) %>% 
+  select(-Lat, -Long)
+
+uw.meta <- uw.meta %>% 
+  mutate(AKOATS_ID = case_when(StationName == "Nerka Lynx Creek Cold Tributary" ~ 1943,
+                               StationName == "Nerka Bear Creek" ~ 1946,
+                               StationName == "Aleknagik Pfifer Creek" ~ 1751,
+                               StationName == "Aleknagik Silver Salmon Creek" ~ 1752,
+                               TRUE ~ AKOATS_ID))
+
+uw.meta
+```
+
+Second spreadsheet linking station names in 2018-2020 data to akoats ids. Deal with duplicate akoats ids entered by Jackie manually.
+
+```{r}
+
+uw.meta2 <- read_excel("data/Jackie Carter UW/Jackie Carter - 2020 data request/forRS_UAA_2018-2020_WoodRiverStreamAndLakeTemps.xlsx", sheet = "AKOATS links") %>% 
+    mutate(Latitude = as.double(gsub("°","",Lat)),
+         Longitude = as.double(gsub("°","",Long)),
+         AKOATS_ID = as.numeric(AKOATS_ID)) %>% 
+  rename(StationName = "UW_2018-2020 location") %>% 
+  select(-Lat, -Long, -`...5`)
+
+uw.meta2 <- uw.meta2 %>% 
+  mutate(AKOATS_ID = case_when(StationName == "Nerka Lynx Creek Cold Tributary" ~ 1943,
+                               StationName == "Nerka Bear Creek" ~ 1946,
+                               StationName == "Aleknagik Pfifer Creek" ~ 1751,
+                               StationName == "Aleknagik Silver Salmon Creek" ~ 1752,
+                               TRUE ~ AKOATS_ID))
+
+#get sites from 2018-2020 spreadsheet that are new and bind to metadata for sites through 2017.
+uw.new.sites <- uw.meta2[!(uw.meta2 %>% pull(StationName)) %in% (uw.meta %>% pull(StationName)),] %>% 
+  filter(!StationName == "Kulik K-1")
+  
+uw.meta <- bind_rows(uw.meta, uw.new.sites)
+  
+#get lat/longs and waterbody name from akoats for uw sites with ids
+uw.akoats.sites <- left_join(uw.meta %>% 
+                               filter(!is.na(AKOATS_ID)) %>% 
+                               select(StationName, AKOATS_ID), 
+                             akoats.meta %>% 
+                               select(AKOATS_ID, Waterbody_name, Latitude, Longitude), by = "AKOATS_ID")
+
+uw.meta <- bind_rows(uw.meta %>% 
+                       filter(is.na(AKOATS_ID)),
+                     uw.akoats.sites) %>% 
+  rename(SiteID = StationName) %>% 
+  mutate(SourceName = "uwASP")
+
+uw.meta
+
+```
+
+There are several sites (e.g. one AKOATS_ID or one lat/long) that have several site ids in the data. These need to be fixed here and in the data so that one location = one time series.
+
+
+```{r}
+uw.meta %>% count(AKOATS_ID) %>% arrange(desc(n))
+uw.meta %>% arrange(AKOATS_ID)
+
+uw.meta <- uw.meta %>% 
+  filter(!SiteID %in% c("Aleknagik Agulowak River", "Nerka Lynx Creek Upper", "Nerka Kema Creek Lower", "Nerka Kema Creek Upper",
+                        "Nerka Agulukpak River", "Nerka Elva Creek Lower", "Nerka Coffee Creek", "Little Togiak Creek Lower")) 
+
+
+
+uw.meta %>% 
+  saveRDS("output/uw_metadata.rds")
+```
+
+
+
+# Data
+
 
 ## Data files through 2017 - SASAP project
 
-Read in data from folder "Jackie Carter UW". These are the 51 files of stream temperature data originally provided for SASAP project, but never archived on KNB. Data are through 2017. Keep file name when reading in data in case it is needed to inspect date-time formats or other formatting problems. Also, keep other information from Jackie, such as Lake and sample type. We will want sample type to indicate logger accuracy for AKTEMP. And, lake information is a good check that we are locating sites in the correct region of the Wood River watershed. Exclude the original Lynx Creek data file in this folder. Jackie provided a new version with only 5 station names and correct locations later.
+Read in data from folder "Jackie Carter UW". These are the 51 files of stream temperature data originally provided for SASAP project, but never archived on KNB. Data are through 2017. Keep file name when reading in data in case it is needed to inspect date-time formats or other formatting problems. Also, keep other information from Jackie, such as Lake and sample type. We will want sample type to indicate logger accuracy for AKTEMP. And, lake information is a good check that we are locating sites in the correct region of the Wood River watershed. Removed the original Lynx Creek data file in this folder. Jackie provided a new version with only 5 station names and correct locations later.
+Jackie provided updated data files for Pick Creek, Eagle Creek, and Wood River to fix time issues.
 
 
 ```{r}
@@ -62,24 +137,7 @@ uw.data <- list.files(path = ("data/Jackie Carter UW/Jackie Carter/"),
 
 ```
 
-Ben noticed some strange date entries for "Alegnagik Wood River" where there were numbers after dates and the hours are missing in the time field. Only three days of bad data, best to remove it altogether since date-time are unknown. Added to list to email Jackie about. (Note that there are a few valid times on these dates, but not enough to correctly calculate daily statistics. Remove all for now and see if these are fixable.)
-
-```{r}
-uw.data %>% 
-  filter(StationName == "Aleknagik Wood River") %>% 
-  mutate(date_len = nchar(Date)) %>% 
-  distinct(StationName, Date, date_len) 
-
-#remove 65 entries with bad dates/times for Aleknagik Wood River
-uw.data <- uw.data %>%
-  mutate(date_len = nchar(Date)) %>% 
-  filter(!(StationName == "Aleknagik Wood River" & date_len == 11)) %>% 
-  select(-date_len)
-
-```
-
-Format dates and times. Most dates are "%m/%d/%y" 2-digit year. But, Big Whitefish and Little Whitefish have different format, "%d-%b-%y". There are a some sites with missing time entries, about ~2000 total data records. These have been listed out at top along with the site. For now, can just filter to remove these. Email Jackie once all data formatting issues are found and see if any can be fixed.
-
+Format dates and times. Most dates are "%m/%d/%y" 2-digit year. But, Big Whitefish and Little Whitefish have different format, "%d-%b-%y". 
 
 ```{r}
 uw.data %>% 
@@ -87,26 +145,13 @@ uw.data %>%
   slice_head() %>% 
   arrange(StationName)
 
-#1936 with missing times
-uw.data %>% 
-  filter(is.na(Time)) %>% 
-  count(file_name, StationName, SampleType, MeasurementType)
-
 uw.data <- uw.data %>% 
-  mutate(sampleDate = parse_date_time(Date, orders = c("d-b-y", "m/d/y")),
-         sampleTime = as_hms(parse_date_time(Time, orders = c("I:M:S p", "H:M:S"))))
-
-#1 parsing error remaining that is  filled with NA
-uw.data %>% 
-  filter(is.na(sampleTime), !is.na(Time)) 
-
-#remove records with missing time information
-uw.data <- uw.data %>% 
-  filter(!is.na(sampleTime))
+  mutate(sampleDate = parse_date_time(Date, orders = c("dby", "mdy")),
+         sampleTime = as_hms(parse_date_time(Time, orders = c("IMS p", "HMS"))))
 
 ```
 
-50 files were read in and there are a total of 55 sites with data.
+50 files were read in and there are a total of 54 sites with data.
 
 ```{r}
 uw.data %>% 
@@ -149,26 +194,6 @@ uw.post2017 <- read_excel("data/Jackie Carter UW/Jackie Carter - 2020 data reque
 
 ```
 
-Explore data.
-
-```{r}
-summary(uw.lynx)
-uw.lynx %>% 
-  count(StationName, year(sampleDate))
-
-summary(uw.aleknagik.bear)
-uw.aleknagik.bear %>% 
-  count(StationName, year(sampleDate))
-
-summary(uw.post2017)
-uw.post2017 %>% 
-  count(StationName, year(sampleDate))
-
-```
-
-
-
-<br>
 
 Join the multiple data frames in to single object. Start with all information, then pare down to just the fields that we need. For AKTEMP, may try to extract more metadata information from measurement type field to get sensor accuracy for data table.
 
@@ -188,13 +213,38 @@ uw.data.2 %>%
 # remove extraneous objects
 rm(uw.data, uw.lynx, uw.aleknagik.bear, uw.post2017)
 ```
-Remove erroneous low and high values until we can do a proper qa.
+
+Flag erroneous low and high values until we can do a proper qa.
 
 ```{r}
 uw.data.2 <- uw.data.2 %>% 
   mutate(UseData = case_when(Temperature < -1 ~ 0,
                              Temperature > 25 ~ 0,
                              TRUE ~ 1))
+```
+
+Fix duplicate SiteIDs that go to same location (see metadata section above for Jackie's notes on this). Also, Jackie couldn't find locations for two sites on Lynx Creek - beach and middle so remove those time series from the data frame.
+
+```{r}
+uw.data.2 %>% distinct(SiteID) %>% arrange(SiteID)
+
+uw.data.2 <- uw.data.2 %>% 
+  mutate(SiteID = case_when(SiteID == "Aleknagik Agulowak River" ~ "Agulowak River",
+                            SiteID == "Nerka Lynx Creek Upper" ~ "Nerka Lynx Lake Tributary",
+                            SiteID %in% c("Nerka Kema Creek Lower", "Nerka Kema Creek Upper") ~ "Nerka Kema Creek",
+                            SiteID =="Nerka Agulukpak River" ~ "Agulukpak River",
+                            SiteID =="Nerka Elva Creek Lower" ~ "Nerka Elva Creek",
+                            SiteID =="Nerka Coffee Creek" ~ "Nerka Chamee Creek",
+                            SiteID =="Little Togiak Creek Lower" ~ "Little Togiak Creek",
+                            TRUE ~ SiteID)) %>% 
+  filter(!SiteID %in% c("Nerka Lynx Creek Middle", "Nerka Lynx Creek Beach"))
+
+sites.md <- uw.meta %>% pull(SiteID)
+sites.dat <- uw.data.2 %>% distinct(SiteID) %>% pull(SiteID)
+
+sites.md[!sites.md %in% sites.dat]
+sites.dat[!sites.dat %in% sites.md]
+
 ```
 
 
@@ -209,65 +259,21 @@ uw.data.2 %>%
             totYears = length(unique(year(sampleDate)))) %>% 
   saveRDS("output/uw_data_summ.rds")
 
-uw.data.2 %>% 
-  filter(SiteID == "Agulukpak River") %>% 
-  count(year(sampleDate))
 ```
+
 Save a copy of the data for a table and figure.
 
 ```{r}
 uw.data.2
 
-write_rds(x = uw.data.2, path = "output/uw_data.rds")
+saveRDS(uw.data.2, "output/uw_data.rds")
 ```
 
 
 
-<br>
+# Data Review
 
-# Metadata information
-
-
-Associate an AKOATS_ID with each site where possible
-
-* Naming Conflict Resolution Tasks
-
-- Use sheet from R Shaftel "uw_metadata_thru_2017.xlsx" emailed from J Carter as of 11/17/20)
-- See notes column in UW metadata for suggestions on how to resolve these conflicts
-
-```{r}
-# remove sites specified not be used in metadata notes
-sites_remove <- c("Nerka Lynx Creek Beach","Nerka Lynx Creek Middle")
-# apply exclusions
-uw.data <- uw.data %>%
-  filter(SiteID %ni% sites_remove) 
-
-# rename "Nerka Lynx Creek Upper" as "Nerka Lynx Lake Tributary" as specified in metadata notes
-uw.data <- uw.data %>%
-  mutate(SiteID = str_replace(SiteID,"Nerka Lynx Creek Upper","Nerka Lynx Lake Tributary"))
-
-
-# read in UW metadata resolutions emailed from R Shaftel on 11/13/20
-uw.metadata <- read_excel("data/Jackie Carter UW/uw_metadata_thru_2017.xlsx", sheet = "Sheet1") %>%
-  # filter out unresolved sites
-  filter(AKOATS_ID != "?",
-         AKOATS_ID != "NA") %>%
-  # use only one AKOATS_ID for sites with multiple entries
-  separate(AKOATS_ID, sep = " and", into = "AKOATS_ID") %>%
-  separate(AKOATS_ID, sep = " or", into = "AKOATS_ID") %>%
-  select(StationName,AKOATS_ID) %>%
-  rename(SiteID = StationName) 
-
-# join AKOATS IDs
-uw.data <- left_join(uw.data,uw.metadata, by = "SiteID")
- 
-# there will later be some further resolution of UW metadata and SiteIDs in "metadata_AllSites.Rmd", as some UW sites not have assigned AKOATS_ID values
-
-```
-
-
-<br>
-
+(Note nothing below has been reviewed after getting new data, this was original attempt by Ben - good suggestion to develop a shiny app with plotly object for reviewing data.)
 
 Perform a quick visualization and summary table to see extent and form of original data.
 

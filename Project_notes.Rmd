@@ -11,11 +11,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Bristol Bay data providers and data sets include 
 
-* UAA-ACCS. We have data from 14 sites 2015-2019. We may have installed loggers at a few of our long term sites in 2014 or earlier. Dan Bogan archived all Bristol Bay data on KNB through 2017. I have data from all 14 sites for three downloads after 2017: June 2018, June 2019, and October 2019. These data need to be reviewed before sharing. **TO DO: Dustin or Becky can review and share.**
+* UAA-ACCS. We have data from 14 sites 2015-2019. We may have installed loggers at a few of our long term sites in 2014 or earlier. Dan Bogan archived all Bristol Bay data on KNB through 2017. I have data from all 14 sites for three downloads after 2017: June 2018, June 2019, and October 2019. These data need to be reviewed before sharing. **TO DO: Dustin is reviewing**
 * USGS. Site numbers can be identified on NWIS online and data can be downloaded using dataRetrieval library in R.
-* University of Washington. Jackie Carter has provided metadata and data for streams through 2020. The data are provided as two sets - through 2017 and 2018-2020. 
-* NPS. Krista Bartz has sent all data from their Southwest Monitoring Network, including lake arrays. 
-* UWFWS. Meg has shared all FWS data for the State. We will be using data from Togiak refuge for this project. We are also waiting on some lake data that is being reviewed by FWS staff.
+* University of Washington. Jackie Carter has provided metadata and data for streams through 2020. The data are provided as two sets - through 2017 and 2018-2020.  Metadata is ready. **to do: waiting on lake data and need to qa all data.**
+* NPS. Krista Bartz has sent all data from their Southwest Monitoring Network, including lake arrays. Data have been QAed after emailing questions to Krista - all metadata and data are finel. Apparently Dan Young has separate datasets that he needs to share if he wants to participate on the project. **to do: need dan young's data.**
+* UWFWS. Meg has shared all FWS data for the State. We will be using data from Togiak refuge and Egegik and Newhalen Rivers. for this project. We are also waiting on some lake data that is being reviewed by FWS staff. **to do: waiting on final lake data.**
 * Cook Inletkeeper. Sue has provided QAed data from village and lodge partners.
 
 # Temperature cleaning
