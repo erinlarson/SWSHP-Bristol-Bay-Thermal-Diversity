@@ -15,6 +15,7 @@ output:
 editor_options: 
   chunk_output_type: inline
 ---
+Document last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
 
 
 ```{r setup, include=FALSE}
@@ -36,57 +37,75 @@ library(DT)
 
 # Metadata
 
-For visualization and data QA/QC, we want SiteID associated with each dataset, which we need from the metadata. Read in metadata file and associate SiteID with AKOATS_ID.
+Copied over Dustin's md table from the Bristol Bay Temperature repo. Create this data frame first because it has all 15 sites in the clean data file along with the akoats ids. Then link to the akoats metadata to get lat/longs.
+
+```{r AKOATS, table}
+# Create akoats metadata table using new site ids - Big Creek:ilbig01,
+
+accs_md <- tibble(
+  AKOATS_ID = as.numeric(c("1660", "1661", "1662", "1663",
+                "1664", "1665", "1666", "1667",
+                "1668", "760", "761", "762", 
+                "763", "764", "1784")),
+  SiteID = c("AKBB-020", "AKBB-028", "AKBB-029", 
+             "AKBB-040", "mubon10", "musfk01",
+             "mustu17", "iltaz02", "AKBB-011",
+             "mussm15", "mutsk09", "mutsk02", 
+             "muekm23", "iltnr19","ilbig01"),
+  Waterbody_name = c("Little Mulchatna River",
+                     "Unnamed Tributary Koksetna River", "Kaskanak Creek",
+                     "Chilchitna River", "Bonanza Creek",
+                     "South Fork Koktuli River", "Stuyahok River",
+                     "Tazimina River", "Victoria Creek", "Koktuli River",
+                     "Tributary of Koktuli River 1",
+                     "Tributary of Koktuli River 2",
+                     "Tributary of Koktuli River 3",
+                     "Tributary of Newhalen River", "Big Creek")
+)
+
+accs_md%>% 
+  arrange(desc(SiteID))
+
+```
+
 
 ```{r}
-accs_md <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv") %>%
-  select(AKOATS_ID, Waterbody_name, SiteID, SourceName, Contact_person, Latitude, Longitude)
 
-accs_md <- accs_md %>% 
-  mutate(Waterbody_name = case_when(SiteID == "mussm15" ~ "Trib. to SF Koktuli",
-                                    SiteID == "mutsk09" ~ "Trib. to SF Koktuli",
-                                    SiteID == "mutsk02" ~ "Trib. to SF Koktuli",
-                                    SiteID == "muekm23" ~ "Trib. to SF Koktuli",
-                                    SiteID == "iltnr19" ~ "Trib. to Newhalen",
-                                    TRUE ~ Waterbody_name))
-  
-accs_md
+akoats_md <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA") %>%
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy) %>%
+  rename(AKOATS_ID = seq_id,
+         SiteID = Agency_ID) %>% 
+  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+#Site IDs changed so just join on akoats id.
+accs_md <- left_join(accs_md, akoats_md %>% select(-SiteID))
 
 saveRDS(accs_md, "output/accs_metadata.rds")
 ```
 
 
-
-
 # Data
 
-Read in data from ACCS folder. Rename, transform, and eliminate columns to match final field names described in Project_notes.
-Keep the UseData field created by NCEAS for KNB archive, they should have at least flagged the bad (highly negative) data at Bonanza.
-
-Note: some files have a "location description" column and others do not
+Read in Dustin's clean data file from the Bristol Bay Temperature repo.
 
 ```{r}
-accs.data <-list.files(path = paste0("data/ACCS-UAA/"),
-               pattern = "*.csv", 
-               full.names = T) %>% 
-    map_df(~read_csv(., col_types = cols(.default = "c"), col_names = T)) 
 
-accs.data <- accs.data %>%
-  select(-Location_Description) %>%
-  mutate(sampleDate = as.Date(mdy(sampleDate)),
-         sampleTime = hms::as_hms(sampleTime),
-         Temperature = as.numeric(Temperature),
-         AKOATS_ID = as.numeric(AKOATS_ID)) 
+accs.data <- read_csv("W:/Github/Bristol-Bay-Temperature/output/BB_Temp_Clean_2020-12-18.csv")
 
-
-summary(accs.data)
+accs.data %>% 
+  distinct(SiteID, sampleDate) %>% 
+  count(SiteID, year = year(sampleDate)) %>% 
+  arrange(year) %>% 
+  pivot_wider(names_from = year, values_from = n)
 ```
 
-For visualization and data QA/QC, we want SiteID associated with each dataset, which we need from the metadata. Read in metadata file and associate SiteID with AKOATS_ID.
+For visualization and data QA/QC, we want waterbody name associated with each dataset, which we need from the metadata. 
 
 ```{r}
 
-accs.data <- left_join(accs.data, accs_md, by = "AKOATS_ID")
+accs.data <- left_join(accs.data, accs_md %>% select(SiteID, Waterbody_name), by = "SiteID")
 
 accs.data %>% distinct(Waterbody_name, SiteID)
 
@@ -114,39 +133,10 @@ saveRDS(accs.data, "output/accs_data.rds")
 
 
 
-Code for getting waterbody names. Probably not needed....
-
-```{r eval = FALSE}
-# use info from pdf at "data/ACCS-UAA/metadata/doi_10.5063_F1028PR9-METADATA.pdf" to assign waterbody names in blank spaces
-md.x <- md %>%
-  filter(AKOATS_ID <= 764) %>%
-  select(-Waterbody_name)
-
-# 760 = Koktuli River
-# 761 = Tributary of Koktuli River 1
-# 762 = Tributary of Koktuli River 2
-# 763 = tributary of Koktuli River 3
-# 764 = tributary of Newhalen River
-
-# create completed metadata table
-Waterbody_name <- c("Koktuli River", "Tributary of Koktuli River 1", "Tributary of Koktuli River 2","Tributary of Koktuli River 3","Tributary of Newhalen River")
-AKOATS_ID <- 760:764
-md.x1 <- data.frame(Waterbody_name,AKOATS_ID)
-
-md.x <- left_join(md.x,md.x1,by = "AKOATS_ID")
-
-# rejoin metadata w/ manually input site names back to UAA-ACCS metadata
-md <- md %>%
-  filter(AKOATS_ID > 764) %>%
-  bind_rows(md.x) %>%
-  transform(AKOATS_ID = as.character(AKOATS_ID))
-
-```
-
 
 # Data review
 
-Perform a quick visualization to see extent and form of data.
+Perform a quick visualization to see extent and form of data. Note that these data have now been qaed by Dustin.
 
 ```{r}
 
@@ -160,225 +150,3 @@ accs.data %>%
 
 ```
 
-Note that processes below were created to flag data after viewing daily values. We really need to check at the subdaily level.
-Add DT field for dates and times so can look at hourly changes in flagging function.
-
-```{r}
-source("Temp_flags_function.R", local = knitr::knit_global())
-
-accs.data.qa <- accs.data %>%
-  mutate(dateTime = parse_date_time(paste(sampleDate, sampleTime), "Y-m-d H:M:S"))
-
-accs.data.qa2 <- accs.data.qa %>% 
-  group_by(SiteID) %>% 
-  do(data.frame(add_temp_flags(.)))
-
-accs.data.qa2 <- flag_low_temps2(accs.data.qa) 
-
-accs.data.qa2 <- accs.data.qa2 %>% 
-  mutate(flag_any = case_when((flag_highTemps == 1|flag_lowTemps == 1|flag_hourlyChange == 1|flag_dailyChange == 1) ~ 1,
-                              TRUE ~ 0)) 
-
-accs.data.qa2 %>% 
-  count(flag_highTemps)
-
-accs.data.qa2 %>% 
-  count(SiteID, flag_lowTemps, UseData)
-
-accs.data.qa2 %>% 
-  filter(SiteID == "muekm23", flag_lowTemps == 1, UseData == 1)
-
-plot_flags(accs.data.qa %>% filter(UseData == 1), "accs")
-```
-
-
-
-
-```{r}
-accs.sites <- accs.data.qa %>% distinct(SiteID) %>% pull(SiteID)
-
-
-pdf("output/accs data review.pdf")
-
-for(i in accs.sites) {
-  dat <- accs.data.qa %>% filter(SiteID == i)
-  dat %>% 
-    filter(UseData == 1) %>% 
-    ggplot(aes(x = dateTime, y = Temperature, color = as.factor(flag_any))) +
-    geom_line() +
-    facet_wrap(~year(sampleDate), scales = "free_x")
-}
-
-
-p1 <- accs.data.qa %>%
-  filter(SiteID == "Bonanza Creek", UseData == 1) %>% 
-  ggplot(aes(x = dateTime, y = Temperature, color = as.factor(flag_any))) +
-  geom_line() +
-  facet_wrap(~year(sampleDate), scales = "free_x")
-
-ggplotly(p1)
-
-accs.data.qa %>% 
-  filter(SiteID == "Bonanza Creek", UseData == 1, flag_any == 1) 
-  
-
-```
-
-
-
-
-
-
-
-
-
-## Daily flags by Ben -- currently not run.
-
-
-<br>
-
-Looks like we have some malfunctioning loggers at site 1664 and maybe some exposure data at other sites.  Lets identify these data as not usable by assigning a "0" in the "useData" column.
-
-Process to identify and remove streams & beaches erroneous data:
-
-* Visually identify data that does not seem reasonable
-* Plot unreasonable datasets by individual year and site
-* Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
-
-```{r}
-
-# list of suspect sites to manually examine w/ ggplotly 
-suspect.accs.sites <-data.frame(c("Bonanza Creek",
-                                  "Tazimina River",
-                                  "mutsk02",
-                                  "mutsk09",
-                                  "muekm23"))
-colnames(suspect.accs.sites) <- "SiteID"
-
-# specify year or years to visualize
-y <- c("2014")
-
-# create ggplotly chart
-ggplotly(
-  p <- accs.data %>%
-  inner_join(suspect.accs.sites) %>%
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,SiteID,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  
-  # modified SiteID one at a time here to visually inspect datasets
-  filter(SiteID == "muekm23"
-         # put hash tag at next line to see all years for the site
-          ,year %in% y
-         ) %>%
-  
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
-  geom_point() +
-  facet_wrap(. ~ SiteID) +
-  ggtitle("Daily Mean Data")
-  )
-
-```
-
-<br>
-
-If further data is is identified to be flagged, edit the csv file at "data/flagged_data/ACCS_flagged_data.csv"
-
-
-
-<br>
-
-Apply flags for good/bad data
-```{r}
-# created table of erroneous data to be flagged/excised
-## @ data/flagged_data/UW_flagged_data.csv
-
-# use flagged data table to assign "useData = 0" to erroneous observations
-
-# read in start/end dates for flagged data
-accs_flagged_data <- read.csv("data/flagged_data/ACCS_flagged_data.csv") %>%
-  filter(!is.na(day_start)) %>%
-  select(-Notes) 
-
-# create table of data to be flagged w/ "useData = 0"
-accs_flagged_data <- accs.data %>% 
-  rename(Agency_ID = SiteID) %>%
-  mutate(year = year(sampleDate)) %>%
-  inner_join(accs_flagged_data,by = c("Agency_ID","year")) %>%
-  mutate(day = yday(sampleDate)) %>%
-  filter(day >= day_start & day <= day_end) %>%
-  mutate(useData = 0) %>%
-  select(-day_start,-day_end,-year,-day) %>%
-  rename(SiteID = Agency_ID) 
-
-# remove 
-accs_nonflagged_data <- anti_join(accs.data,accs_flagged_data,by = c("SiteID","sampleDate","sampleTime")) %>%
-  mutate(useData = 1)
-
-# rejoin flagged and non-flagged data in same dataframe
-accs.data <- bind_rows(accs_flagged_data,accs_nonflagged_data)
-
-# remove extraneous objects
-rm(p,accs_flagged_data,accs_nonflagged_data,suspect.accs.sites)
-
-# data to be excised is now designated with "useData = 0"
-
-```
-
-
-<br>
-
-Perform a quick visualization of "cleaned up" data
-```{r}
-accs.data %>%
-  filter(useData == 1) %>%
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,Waterbody_name,SiteID,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
-  geom_point() +
-  facet_wrap(. ~ Waterbody_name) +
-  ggtitle("Corrected Logger Data by Site and Year")
-
-```
-
-<br>
-
-Improvement is evident, probably more cleaning to be done at sub-daily mean level.
-
-<br>
-
-Interactive data summary table
-```{r}
-# create data summary table
-accs.data.summary <- accs.data %>%
-  filter(useData == 1) %>%
-  mutate(year = year(sampleDate)) %>%
-  group_by(SiteID,AKOATS_ID,Waterbody_name,year) %>%
-  summarize(meanTemp = mean(Temperature, na.rm = T),
-            maxTemp = max(Temperature, na.rm = T),
-            minTemp = min(Temperature, na.rm = T),
-            sdTemp = sd(Temperature, na.rm = T),
-            n_obs = n())
-
-accs.data.summary %>%
-  datatable() %>%
-  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
-    
-```
-
-<br>
-
-Export csv of combined datasets, with newly identified "do not use data" signified with a "0" in the useData column, to data folder associated with this .Rproj
-```{r}
-# reorder columns
-x <- accs.data %>% select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
-
-# export csv
-write.csv(x,"output/UAA-ACCS.csv", row.names = F)
-
-```

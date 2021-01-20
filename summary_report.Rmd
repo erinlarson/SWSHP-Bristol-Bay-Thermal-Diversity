@@ -21,7 +21,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Document created by Benjamin Meyer (benjamin.meyer.ak@gmail.com) and last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu). 
+Document last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu). 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
@@ -83,13 +83,13 @@ cik.data %>%
 
 # ACCS
 
-UAA has data from 14 sites in the Kvichak and Nushagak watersheds from 2013 to 2019. Data shown here are through 2017. These data are part of the KNB archive through the SASAP project. 
+UAA has data from 15 sites in the Kvichak and Nushagak watersheds from 2013 to 2019. All data have been reviewed. 
 
 ```{r}
 accs.data <- read_rds("output/accs_data.rds")
 
 accs.data.summary <- accs.data %>%
-  filter(UseData == 1) %>% 
+  # filter(UseData == 1) %>% 
   mutate(year = year(sampleDate)) %>%
   group_by(SiteID, Waterbody_name, year) %>%
   summarize(meanTemp = mean(Temperature, na.rm = T),
@@ -106,7 +106,7 @@ accs.data.summary %>%
 ```{r accs_figure, fig.width=8, fig.height=10}
 
 accs.data %>%
-  filter(UseData == 1) %>% 
+  # filter(UseData == 1) %>% 
   group_by(Waterbody_name, SiteID, sampleDate) %>% 
   summarize(meanT = mean(Temperature)) %>%
   complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
@@ -126,13 +126,15 @@ accs.data %>%
 
 # NPS
 
-Krista Bartz and Paul Gabriel provided data from 18 streams and 10 lakes. Three of the lake locations were lakeshores and the other seven were depth arrays in the lake centers.   
+Krista Bartz and Paul Gabriel provided data from 20 stream or lakeshore sites and also temperature data from depth arrays for 6 lakes. All data have been reviewed or clipped to June 1 - Sept 30 per input from Krista. The summary table and figure are based on the surface depths only for the lake arrays. It looks like the 0 meter depth is not always available so we may need to use the next depth for some of our analyses.
 
 ```{r}
 nps.data <- read_rds("output/nps_data.rds")
 
+# nps.data %>% distinct(SiteID, Waterbody_name)
+
 nps.data.summary <- nps.data %>%
-  filter(UseData == 1) %>% 
+  filter(UseData == 1 & (is.na(Depth) | Depth == 0)) %>% 
   mutate(year = year(sampleDate)) %>%
   group_by(SiteID, Waterbody_name, year) %>%
   summarize(meanTemp = mean(Temperature, na.rm = T),
@@ -149,7 +151,7 @@ nps.data.summary %>%
 ```{r nps_figure, fig.height=15, fig.width=8}
 
 nps.data %>%
-  filter(UseData == 1, is.na(Depth)) %>% 
+  filter(UseData == 1 & (is.na(Depth) | Depth == 0)) %>% 
   group_by(Waterbody_name, SiteID, sampleDate) %>% 
   summarize(meanT = mean(Temperature)) %>%
   complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%

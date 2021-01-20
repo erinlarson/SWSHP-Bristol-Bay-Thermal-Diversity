@@ -16,7 +16,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Document created by Benjamin Meyer (benjamin.meyer.ak@gmail.com) and last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
+Document last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -116,9 +116,10 @@ Read-in notes:
 * Some other lake sites are single-logger per site (e.g. lake shore sites)
 
 Read in all files and separate into lake files, pilot sites file, and all other files with just one site per file.
+
 Read in all sites that are not multi-level lake logger sites or pilot sites.
 
-```{r}
+```{r nps files}
 nps.files <- list.files(path = "data/NPS Bartz", pattern="*.csv", full.names = T)
 
 lake.file.ind <- c("_01_", "_02_", "_03_")
@@ -135,7 +136,7 @@ nps.single.files <- nps.files[!grepl(paste0(paste(lake.file.ind, collapse="|"), 
 
 Single files.
 
-```{r}
+```{r nps loggers single files}
 nps.data.1 <-  nps.single.files %>%
   map_df(function(x) read_csv(x, skip = 15, col_types = cols(.default = "c"), col_names = F) %>%
            mutate(file_name = gsub(".csv","",basename(x))))
@@ -161,7 +162,7 @@ nps.data.1
 
 Pilot sites.
 
-```{r}
+```{r nps pilot sites}
 nps.data.2 <- read.csv("data/NPS Bartz/All_Pilot_Sites_20201204.csv") %>%
   mutate(sampleDate = as.Date(Date, format = "%m/%d/%Y"),
          sampleTime = as_hms(parse_date_time(Time, orders = "I:M:S p"))) %>%
@@ -174,7 +175,7 @@ nps.data.2 %>% distinct(site_name)
 
 Site names in data file don't match waterbody names or agency ids and unfortunately neither are unique - same agency id for two datasets on tlikikila river and two sites on lake clark. Edited the site info file so that Tlikakila sites are unique (A and B) and also added the site_names in this pilot file so that the data can be correctly linked to the agency IDs provided by Krista and Paul.
 
-```{r}
+```{r pilot sites join}
 nps.data.2 <- left_join(nps.data.2, nps.metadata %>% select(site_name, SiteID, Waterbody_name))
 
 nps.data.2 %>% distinct(site_name, SiteID, Waterbody_name)
@@ -182,7 +183,7 @@ nps.data.2 %>% distinct(site_name, SiteID, Waterbody_name)
 
 Check on differences between two tlikakila river sites, these are basically the same site and can be combined. Site B doesn't look very good, lots of missing data and strange values in early 2018. Just use Site A and assign it to the AKOATS ID provided by Krista.
 
-```{r}
+```{r tlikakila sites comparison}
 
 p <- nps.data.2 %>% 
   filter(site_name %in% c("Tlikakila_Water_A", "Tlikakila_Water_B")) %>% 
@@ -195,7 +196,7 @@ ggplotly(p)
 
 ```
 
-```{r}
+```{r remove tlikakila b}
 nps.data.2 <- nps.data.2 %>% 
   filter(!(site_name == "Tlikakila_Water_B"))
 ```
@@ -204,7 +205,7 @@ nps.data.2 <- nps.data.2 %>%
 Lake data: buoys @ lake centers with temperatures from different depths.
 
 
-```{r}
+```{r lake arrays}
 nps.lakes <- tibble()
 for(i in nps.lake.files){
   dat <- read_csv(i, skip = 3) %>%
@@ -227,7 +228,7 @@ nps.lakes
 
 Assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
 
-```{r}
+```{r lake arrays join}
 nps.lakes <- left_join(nps.lakes, nps.metadata %>% select(SiteID, `File for B_Shaftel`, Waterbody_name), 
           by = c("file_name" = "File for B_Shaftel"))
 
@@ -237,7 +238,7 @@ nps.lakes %>% distinct(SiteID, Waterbody_name)
 
 Merge datasets and add a UseData field. Note that in 2019 it looked like there were valid temps greater than 25 at Lake Brooks, set that cutoff higher so those data are not removed.
 
-```{r}
+```{r combined nps data}
 keep <- c("SiteID", "sampleDate", "sampleTime", "Temperature", "Waterbody_name", "Depth")
 
 nps.data <- bind_rows(nps.data.1 %>% select(one_of(keep)),
@@ -255,20 +256,6 @@ nps.lakes %>% distinct(SiteID, Waterbody_name)
 
 
 ```
-
-
-Summary csv to add as attributes to leaflet map.
-
-```{r}
-nps.data %>% 
-  group_by(SiteID, Waterbody_name) %>% 
-  summarize(startYear = min(year(sampleDate)),
-            endYear = max(year(sampleDate)),
-            totYears = length(unique(year(sampleDate)))) %>% 
-  saveRDS("output/nps_data_summ.rds")
-
-```
-
 
 
 # Data review
@@ -513,6 +500,10 @@ left_join(other_sites, nps.data) %>%
 
 
 
+
+
+# Final data file and summary
+
 Everything looks better in original plot above after adding additional flags. Save final dataset.
 
 ```{r}
@@ -522,233 +513,18 @@ saveRDS(nps.data, "output/nps_data.rds")
 ```
 
 
-
-# Data review code by Ben
-(not updated, everything below written by Ben.)
-
-Create a quick visualization and summary table to see extent and form of original data.
-
-* Summary table, streams & beaches
-```{r}
-# create data summary table
-nps.data.summary <- nps.data %>%
-  mutate(year = year(sampleDate)) %>%
-  group_by(SiteID,Waterbody_name,year) %>%
-  summarize(meanTemp = mean(Temperature, na.rm = T),
-            maxTemp = max(Temperature, na.rm = T),
-            minTemp = min(Temperature, na.rm = T),
-            sdTemp = sd(Temperature, na.rm = T),
-            n_obs = n())
-
-# render table
-nps.data.summary %>%
-  datatable() %>%
-  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
-
-```
-We can see there is at least some air exposure in this dataset (minTemp ~ -32C, maxTemp ~36C)
-
-The lake buoys dataset does not immediately appear to have any air exposure data, which makes sense since the loggers were all suspended at various depth profiles!
-
-<br>
-
-Visualize streams & beaches data
-```{r}
-nps.data %>%
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,Agency_ID,Waterbody_Name,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
-  geom_point() +
-  facet_wrap(. ~ Agency_ID) +
-  ggtitle("Streams & Beaches, Original Logger Data by Site and Year - Daily Mean")
-
-```
-
-<br>
-
-The above visualization indicates there is clearly some air exposure data in our streams & beaches dataset.  We will use ggplotly to examine suspect datasets one at a time, and manually generate a table of erroneous data to be excised.
-
-<br>
-
-Process to identify and remove streams & beaches erroneous data:
-
-* Visually identify data that does not seem reasonable
-* Plot unreasonable datasets by individual year and site
-* Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
+Summary csv to add as attributes to leaflet map.
 
 ```{r}
-
-# list of suspect sites to manually examine w/ ggplotly 
-suspect.nps.sites <-data.frame(c("KATM_lbrooo_lvl",
-                                 "KATM_lbrooo_temp",
-                                 "KATM_naknlo_lvl",
-                                 "KATM_naknlo_temp",
-                                 "LACL_kijilo_lvl",
-                                 "LACL_lclaro_lvl",
-                                 "LACL_porta_beach_water",
-                                 "KATM_savor_stream_water",
-                                 "KATM_naknlo_continuous_wq",
-                                 "KATM_margc_stream_water",
-                                 "LACL_tlikr_stream_sediment"))
-colnames(suspect.nps.sites) <- "Agency_ID"
-
-# specify year or years to visualize
-y <- c("2019")
-
-# create ggplotly chart
-ggplotly(
-  p <- nps.data %>%
-  inner_join(suspect.nps.sites) %>%
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,Agency_ID,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  
-  # modified SiteID one at a time here to visually inspect datasets
-  filter(Agency_ID == "KATM_lbrooo_temp"
-         # put hash tag at next line to see all years for the site
-         #,year %in% y
-         ) %>%
-  
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
-  geom_point() +
-  facet_wrap(. ~ Agency_ID) +
-  ggtitle("Daily Mean Data")
-  )
-
-```
-
-If further data is is identified to be flagged, edit the csv file at "data/flagged_data/NPS_flagged_data.csv"
-
-<br>
-
-Apply flags for good/bad data
-```{r}
-# created table of erroneous data to be flagged/excised
-## @ data/flagged_data/UW_flagged_data.csv
-
-# use flagged data table to assign "useData = 0" to erroneous observations
-
-# read in start/end dates for flagged data
-nps_flagged_data <- read.csv("data/flagged_data/NPS_flagged_data.csv") %>%
-  filter(!is.na(day_start)) %>%
-  select(-Notes) 
-
-# create table of data to be flagged w/ "useData = 0"
-nps_flagged_data <- nps.data %>% 
-  mutate(year = year(sampleDate)) %>%
-  inner_join(nps_flagged_data,by = c("Agency_ID","year")) %>%
-  mutate(day = yday(sampleDate)) %>%
-  filter(day >= day_start & day <= day_end) %>%
-  mutate(useData = 0) %>%
-  select(-day_start,-day_end,-year
-         #,-day
-         )
-
-# remove 
-nps_nonflagged_data <- anti_join(nps.data,nps_flagged_data,by = c("Agency_ID","sampleDate","sampleTime")) %>%
-  mutate(useData = 1)
-
-# rejoin flagged and non-flagged data in same dataframe
-nps.data <- bind_rows(nps_flagged_data,nps_nonflagged_data)
-
-# remove extraneous objects
-rm(p,nps_flagged_data,nps_nonflagged_data,suspect.nps.sites)
-
-# data to be excised is now designated with "useData = 0"
-
-```
-
-<br>
-
-Re-Visualize cleaned-up streams & beaches data
-```{r}
-nps.data %>%
-  # filter out flagged data
-  filter(useData == 1) %>%
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,Agency_ID,Waterbody_Name,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
-  geom_point() +
-  facet_wrap(. ~ Agency_ID) +
-  ggtitle("Streams & Beaches, Corrected Logger Data by Site and Year - Daily Mean")
-
-```
-
-<br>
-
-Lake profile data visualization
-```{r}
-nps.lakes %>%
-  group_by(Waterbody_Name,Depth,sampleDate) %>%
-  summarise(daily_mean_temp = mean(Temperature)) %>%
-  mutate(day = yday(sampleDate),
-         year = year(sampleDate)) %>%
-  ggplot(aes(daily_mean_temp, Depth, color = as.factor(year))) +
-  geom_point(position = position_dodge(width = 1.2)) +
-  scale_y_reverse() +
-  facet_grid(Waterbody_Name ~ ., scales = "free_y") +
-  # this next line is not working; why?
-  theme(strip.text = element_text(angle = 90))
-  
-  #scale_y_continuous(breaks = c(122,152,182,213,244,274,304),
-   #                  labels = c("May","June","July","Aug","Sept", "Oct","Nov")) 
-
-```
-
-<br>
-
-Assign AKOATS_IDs to observations
-```{r}
-
-# working here 11/17/20 1:50 PM
-akoats.meta <- read_excel("data/AKOATS_DATA_2020_working.xlsx") %>%
-  rename(AKOATS_ID = seq_id) %>%
-  select(AKOATS_ID,Agency_ID)
-
-# streams & beaches
-nps.data <- left_join(nps.data,akoats.meta)
-
-# lakes
-nps.lakes <- left_join(nps.lakes,akoats.meta)
+nps.data %>% 
+  group_by(SiteID, Waterbody_name) %>% 
+  summarize(startYear = min(year(sampleDate)),
+            endYear = max(year(sampleDate)),
+            totYears = length(unique(year(sampleDate)))) %>% 
+  saveRDS("output/nps_data_summ.rds")
 
 ```
 
 
-<br>
-
-Save output data
-```{r}
-
-# output lake data file seperately, since it has an additional column for "depth" that all the other data does not
-
-# write streams & beaches csv
-## reorder columns
-x <- nps.data %>% 
-  select(AKOATS_ID,Agency_ID,sampleDate,sampleTime,Temperature,useData)
-# export csv
-write.csv(x,"output/NPS_streams_beaches.csv", row.names = F)
-
-# write lakes csv
-## reorder columns
-x <- nps.lakes %>% 
-  mutate(useData = 1) %>%
-  select(AKOATS_ID,Agency_ID,Depth,sampleDate,sampleTime,Temperature,useData) 
-
-# export csv
-write.csv(x,"output/Lakes/NPS_lakes.csv", row.names = F)
-
-```
-
-
-
-* Among sites and years, various types of loggers are employed (sonde, level logger, HOBO, etc)
 
 

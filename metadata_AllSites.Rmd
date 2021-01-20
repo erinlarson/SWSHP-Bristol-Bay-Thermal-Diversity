@@ -95,43 +95,6 @@ akoats.meta
 
 
 
-## UAA-ACCS metadata
-
-Just get lat/longs for reading into a map.
-
-```{r}
-# UAA-ACCS metadata
-accs.meta <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv", col_types = cols(.default = "c")) %>%
-  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) 
-
-accs.meta <- accs.meta %>% 
-  select(SourceName, SiteID, AKOATS_ID, Latitude, Longitude) %>% 
-  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
-         Latitude = as.numeric(Latitude),
-         Longitude = as.numeric(Longitude))
-
-
-saveRDS(accs.meta, "output/accs_metadata.rds")
-```
-
-```{r}
-# UAA-ACCS metadata
-accs.meta <- read_csv("data/ACCS-UAA/metadata/SiteLevelMetadata_Bogan.csv", col_types = cols(.default = "c")) %>%
-  select(AKOATS_ID,SiteID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) 
-
-
-# join uaa-accs data to metadata
-accs.dat <- dat %>%
-  filter(filename == "UAA-ACCS") %>%
-  select(-SiteID) %>%
-  left_join(accs.meta,by = "AKOATS_ID") %>%
-  mutate_all(as.character)
-
-rm(accs.meta)
-
-```
-
-
 ## NPS metadata - OLD
 
 ```{r}

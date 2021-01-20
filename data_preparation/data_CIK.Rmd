@@ -16,6 +16,8 @@ editor_options:
   chunk_output_type: inline
 ---
 
+Document last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -142,7 +144,7 @@ cik.data %>%
 ```
 
 Perform a quick visualization to see extent and form of data
-```{r}
+```{r eval = FALSE}
 cik.data %>%
   mutate(DT = parse_date_time(paste(sampleDate, sampleTime), "Y-m-d H:M:S")) %>%
   ggplot(aes(x = DT, y = Temperature)) +
@@ -153,61 +155,4 @@ cik.data %>%
 cik.data %>% distinct(SiteID)
 
 ```
-
-# Data review
-
-(Currently from Ben and not updated or run, all data from Sue has been QAed. Ben did not flag anything below.)
-
-CIK QA methods describe having already deleted anomalous data.  However, we will more carefully examine data from a few sites to decide if it too should be excised.
-
-
-Process to identify and remove erroneous data:
-
-* Visually identify data that does not seem reasonable
-* Plot unreasonable datasets by individual year and site
-* Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
-
-```{r eval = FALSE}
-
-# list of suspect sites to manually examine w/ ggplotly 
-suspect.cik.sites <-data.frame(c("Ben Courtney Creek",
-                                 "Gibraltar River"))
-colnames(suspect.cik.sites) <- "SiteID"
-
-# specify year or years to visualize
-y <- c("2019","2020")
-
-# create ggplotly chart
-ggplotly(
-  p <- cik.data %>%
-  inner_join(suspect.cik.sites) %>%
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,SiteID,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  
-  # modified SiteID one at a time here to visually inspect datasets
-  filter(SiteID == "Gibraltar River"
-         # put hash tag at next line to see all years for the site
-         #,year %in% y
-         ) %>%
-  
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
-  geom_point() +
-  facet_wrap(. ~ SiteID) +
-  ggtitle("Daily Mean Data")
-  )
-
-```
-
-
-Notes: 2019 Ben Courtney Creek: temps >20C looked potentially suspect, but closer visual examination does not suggest exposure or logger error.  2019 temps at Gibraltar River are of similar form, suggesting common pattern across sites in the region for that time period.
-
-
-Assign "useData =1" for all CIK data
-```{r eval = FALSE}
-cik.data <- cik.data %>% mutate(useData = 1)
-```
-
 

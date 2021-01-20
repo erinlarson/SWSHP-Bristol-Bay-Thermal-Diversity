@@ -1,5 +1,5 @@
 ---
-title: "ACCS-UAA Water Temp Data Import"
+title: "USFWS Water Temp Data Import"
 output:
   html_document: 
     df_print: paged
@@ -16,7 +16,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.com)
+Document last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -32,7 +32,7 @@ library(hms)
 library(plotly)
 ```
 
-Note that we need to get the knb download for Meg's data. 
+Note that we need to get the knb download for Meg's data. And, the lake data that Meg provided are at 5 m. This might not match what we want for the growth analysis so follow up and see if they have a surface logger too.
 
 # Metadata
 
@@ -176,75 +176,8 @@ saveRDS(fws.data, "output/fws_data.rds")
 Check to see which sites have complete summer data (80% of days in JJA) and also how many years.
 
 ```{r}
-fws.data
+# fws.data
 ```
 
 
-
-
-
-Perform a quick visualization and summary table to see extent and form of original data.
-
-* Summary table
-
-```{r}
-# create data summary table
-fws.data.summary <- fws.data %>%
-  mutate(year = year(sampleDate)) %>%
-  group_by(SiteID,year) %>%
-  summarize(meanTemp = mean(Temperature, na.rm = T),
-            maxTemp = max(Temperature, na.rm = T),
-            minTemp = min(Temperature, na.rm = T),
-            sdTemp = sd(Temperature, na.rm = T),
-            n_obs = n())
-
-fws.data.summary %>%
-  datatable() %>%
-  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
-    
-```
-<br>
-
-* Visualization
-
-```{r}
-fws.data %>%
-  select(-sampleTime) %>%
-  mutate(year = as.factor(year(sampleDate)),
-         day = yday(sampleDate)) %>%
-  group_by(day,SiteID,Waterbody_name,year) %>%
-  summarise(daily_mean_Temperature = mean(Temperature)) %>%
-  ggplot(aes(day,daily_mean_Temperature, color = year)) +
-  geom_point() +
-  facet_wrap(. ~ Waterbody_name) +
-  ggtitle("Original Logger Data by Site and Year - Daily Mean")
-
-```
-
-
-A quick visualization does not reveal many dramatically obvious signs of logger malfunction.  Export for now, will more carefully re-examine later.
-
-
-Assign useData column
-```{r}
-fws.data <- fws.data %>%
-  mutate(useData = 1)
-```
-
-<br>
-
-To do: Flag erroneous data, and assign "useData = 0" to erroneous/flagged data.
-
-<br>
-
-
-Export csv of combined datasets, with newly identified "do not use data" signified with a "0" in the useData column, to data folder associated with this .Rproj
-```{r}
-# reorder columns
-x <- fws.data %>% select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
-
-# export csv
-write.csv(x,"output/FWS.csv", row.names = F)
-
-```
 

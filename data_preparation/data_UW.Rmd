@@ -1,5 +1,5 @@
 ---
-title: "UW Water Temp Data Pre-2017"
+title: "UW Water Temp Data"
 output:
   html_document: 
     df_print: paged
@@ -16,6 +16,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
+Document last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -33,6 +34,21 @@ library(tidyverse)
 ```
 
 # Metadata
+
+AKOATS metadata
+
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA", col_types = "text") %>%
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  rename(AKOATS_ID = seq_id,
+         SiteID = Agency_ID) %>% 
+  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+akoats.meta
+
+```
 
 Focus on just getting lat/longs for a map. Read in all records, convert akoats id to numeric, which will remove the sites with multiple entries - add those in manually. Also, remove sites with missing info - which are the two lynx creek sites with unknown locations.
 
@@ -271,7 +287,7 @@ saveRDS(uw.data.2, "output/uw_data.rds")
 
 
 
-# Data Review
+# Data Review - Ben Meyer - OLD
 
 (Note nothing below has been reviewed after getting new data, this was original attempt by Ben - good suggestion to develop a shiny app with plotly object for reviewing data.)
 
