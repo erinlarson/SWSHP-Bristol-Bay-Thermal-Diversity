@@ -1,0 +1,509 @@
+---
+title: "data_QA_UW"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+
+library(tidyverse)
+library(rnoaa)
+```
+
+
+
+Read in formatted streams data.
+
+```{r}
+uw.dat <- readRDS("output/uw_data.rds")
+```
+
+
+# NOAA airtemp and precip
+
+No station for Dillingham.
+
+Access NOAA GHCN data using rnoaa package
+
+```{r NOAA data, message=FALSE, warning=FALSE}
+#Token obtained from NOAA to access API
+#noaaTok <- "SZDRPnFjeugmdiJCvVObmZkkDUSkPFkD"
+
+#Station Codes for area of interest
+bb.climStat <- c( "USW00026562","USW00025506", "USR0000ASNI", "USW00025503")
+
+
+bb.climDat <- tibble( name = c( "Iliamna Airport", "Port Alsworth 1",
+"Snipe Lake","King Salmon Airport"),
+                 id = bb.climStat)
+
+#Pull Climate data from Bristol Bay 
+climDat <- meteo_pull_monitors(bb.climStat)  
+str(climDat)
+  
+
+bb.climDat <- bb.climDat %>% 
+  left_join( climDat[,c( "id", "date", "prcp", "tmax", "tmin", "tavg")],
+             by = 'id') %>% 
+  filter( date >= "2001-06-01",
+          date <= "2019-10-30") %>% 
+  # Temperature and Precipitation values are in tenths of degree/mm
+  mutate_if( is.numeric, ~ . * 0.1) %>% 
+  mutate(year = as.factor(year(date)),
+         day = yday(date),
+         dt = as.POSIXct(paste(date), format = "%Y-%m-%d"))
+  
+
+bb.climDat
+
+```
+
+
+# Flag data
+
+Read in Ben's data sheet where he identified sections of data that were bad. Added a SiteID2 column which removed the non-blank space character that was preventing the join on site names.
+
+```{r}
+uw.flags <- read_csv("data_preparation/flagged_data/UW_flagged_data.csv")
+
+uw.flags <- uw.flags %>% 
+  mutate(SiteID = SiteID2) %>% 
+  select(SiteID, day_start, day_end, year)
+```
+Make sure that site names match. One note, I combined all the Nerka Kema Creek sites into one ID/time series per Jackie's notes, so Kema Creek Lower in Ben's dataset can be converted to Kema Creek.
+
+```{r}
+
+left_join(uw.flags %>% distinct(SiteID), uw.dat %>% distinct(SiteID) %>% mutate(in.dat = 1))
+
+uw.flags <- uw.flags %>% 
+  mutate(SiteID = case_when(SiteID == "Nerka Kema Creek Lower" ~ "Nerka Kema Creek",
+                             TRUE ~ SiteID))
+
+```
+
+For each time series, flag the data that Ben identified as erroneous.
+
+```{r}
+
+uw.dat2 <- left_join(uw.dat %>% mutate(year = year(sampleDate)), uw.flags) %>% 
+  mutate(jday = format(sampleDate, "%j"),
+         UseData = case_when(jday >= day_start & jday <= day_end ~ 0,
+                             TRUE ~ 1))
+
+uw.dat2 %>% 
+  filter(SiteID == "Nerka Kema Creek")
+```
+
+Plot the data. For raw data, need a date-time posixct field. I don't think I can use complete here to remove missing data because the time intervals are all over the place even within a site.
+
+
+```{r}
+uw.dat2 <- uw.dat2 %>% 
+  mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M"))
+
+uw.sites <- uw.dat2 %>% distinct(SiteID, year) %>% arrange(SiteID, year)
+
+pdf("output/UW raw data with flags.pdf")
+
+for(i in 1:nrow(uw.sites)) {
+  dat <- left_join(uw.sites %>% slice(i), uw.dat2) 
+  min <- as.POSIXct(paste(uw.sites %>% slice(i) %>% pull(year), "-06-01 00:00:00", sep = ""))
+  max <- as.POSIXct(paste(uw.sites %>% slice(i) %>% pull(year), "-09-30 00:00:00", sep = ""))
+  p1 <- ggplot(data = dat) +
+    geom_line(aes(x = dt, y = Temperature, color = as.factor(UseData))) +
+    labs(title = uw.sites %>% slice(i) %>% unite("z", SiteID:year) %>% pull(z)) +
+    scale_color_manual(breaks = c("0", "1"), values = c("#F8766D", "#619CFF")) +
+    scale_x_datetime(limits = c(min, max)) +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  print(p1)
+}
+
+dev.off()
+
+```
+
+Alternative is to also flag days with few measurements per day. Use code below to determine mode of time difference for each day (e.g. most common diff). Only keep days where mode is < 2 hours. Only keep days with at least 90% of measurements. Then plot dailies with all the flags shown.
+
+
+```{r}
+moose2 <- uw.dat2 %>% distinct(SiteID) %>% filter(grepl("Moose", SiteID))
+
+uw.dat2 %>% filter(SiteID %in% (moose2 %>% pull(SiteID))) %>% 
+  group_by(SiteID, sampleDate) %>%
+  summarize(meanT = mean(Temperature, na.rm = TRUE)) %>% 
+  mutate(day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(day, format = "%m-%d"), y = meanT, color = as.factor(year(sampleDate)))) +
+  geom_line() +
+  scale_x_date(limits = c(as.Date("06-01", format = "%m-%d"), as.Date("09-15", format = "%m-%d"))) +
+  facet_wrap(~SiteID)
+
+```
+
+# Interactive plots to enter flags
+
+
+```{r Interactive Plot With Air Temps, out.height="100%", out.width="100%", message=FALSE, warning=FALSE}
+
+uw.sites <- uw.dat2 %>% distinct(SiteID) %>% arrange(SiteID) %>% pull(SiteID)
+
+write_csv(uw.dat2 %>% distinct(SiteID), "data_preparation/uw_sites.csv")
+```
+
+# STOPPED HERE
+
+Duplicate data for aleknagik bear creek? Back to main script trying to find these and planning to email Jackie. They are in both sets of data. Combine and summarize and send to her. I can add a rowid so they are plotted separately (like duplicate loggers) and wait to hear from her. And keep flagging bad data not overlapping with the dups.
+
+```{r}
+uw.dat2 %>% 
+  filter(SiteID == "Aleknagik Bear Creek", year == 2009) %>% 
+  count(dt)
+```
+
+
+
+```{r}
+j <- 3
+
+dat <- uw.dat2 %>% 
+  filter(SiteID == uw.sites[j], month(sampleDate) %in% 6:9)
+min <- dat %>% summarize(min = min(dt)) %>% pull(min)
+max <- dat %>% summarize(max = max(dt)) %>% pull(max)
+
+p <- ggplot() +
+  geom_line(data = bb.climDat %>% filter(name == "King Salmon Airport"), aes(x = dt, y = tmax)) +
+  geom_line( data = bb.climDat %>% filter(name == "King Salmon Airport"),aes(x = dt, y = tmin)) +
+  geom_line(data  = dat, aes(x = dt, y = Temperature, color = as.factor(UseData))) + 
+  scale_color_manual(breaks = c("0", "1"), values = c("#F8766D", "#619CFF")) +
+  coord_cartesian(ylim = c(-5, 30)) +
+  scale_x_datetime(limits = c(min, max)) +
+  theme(legend.title = element_blank()) +
+  labs(title = uw.sites[j],
+       y = "Temperature degrees C",
+       x = "Time of Measurement")
+
+ggplotly(p)
+
+
+```
+
+
+# Data Review - Ben Meyer - OLD
+
+(Note nothing below has been reviewed after getting new data, this was original attempt by Ben - good suggestion to develop a shiny app with plotly object for reviewing data. This may not work with newly formatted data. BUT, using his flags on the data to see if they look good.)
+
+Perform a quick visualization and summary table to see extent and form of original data.
+
+* Summary table
+
+```{r}
+# create data summary table
+uw.data.summary <- uw.data %>%
+  mutate(year = year(sampleDate)) %>%
+  group_by(SiteID,year) %>%
+  summarize(meanTemp = mean(Temperature, na.rm = T),
+            maxTemp = max(Temperature, na.rm = T),
+            minTemp = min(Temperature, na.rm = T),
+            sdTemp = sd(Temperature, na.rm = T),
+            n_obs = n())
+
+uw.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+    
+```
+
+<br>
+
+* Visualization
+
+```{r}
+uw.data %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Original Logger Data by Site and Year - Daily Mean")
+
+```
+
+<br>
+
+Notes:
+
+* Among the whole data set, there are some max temps > 50 C, indicating some logger malfunction and/or air exposure.  There is also a minTemp of -21.5 C
+
+* Different types of instruments were employed to collect UW water temp data over the years, including iButtons, Stage gauges, Tidbits, and Level loggers.
+
+<br>
+
+***
+
+Identify and eliminate likely erroneous data 
+
+* Step 1: Start by visually examining datasets that include observations >25 C.  Does anything about these datasets suggest exposure or malfunction? (Or temperatures recorded pre/post deployment in water?)
+
+
+<br>
+
+Plot 1 
+```{r}
+# remove extraneous temporary objects from previous steps
+rm(uw.data.summary,uw.metadata)
+
+# identify datasets that include observations >25C
+above.25 <- uw.data %>%
+  filter(Temperature >= 25) %>%
+  mutate(year = year(sampleDate)) %>%
+  select(SiteID,year) %>%
+  distinct()
+
+# plot reduced dataset of site/years that contain >25C observations -- daily means
+uw.data %>%
+  inner_join(above.25) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data by Site and Year - Datasets w/ >25 C")
+
+```
+<br>
+
+Process to identify and remove erroneous data:
+
+* Visually identify data that does not seem reasonable
+* Plot unreasonable datasets by individual year and site
+* Use an anti_join script process to assign a "useData = 0" value to erroneous data observations by start and end dateTime
+
+1.) Examine & remove bad data from data sets w/ observations >25C
+```{r}
+# list of watersheds w/ 25C observations to examine w/ ggplotly object
+l <- above.25 %>%
+  select(-year) %>%
+  distinct()
+
+y <- c("2020")
+
+# create ggplotly chart
+ggplotly(
+  p <- uw.data %>%
+  inner_join(above.25) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == "Nerka Agulukpak River"
+         #,year %in% y
+         ) %>%
+  
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data (Example)")
+  )
+```
+
+<br>
+
+2.) Examine & remove bad data from data sets w/ known suspect data
+
+Notes, from "data/Jackie Carter UW/UA email saved at "data/Jackie Carter UW/UA Mail - Bristol Bay Temperature Data.pdf": "I have noticed some weird stuff going on with some of the older data. I think it may be an artifact of how our former database manager imported the data (bulk import, no distinction between logger type so there are multiple readings per hour but they aren't really as similar as one might expect). The known affected locations and years are: Aleknagik Bear Creek 2010-2013, Nerka Fenno Creek 2010-2013, and Nerka Pick Creek 2006-2012."
+
+Examine the three data sets specified above
+```{r}
+# potentially erroneous data sets:
+# Nerka Fenno Creek 2010-2013
+# Nerka Pick Creek 2006-2012
+# Aleknagik Bear Creek 2010-2013 
+
+# list of watersheds to examine w/ ggplotly object
+l <- c("Nerka Fenno Creek","Nerka Pick Creek","Aleknagik Bear Creek")
+z <- uw.data %>%
+  filter(SiteID %in% l) %>%
+  select(SiteID) %>%
+  distinct()
+
+# specify year or years to display here
+y <- c("2006")
+
+# create ggplotly chart
+ggplotly(
+  p <- uw.data %>%
+  inner_join(z) %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == "Aleknagik Bear Creek"
+         # hashtag line below if want to see all years for a site
+         #,year %in% y
+         ) %>%
+  
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data (Example)")
+  )
+
+```
+
+<br>
+
+3.) Examine & remove bad data from all other datasets (e.g. exposure data)
+
+<br>
+
+```{r}
+
+# list of all watersheds to examine w/ ggplotly object
+# do a quick manual run-through this list one at a time to spot visually apparent logger exposure(s)
+l <- data.frame(unique(uw.data$SiteID))
+
+# specify year or years to display here
+y <- c("2011")
+# specify site
+site <- "Nerka Rainbow Creek"
+
+# create ggplotly chart
+ggplotly(
+  p <- uw.data %>%
+  select(-sampleTime) %>%
+  mutate(year = as.factor(year(sampleDate)),
+         day = yday(sampleDate)) %>%
+  group_by(day,SiteID,year) %>%
+  summarise(daily_mean_Temperature = mean(Temperature)) %>%
+  
+  # modified SiteID one at a time here to visually inspect datasets
+  filter(SiteID == site
+         # hashtag line below if want to see all years for a site
+         ,year %in% y
+         ) %>%
+  
+  ggplot(aes(day,daily_mean_Temperature, color = year)) +
+  geom_point() +
+  facet_wrap(. ~ SiteID) +
+  ggtitle("Daily Mean Data")
+  )
+
+# note: creating a Shiny app for this job would be really useful!  e.g., to be able to easily toggle between various sites and years
+```
+
+
+If further data is is identified to be flagged, edit the csv file at "data/flagged_data/UW_flagged_data.csv"
+
+
+<br>
+
+
+Apply flags for good/bad data
+```{r}
+# created table of erroneous data to be flagged/excised
+## @ data/flagged_data/UW_flagged_data.csv
+
+# use flagged data table to assign "useData = 0" to erroneous observations
+
+
+# read in start/end dates for flagged data
+uw_flags <- read_csv("data_cleaning/flagged_data/UW_flagged_data.csv") %>%
+  filter(!is.na(day_start)) %>%
+  select(-Notes) 
+
+
+
+
+# create table of data to be flagged w/ "useData = 0"
+uw_flagged_data <- uw.data %>% 
+  mutate(year = year(sampleDate)) %>%
+  inner_join(uw_flags,by = c("SiteID","year")) %>%
+  mutate(day = yday(sampleDate)) %>%
+  filter(day >= day_start & day <= day_end) %>%
+  mutate(useData = 0) %>%
+  select(-day_start,-day_end,-year,-day)
+
+
+
+
+############ NOTE ###############
+
+### Note: the "inner_join" step of the above pipe is behaving oddly.  In this step we want to create a table of all rows to be flagged with useData = 0.  However only a (seemingly random) subset of the sites, years, and days specified in "UW_flagged_data.csv" are being recognized by inner_join.  As a result, not all of the data specified to be flagged as useData = 0 is being flagged.
+
+# Checked through spelling and column classes several times to ensure matches.  As of 11/21/20 not yet diagnosed what is happening at this step.  
+
+# Verbal description of code pipes intended to label data with useData = 0:
+# A.) Periods of daily means ID'd to be excluded are manually specified in "UW_flagged_data.csv" by SiteID, start day, end day, and year.
+
+# B.) A dataframe of data to be labeled with useData = 0 is generated using an inner_join pipe with the manually ID'd data.
+
+# C.) A dataframe of data to be labeled with useData = 1 in generated using an anti_join pipe; labeing all data not specified as useData = 0 as useData = 1.
+
+# D.) The two flagged dataframes are joined using bind_rows.
+
+# Step B of the above procedure is not functining.  E.g., search for "Aleknagik Ice Creek" in "uw_flags" and "uw_flagged_data" dataframes.
+##################################
+
+
+
+
+# apply flags
+uw_nonflagged_data <- anti_join(uw.data,uw_flagged_data,by = c("SiteID","sampleDate","sampleTime")) %>%
+  mutate(useData = 1)
+
+# rejoin flagged and non-flagged data in same dataframe
+uw.data <- bind_rows(uw_flagged_data,uw_nonflagged_data)
+
+# remove extraneous objects
+rm(above.25,l,p,uw_flagged_data,uw_nonflagged_data,alk)
+
+# how much data is being flagged?
+uw.data %>%
+  group_by(useData) %>%
+  summarise(ct = n())
+
+# calc % of flagged data
+# (11457/(1089838 +11457))*100
+# 1.04% of data is flagged
+
+```
+
+
+<br>
+
+To do: try using functions in "Temp_flags_function.R" to IDeven more bad data.
+
+<br>
+
+
+11/10/20: Ready to output file as soon as we get metadata!
+
+Export csv of combined datasets, with newly identified "do not use data" signified with a "0" in the useData column, to data folder associated with this .Rproj
+```{r}
+# prep for export
+ uw.data <- uw.data %>%
+   select(-data_SiteID) 
+
+# reorder columns
+x <- uw.data %>% select(AKOATS_ID,SiteID,sampleDate,sampleTime,Temperature,useData)
+
+# export csv
+write.csv(x,"output/UW.csv", row.names = F)
+
+```
+

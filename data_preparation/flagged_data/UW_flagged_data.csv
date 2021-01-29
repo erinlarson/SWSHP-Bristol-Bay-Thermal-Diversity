@@ -1,66 +1,66 @@
-ï»¿SiteID,day_start,day_end,year,Notes
-Aleknagik Bear Creek,163,166,2007,
-Aleknagik Bear Creek,251,290,2007,
-Aleknagik Bear Creek,172,173,2008,
-Aleknagik Bear Creek,249,251,2008,
-Aleknagik Bear Creek,257,257,2008,
-Aleknagik Bear Creek,159,160,2010,
-Aleknagik Bear Creek,163,163,2010,
-Aleknagik Bear Creek,177,178,2010,
-Aleknagik Bear Creek,247,249,2010,
-Aleknagik Bear Creek,308,366,2012,exposed after freeze up?
-Aleknagik Bear Creek,0,115,2013,looks like exposed until day 115
-Aleknagik Eagle Creek,159,257,2015,"Looks like it was exposed to air for most of the deployment (day 160 - 260).  No sure way to judge when it was resubmerged, so removing all 2015 data for this site."
-Aleknagik Eagle Creek,182,182,2011,exposure?
-Aleknagik Eagle Creek,159,216,2015,likely air exposure
-Aleknagik Hansen Creek,159,165,2015,Appears to be logging prior to deployment
-Aleknagik Hansen Creek,172,173,2008,
-Aleknagik Hansen Creek,187,188,2008,
-Aleknagik Hansen Creek,248,249,2008,
-AleknagikÂ IceÂ Creek,192,230,2013,pretty clearly an air expoure
-AleknagikÂ IceÂ Creek,177,249,2008,the entire dataset from this year look pretty suspect; aire exposure for the duration?
-AleknagikÂ IceÂ Creek,192,231,2013,pretty clearly an air expoure; jumps from 9C to 17C in 24 hrs at start
-AleknagikÂ MidnightÂ Creek,49,88,2012,exposure
-AleknagikÂ MidnightÂ Creek,224,231,2011,suspect partial exposure 
-AleknagikÂ MissionÂ Creek,254,254,2016,
-AleknagikÂ SunshineÂ Creek,325,365,2014,unsure of story with this data but looks quite suspect
-AleknagikÂ YakoÂ Creek,159,160,2010,
-AleknagikÂ YakoÂ Creek,246,248,2010,
-AleknagikÂ YakoÂ Creek,159,163,2015,
-AleknagikÂ YouthÂ Creek,254,254,2015,
-BeverleyÂ B12Â Creek,204,219,2014,appears to be a period of air exposure
-BeverleyÂ HopeÂ Creek,336,366,2012,suspected air exposure
-BeverleyÂ MooseÂ Creek,341,352,2012,
-BeverleyÂ PeaceÂ (Fourth)Â River,329,338,2012,
-BeverleyÂ PeaceÂ (Fourth)Â River,309,311,2012,
-BeverleyÂ UnoÂ Creek,342,344,2012,
-BeverleyÂ UnoÂ Creek,359,364,2012,
-BeverleyÂ UnoÂ Creek,165,166,2015,2 days obs for the year?  Unclear if done on purpose
-KulikÂ K-3Â Creek,0,115,2012,
-KulikÂ K-3Â Creek,0,115,2013,
-KulikÂ K-3Â Creek,365,365,2011,
-Little Togiak C Creek,33,33,2012,
-Nerka Cottonwood Creek,198,253,2015,data becomes suddenly scattered after day 198
-NerkaÂ ElvaÂ Creek,73,89,2012,
-Nerka Fenno Creek,249,259,2010,"looks like logger was running for a whle after being retrieved, or exposed for the last ~week of deployment?"
-Nerka Fenno Creek,136,138,2013,
-Nerka Fenno Creek,175,175,2013,
-Nerka Fenno Creek,,,2013,not a smooth transition from day 120 to 121.  inter-day diff of ~1C probably an artifact of old data import process.  Leave in for now
-Nerka Fenno Creek,353,366,2012,likely exposure
-NerkaÂ HiddenÂ LakeÂ Creek,163,186,2014,logger was probably on prior to deployment
-NerkaÂ HiddenÂ LakeÂ Creek,163,186,2015,suspected air exposure
-NerkaÂ JoeÂ Creek,256,256,2016,
-NerkaÂ JoeÂ Creek,81,115,2013,
-NerkaÂ KemaÂ Creek,153,162,2016,likely recording prior to deployment
-NerkaÂ KemaÂ Creek,155,156,2017,likely recording prior to deployment
-NerkaÂ KemaÂ Creek,153,160,2016,
-NerkaÂ KemaÂ CreekÂ Lower,,,2007,"data is from one year only.  Seems to be a sudden transition to cooler temps from day 194 onwards.  However both ""lower"" and ""upper"" sites in ""NerkaÂ KemaÂ Creek"" are nearly identical, so it is likely real data"
-NerkaÂ LynxÂ Creek,237,252,2016,sudden jump.  Not sure what's going on here but suspicious enough to remove
-NerkaÂ N4Â Creek,10,11,2012,
-Nerka Pick Creek,248,254,2011,
-NerkaÂ RainbowÂ Creek,269,365,2011,
-NerkaÂ RainbowÂ Creek,64,98,2012,
-NerkaÂ RainbowÂ Creek,0,40,2012,
-NerkaÂ SamÂ Creek,180,186,2011,exposure
-NerkaÂ SeventhÂ Creek,155,155,2019,?
-NerkaÂ SeventhÂ Creek,254,256,2020,
+SiteID,SiteID2,day_start,day_end,year,Notes
+Aleknagik Bear Creek,Aleknagik Bear Creek,163,166,2007,
+Aleknagik Bear Creek,Aleknagik Bear Creek,251,290,2007,
+Aleknagik Bear Creek,Aleknagik Bear Creek,172,173,2008,
+Aleknagik Bear Creek,Aleknagik Bear Creek,249,251,2008,
+Aleknagik Bear Creek,Aleknagik Bear Creek,257,257,2008,
+Aleknagik Bear Creek,Aleknagik Bear Creek,159,160,2010,
+Aleknagik Bear Creek,Aleknagik Bear Creek,163,163,2010,
+Aleknagik Bear Creek,Aleknagik Bear Creek,177,178,2010,
+Aleknagik Bear Creek,Aleknagik Bear Creek,247,249,2010,
+Aleknagik Bear Creek,Aleknagik Bear Creek,308,366,2012,exposed after freeze up?
+Aleknagik Bear Creek,Aleknagik Bear Creek,0,115,2013,looks like exposed until day 115
+Aleknagik Eagle Creek,Aleknagik Eagle Creek,159,257,2015,"Looks like it was exposed to air for most of the deployment (day 160 - 260).  No sure way to judge when it was resubmerged, so removing all 2015 data for this site."
+Aleknagik Eagle Creek,Aleknagik Eagle Creek,182,182,2011,exposure?
+Aleknagik Eagle Creek,Aleknagik Eagle Creek,159,216,2015,likely air exposure
+Aleknagik Hansen Creek,Aleknagik Hansen Creek,159,165,2015,Appears to be logging prior to deployment
+Aleknagik Hansen Creek,Aleknagik Hansen Creek,172,173,2008,
+Aleknagik Hansen Creek,Aleknagik Hansen Creek,187,188,2008,
+Aleknagik Hansen Creek,Aleknagik Hansen Creek,248,249,2008,
+Aleknagik Ice Creek,Aleknagik Ice Creek,192,230,2013,pretty clearly an air expoure
+Aleknagik Ice Creek,Aleknagik Ice Creek,177,249,2008,the entire dataset from this year look pretty suspect; aire exposure for the duration?
+Aleknagik Ice Creek,Aleknagik Ice Creek,192,231,2013,pretty clearly an air expoure; jumps from 9C to 17C in 24 hrs at start
+Aleknagik Midnight Creek,Aleknagik Midnight Creek,49,88,2012,exposure
+Aleknagik Midnight Creek,Aleknagik Midnight Creek,224,231,2011,suspect partial exposure 
+Aleknagik Mission Creek,Aleknagik Mission Creek,254,254,2016,
+Aleknagik Sunshine Creek,Aleknagik Sunshine Creek,325,365,2014,unsure of story with this data but looks quite suspect
+Aleknagik Yako Creek,Aleknagik Yako Creek,159,160,2010,
+Aleknagik Yako Creek,Aleknagik Yako Creek,246,248,2010,
+Aleknagik Yako Creek,Aleknagik Yako Creek,159,163,2015,
+Aleknagik Youth Creek,Aleknagik Youth Creek,254,254,2015,
+Beverley B12 Creek,Beverley B12 Creek,204,219,2014,appears to be a period of air exposure
+Beverley Hope Creek,Beverley Hope Creek,336,366,2012,suspected air exposure
+Beverley Moose Creek,Beverley Moose Creek,341,352,2012,
+Beverley Peace (Fourth) River,Beverley Peace (Fourth) River,329,338,2012,
+Beverley Peace (Fourth) River,Beverley Peace (Fourth) River,309,311,2012,
+Beverley Uno Creek,Beverley Uno Creek,342,344,2012,
+Beverley Uno Creek,Beverley Uno Creek,359,364,2012,
+Beverley Uno Creek,Beverley Uno Creek,165,166,2015,2 days obs for the year?  Unclear if done on purpose
+Kulik K-3 Creek,Kulik K-3 Creek,0,115,2012,
+Kulik K-3 Creek,Kulik K-3 Creek,0,115,2013,
+Kulik K-3 Creek,Kulik K-3 Creek,365,365,2011,
+Little Togiak C Creek,Little Togiak C Creek,33,33,2012,
+Nerka Cottonwood Creek,Nerka Cottonwood Creek,198,253,2015,data becomes suddenly scattered after day 198
+Nerka Elva Creek,Nerka Elva Creek,73,89,2012,
+Nerka Fenno Creek,Nerka Fenno Creek,249,259,2010,"looks like logger was running for a whle after being retrieved, or exposed for the last ~week of deployment?"
+Nerka Fenno Creek,Nerka Fenno Creek,136,138,2013,
+Nerka Fenno Creek,Nerka Fenno Creek,175,175,2013,
+Nerka Fenno Creek,Nerka Fenno Creek,,,2013,not a smooth transition from day 120 to 121.  inter-day diff of ~1C probably an artifact of old data import process.  Leave in for now
+Nerka Fenno Creek,Nerka Fenno Creek,353,366,2012,likely exposure
+Nerka Hidden Lake Creek,Nerka Hidden Lake Creek,163,186,2014,logger was probably on prior to deployment
+Nerka Hidden Lake Creek,Nerka Hidden Lake Creek,163,186,2015,suspected air exposure
+Nerka Joe Creek,Nerka Joe Creek,256,256,2016,
+Nerka Joe Creek,Nerka Joe Creek,81,115,2013,
+Nerka Kema Creek,Nerka Kema Creek,153,162,2016,likely recording prior to deployment
+Nerka Kema Creek,Nerka Kema Creek,155,156,2017,likely recording prior to deployment
+Nerka Kema Creek,Nerka Kema Creek,153,160,2016,
+Nerka Kema Creek Lower,Nerka Kema Creek Lower,,,2007,"data is from one year only.  Seems to be a sudden transition to cooler temps from day 194 onwards.  However both ""lower"" and ""upper"" sites in ""Nerka Kema Creek"" are nearly identical, so it is likely real data"
+Nerka Lynx Creek,Nerka Lynx Creek,237,252,2016,sudden jump.  Not sure what's going on here but suspicious enough to remove
+Nerka N4 Creek,Nerka N4 Creek,10,11,2012,
+Nerka Pick Creek,Nerka Pick Creek,248,254,2011,
+Nerka Rainbow Creek,Nerka Rainbow Creek,269,365,2011,
+Nerka Rainbow Creek,Nerka Rainbow Creek,64,98,2012,
+Nerka Rainbow Creek,Nerka Rainbow Creek,0,40,2012,
+Nerka Sam Creek,Nerka Sam Creek,180,186,2011,exposure
+Nerka Seventh Creek,Nerka Seventh Creek,155,155,2019,?
+Nerka Seventh Creek,Nerka Seventh Creek,254,256,2020,
