@@ -18,6 +18,8 @@ editor_options:
 
 Document last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
 
+Sent Daniel email summarizing TW dataset versus sites in Jackie's database - 3/5/21. Possibly just move forward with additional years of data for sites that Tim originally used for thermal sensitivity.
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))
@@ -30,6 +32,9 @@ library(hms)
 library(plotly)
 library(DT)
 library(tidyverse)
+library(gridExtra)
+
+source("W:/Github/AKSSF/helper_functions.R")
 
 ```
 
@@ -143,7 +148,7 @@ Read in data from folder "Jackie Carter UW". These are the 51 files of stream te
 Jackie provided updated data files for Pick Creek, Eagle Creek, and Wood River to fix time issues.
 
 
-```{r}
+```{r 2017 data files}
 uw.data <- list.files(path = ("data/Jackie Carter UW/Jackie Carter/"),
                       pattern = "*.csv", 
                       full.names = T) %>%
@@ -156,7 +161,7 @@ uw.data <- list.files(path = ("data/Jackie Carter UW/Jackie Carter/"),
 
 Format dates and times. Most dates are "%m/%d/%y" 2-digit year. But, Big Whitefish and Little Whitefish have different format, "%d-%b-%y". 
 
-```{r}
+```{r 2017 dates and times}
 uw.data %>% 
   group_by(StationName) %>%
   slice_head() %>% 
@@ -170,34 +175,19 @@ uw.data <- uw.data %>%
 
 50 files were read in and there are a total of 54 sites with data.
 
-```{r}
+```{r 2017 summary}
+
 uw.data %>% 
   count(file_name, StationName, year = year(sampleDate)) %>%
   arrange(year, file_name, StationName) %>% 
   pivot_wider(names_from = year, values_from = n)
 
-```
-Are there duplicates in this data set or are they from combining across two data requests?
-
-```{r}
-uw.data %>%
-  distinct() %>% 
-  count(StationName, sampleDate, sampleTime) %>% 
-  filter(n > 1)
-  arrange(desc(n))
-
 uw.data %>% 
-  group_by(StationName, sampleDate, sampleTime) %>% 
-  mutate(id = row_number()) %>%
-  select(StationName, sampleDate, sampleTime, id, Temperature) %>% 
-  pivot_wider(names_from = id, values_from = Temperature) %>% 
-  mutate(diff = abs(`1`-`2`)) %>% 
-  filter(!is.na(diff)) %>% 
-  group_by(StationName) %>% 
-  summarize(mean = mean(diff),
-            sd = sd(diff),
-            count = n())
+  count(MeasurementType, file_name, year = year(sampleDate)) 
+
 ```
+
+
 
 
 ## Data files received in November 2020
@@ -207,8 +197,6 @@ Becky emailed with Jackie in November 2020 to get metadata information for the 5
 * data file for sites on Lynx Creek - 5 stations
 * data file for Aleknagik Bear Creek for data through 2017
 * data file for all stream sites from 2018 through 2020  
-
-
 
 ```{r}
 uw.lynx <- read_csv("data/Jackie Carter UW/Jackie Carter - 2020 data request/UW-FRI_LynxCreekALL_Temps_JC.csv", 
@@ -238,14 +226,14 @@ Join the multiple data frames in to single object. Start with all information, t
 ```{r}
 keep <- c("file_name", "Lake", "StationName", "SampleType", "MeasurementType", "sampleDate", "sampleTime", "Temperature")
 
-uw.data.2 <- bind_rows(uw.data %>% select(one_of(keep)),
+uw.data2 <- bind_rows(uw.data %>% select(one_of(keep)),
                        uw.lynx %>% select(one_of(keep)),
                        uw.aleknagik.bear %>% select(one_of(keep)),
                        uw.post2017 %>% select(one_of(keep))) %>% 
   rename(SiteID = StationName) %>% 
   mutate(sampleDate = as.Date(sampleDate))
 
-uw.data.2 %>% 
+uw.data2 %>% 
   summary()
 
 # remove extraneous objects
@@ -256,9 +244,9 @@ rm(uw.data, uw.lynx, uw.aleknagik.bear, uw.post2017)
 Fix duplicate SiteIDs that go to same location (see metadata section above for Jackie's notes on this). Also, Jackie couldn't find locations for two sites on Lynx Creek - beach and middle so remove those time series from the data frame.
 
 ```{r}
-uw.data.2 %>% distinct(SiteID) %>% arrange(SiteID)
+uw.data2 %>% distinct(SiteID) %>% arrange(SiteID)
 
-uw.data.2 <- uw.data.2 %>% 
+uw.data2 <- uw.data2 %>% 
   mutate(SiteID = case_when(SiteID == "Aleknagik Agulowak River" ~ "Agulowak River",
                             SiteID == "Nerka Lynx Creek Upper" ~ "Nerka Lynx Lake Tributary",
                             SiteID %in% c("Nerka Kema Creek Lower", "Nerka Kema Creek Upper") ~ "Nerka Kema Creek",
@@ -269,34 +257,76 @@ uw.data.2 <- uw.data.2 %>%
                             TRUE ~ SiteID)) %>% 
   filter(!SiteID %in% c("Nerka Lynx Creek Middle", "Nerka Lynx Creek Beach"))
 
-sites.md <- uw.meta %>% pull(SiteID)
-sites.dat <- uw.data.2 %>% distinct(SiteID) %>% pull(SiteID)
+#lat/longs for all 60 sites in data
+uw.data2 %>% 
+  distinct(SiteID) %>% 
+  left_join(uw.meta)
 
-sites.md[!sites.md %in% sites.dat]
-sites.dat[!sites.dat %in% sites.md]
+#also 60 sites in metadata so they are matching.
+uw.meta
 
 ```
 
 Add a date-time and year field, which will be needed for data QA. Also can use to identify and remove duplicates in data.
 
 ```{r}
-uw.data.2 <- uw.data.2 %>% 
+uw.data2 <- uw.data2 %>% 
   mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M"),
          year = year(sampleDate))
-  
-uw.data.2 %>%
-  distinct() %>% 
-  count(SiteID, dt) %>% 
-  count(SiteID, n) %>% 
-  arrange(desc(n))
-
 ```
+
+# Review Data
+
+Summary of sites with many duplicate values and the mean and sd of the differences between the duplicate measurements. A couple of sites with either duplicate loggers or multiple files. Check into this and see what is going on here. These are all the sites across both data requests. Note that some of these are ibutton temps and some have very coarse sample intervals (> 2 hr). Possibly filter to remove those first.
+
+```{r duplicate measurements}
+uw.data2 %>% 
+  group_by(SiteID, sampleDate, sampleTime) %>% 
+  mutate(id = row_number()) %>%
+  select(SiteID, sampleDate, sampleTime, id, Temperature) %>% 
+  pivot_wider(names_from = id, values_from = Temperature) %>% 
+  mutate(diff = abs(`1`-`2`)) %>% 
+  filter(!is.na(diff)) %>% 
+  group_by(SiteID) %>% 
+  summarize(mean = mean(diff),
+            sd = sd(diff),
+            count = n())
+
+
+uw.data2 %>% 
+  group_by(SiteID, sampleDate, sampleTime) %>% 
+  mutate(id = row_number()) %>%
+  select(SiteID, sampleDate, sampleTime, id, Temperature) %>% 
+  pivot_wider(names_from = id, values_from = Temperature) %>% 
+  mutate(diff = abs(`1`-`2`)) %>% 
+  filter(!is.na(diff), SiteID == "Nerka Fenno Creek") %>% 
+  ungroup() %>% 
+  summarize(min(sampleDate), max(sampleDate))
+```
+
+Look at logger type and measurement frequency. Possibly we should only focus on the newer data.
+
+```{r}
+uw.data2 <- temp_msmt_freq(uw.data2)
+
+uw.data2 %>% 
+  ungroup() %>% 
+  count(MeasurementType, file_name, SiteID, year = year(sampleDate), mode_diff) %>% 
+  arrange(file_name, year)
+
+uw.data2 %>% 
+  filter(SiteID == "Beverley Uno Creek", mode_diff == 1)
+```
+
+
+
+# Save data
 
 
 Summary csv to add as attributes to leaflet map.
 
 ```{r}
-uw.data.2 %>% 
+uw.data2 %>% 
   group_by(SiteID) %>% 
   summarize(startYear = min(year(sampleDate)),
             endYear = max(year(sampleDate)),
@@ -308,9 +338,9 @@ uw.data.2 %>%
 Save a copy of the data for a table and figure.
 
 ```{r}
-uw.data.2
+uw.data2
 
-saveRDS(uw.data.2, "output/uw_data.rds")
+saveRDS(uw.data2, "output/uw_data.rds")
 ```
 
 
@@ -320,6 +350,8 @@ saveRDS(uw.data.2, "output/uw_data.rds")
 ## Tim Cline's data from Zotero
 
 Six files each for a separate year of data. Sites are different columns in the dataset.
+Data archived on Zenodo: https://zenodo.org/record/3523300#.YEKEN45KhaQ
+Unfortunately, the site names don't match Jackie's database and there are no lat/longs. I'll need to work with Jackie to try and get the most current years of data for these sites.
 
 ```{r}
 tc.files <- list.files("S:\\Stream Temperature Data\\Tim Cline UW", full.names = TRUE)
@@ -368,6 +400,8 @@ tc.16 <- read_csv(tc.files[6]) %>%
 
 tc.dat <- bind_rows(tc.11, tc.12, tc.13, tc.14, tc.15, tc.16)
 
+tc.11
+
 ```
 
 Plot data
@@ -379,5 +413,79 @@ tc.dat %>%
   geom_line() +
   facet_wrap(~SiteID)
 
+tc.dat %>% distinct(SiteID)
+
+summary(tc.dat)
 ```
+```{r}
+
+tc.sites <- tc.dat %>% distinct(SiteID) %>% pull(SiteID) 
+uw.sites <- uw.dat2 %>% distinct(SiteID) %>% arrange(SiteID) %>% pull(SiteID)
+
+
+siteMerge <- data.frame()
+for(i in tc.sites) {
+  uwIn = grep(i, uw.sites)
+  #figure out what to do when can't be found. need to skip and population new row with NA
+  if(length(uwIn > 0)) {
+    newrow <- data.frame(tc = i, uw = uw.sites[uwIn])
+  } else {
+    newrow <- data.frame(tc = i, uw = NA)
+  } 
+  siteMerge <- bind_rows(siteMerge, newrow)
+}
+
+siteMerge
+```
+
+```{r eval = FALSE}
+# write_csv(siteMerge, path = "output/UW_site_merge.csv")
+```
+
+Manually enter in some of the names in Jackie's dataset that logically match Tim's dataset. It looks like grep only did pattern matching if it was exact and I don't know how to do anything more complicated. Summarize data available in the two datsets and send to Daniel.
+
+```{r}
+siteMerge2 <- read_csv("output/UW_site_merge.csv")
+
+jul.range <- tc.dat %>% 
+  distinct(Date) %>% 
+  mutate(jd = format(Date, "%j")) %>% 
+  summarize(range(jd))
+
+tc.summ <- tc.dat %>% 
+  count(SiteID, year = year(Date)) %>%
+  mutate(Source = "Tim Cline")
+  pivot_wider(names_from = year, values_from = n, names_prefix = "TC_") %>% 
+  select(SiteID, TC_2011, TC_2012, TC_2013, TC_2014, TC_2015, TC_2016)
+
+uw.summ <- left_join(siteMerge2, uw.data2, by = c("uw" = "SiteID")) %>%
+  rename(SiteID = uw) %>% 
+  filter(format(sampleDate, "%j") %in% 152:258) %>% 
+  distinct(SiteID, year = year(sampleDate), sampleDate) %>%
+  count(SiteID, year) %>%
+  mutate(Source = "UW Database")
+  pivot_wider(names_from = year, values_from = n, names_prefix = "UW_") %>% 
+  select(SiteID, paste0("UW_", 2006:2020))
+
+```
+
+
+
+```{r}
+p3 <- bind_rows(left_join(siteMerge2, tc.summ, by = c("tc" = "SiteID")),
+          left_join(siteMerge2, uw.summ , by = c("uw" = "SiteID"))) %>%
+  filter(!is.na(Source)) %>% 
+  ggplot() +
+  geom_tile(aes(x = year, y = reorder(tc, desc(tc)), fill = n)) +
+  # scale_fill_gradient(limits = range(min(uw.summ$n), max(uw.summ$n))) +
+  # coord_cartesian(xlim = c(2017,2020)) + 
+  geom_vline(aes(xintercept = 2016.5)) +
+  facet_wrap(~Source) +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.title.y = element_blank()) 
+
+ggsave("output/UW Dataset.pdf", plot = p3, width = 12, height = 8, units = "in")
+
+```
+
 

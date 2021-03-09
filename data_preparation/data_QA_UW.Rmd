@@ -72,6 +72,7 @@ uw.flags <- uw.flags %>%
   mutate(SiteID = SiteID2) %>% 
   select(SiteID, day_start, day_end, year)
 ```
+
 Make sure that site names match. One note, I combined all the Nerka Kema Creek sites into one ID/time series per Jackie's notes, so Kema Creek Lower in Ben's dataset can be converted to Kema Creek.
 
 ```{r}
@@ -97,12 +98,9 @@ uw.dat2 %>%
   filter(SiteID == "Nerka Kema Creek")
 ```
 
-Plot the data. For raw data, need a date-time posixct field. I don't think I can use complete here to remove missing data because the time intervals are all over the place even within a site.
-
+Plot the data. For raw data, need a date-time posixct field. I don't think I can use complete here to fill in NAs for missing data because the time intervals are all over the place even within a site. (Note complete function used to fill out a time series so date-times without data aren't plotted. Without these NAs, there are lines connecting data, which is ugly.)
 
 ```{r}
-uw.dat2 <- uw.dat2 %>% 
-  mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M"))
 
 uw.sites <- uw.dat2 %>% distinct(SiteID, year) %>% arrange(SiteID, year)
 
