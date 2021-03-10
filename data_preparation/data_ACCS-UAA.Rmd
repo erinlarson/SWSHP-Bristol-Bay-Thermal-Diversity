@@ -37,12 +37,12 @@ library(DT)
 
 # Metadata
 
-Copied over Dustin's md table from the Bristol Bay Temperature repo. Create this data frame first because it has all 15 sites in the clean data file along with the akoats ids. Then link to the akoats metadata to get lat/longs.
+Copied over Dustin's md table from the Bristol Bay Temperature repo. Create this data frame first because it has all 15 sites with new SiteIDs in the clean data file along with the akoats ids. Then link to the akoats metadata to get lat/longs.
 
 ```{r AKOATS, table}
 # Create akoats metadata table using new site ids - Big Creek:ilbig01,
 
-accs_md <- tibble(
+accs.md <- tibble(
   AKOATS_ID = as.numeric(c("1660", "1661", "1662", "1663",
                 "1664", "1665", "1666", "1667",
                 "1668", "760", "761", "762", 
@@ -63,26 +63,28 @@ accs_md <- tibble(
                      "Tributary of Newhalen River", "Big Creek")
 )
 
-accs_md%>% 
+accs.md%>% 
   arrange(desc(SiteID))
 
 ```
 
 
 ```{r}
-
-akoats_md <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA") %>%
-  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy) %>%
-  rename(AKOATS_ID = seq_id,
-         SiteID = Agency_ID) %>% 
-  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+akoats.md <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
+  filter(Sample_interval == "continuous") %>% 
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  mutate(seq_id = as.numeric(seq_id),
          Latitude = as.numeric(Latitude),
          Longitude = as.numeric(Longitude))
+  # rename(AKOATS_ID = seq_id,
+  #        SiteID = Agency_ID)  
+
+intersect(names(accs.md), names(akoats.md))
 
 #Site IDs changed so just join on akoats id.
-accs_md <- left_join(accs_md, akoats_md %>% select(-SiteID))
+accs.md <- left_join(accs.md, akoats.md %>% select(-Waterbody_name), by = c("AKOATS_ID" = "seq_id"))
 
-saveRDS(accs_md, "output/accs_metadata.rds")
+saveRDS(accs.md, "output/accs_metadata.rds")
 ```
 
 
@@ -105,7 +107,7 @@ For visualization and data QA/QC, we want waterbody name associated with each da
 
 ```{r}
 
-accs.data <- left_join(accs.data, accs_md %>% select(SiteID, Waterbody_name), by = "SiteID")
+accs.data <- left_join(accs.data, accs.md %>% select(SiteID, Waterbody_name), by = "SiteID")
 
 accs.data %>% distinct(Waterbody_name, SiteID)
 
@@ -148,5 +150,29 @@ accs.data %>%
   facet_wrap(~ SiteID) +
   ggtitle("Original Logger Data by Site and Year")
 
+```
+
+# Save daily data and metadata
+
+Save raw data for AKTEMP, which includes date and time. Save metadata file. Save daily data after screening for days with less than 90% of measurements.
+
+```{r save raw data}
+source("W:/Github/AKSSF/helper_functions.R")
+
+accs.md
+
+save_metadata_files(accs.md, "accs_bb")
+
+accs.data
+
+accs.data %>% 
+  distinct(SiteID) %>% 
+  left_join(accs.md)
+
+save_aktemp_files(accs.data %>% mutate(UseData = 1), "accs_bb")
+
+accs.daily <- temp_msmt_freq(accs.data %>% mutate(UseData = 1)) %>% daily_screen(.)
+
+save_daily_files(accs.daily, "accs_bb")
 ```
 

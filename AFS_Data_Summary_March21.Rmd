@@ -1,0 +1,181 @@
+---
+title: "AFS_Data_Summary"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+
+# load packages
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(hms)
+library(ggmap)
+library(sf)
+library(leaflet)
+library(osmdata)
+```
+
+
+Bringing in best set of daily data for each data provider and combining into one dataset so I can do some summaries for the AFS presentation.
+
+* CIK data ready - saved to final_data folder 16 sites
+* ACCS data ready - saved 15 sites
+* NPS stream data ready - saved 17 stream sites
+* FWS stream data ready - saved 23 stream sites
+* UW filter on just TC sites and add in new summer data from Jackie's database - may need to filter out some air temps.
+
+Bring in the metadata for each set of data and combine so that I can also create some simple maps showing years of data.
+
+# metadata
+
+```{r read in metadata}
+final.data.files <- list.files("data_preparation/final_data", full.names = TRUE)
+md.files <- final.data.files[grepl("Metadata", final.data.files)]
+
+md <- map_df(md.files, function(x) read_csv(x))
+md %>% 
+  count(Contact_person)
+
+summary(md)
+```
+
+
+```{r}
+md_sf <- st_as_sf(md, coords = c('Longitude', 'Latitude'), crs = "WGS84")
+
+bb_huc8 <- st_read(dsn = "W:/GIS/AKSSF Bristol Bay", layer = "huc8_bb")
+st_crs(bb_huc8)
+
+bb_huc8_wgs84 <- st_transform(bb_huc8, crs = "WGS84")
+
+
+bb_sites <- st_join(md_sf, bb_huc8_wgs84)
+
+bb_sites %>% 
+  count(Name)
+```
+
+
+
+```{r}
+register_google(key = "") #saved locally and must redo each session
+```
+
+
+```{r basic map}
+ggplot() +
+  geom_sf(data = md_sf) +
+  geom_sf(data = bb_huc8_wgs84, fill = NA) +
+  geom_sf_text(data = bb_huc8_wgs84, aes(label = Name), size = 3) +
+  theme_bw()
+
+# map <- get_googlemap("Dillingham, Alaska", zoom = 8, maptype = "terrain")
+
+
+```
+
+```{r}
+
+# create map
+leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
+  #setView(-150.210169, 60.487694, zoom = 8) %>%
+  addMarkers(lng = md$Longitude, lat = md$Latitude)
+```
+
+
+```{r}
+getbb("Dillingham")
+
+q <- opq(bbox = "Bristol Bay, Alaska") %>% 
+  add_osm_feature(key = 'natural', value = 'water') %>% 
+  osmdata_sp()
+
+class(q)
+
+sp::plot(q$osm_polygons)
+ggplot() +
+  geom_sf(data = q)
+```
+
+
+# data
+
+```{r read in daily data}
+data.files <- final.data.files[grepl("Daily", final.data.files)]
+
+bbdat <- map_df(data.files, function(x) read_csv(x, col_types = "cDnnn"))
+
+```
+
+
+```{r add huc8 names}
+
+bbdat <- left_join(bbdat, st_drop_geometry(bb_sites) %>% 
+  select(SiteID, Name))
+
+
+bbdat %>% 
+  group_by(Name, SiteID, month = month(sampleDate), year = year(sampleDate)) %>% 
+  summarize(mean = mean(meanDT)) %>% 
+  mutate(site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0)) %>% 
+  ggplot() +
+  geom_line(aes(x = month, y = mean, group = site_year, color = factor(is_19))) +
+  scale_color_manual(values = c("gray", "red")) +
+  facet_wrap(~Name)
+
+```
+
+```{r}
+bbdat %>% 
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0)) %>%
+  filter(month(sampleDate) %in% 6:9) %>% 
+  ggplot() +
+  geom_line(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = factor(is_19))) +
+  scale_color_manual(values = c("gray", "red")) +
+  facet_wrap(~Name)
+```
+```{r}
+
+bb.mon <- bbdat %>% 
+  mutate(mo_days = days_in_month(sampleDate)) %>% 
+  group_by(Name, SiteID, mo_days, month = month(sampleDate), year = year(sampleDate)) %>% 
+  summarize(mean = mean(meanDT),
+            mo_ct = n()) %>%
+  filter(mo_ct > 0.9 * mo_days)
+
+bb.july.n5 <- bb.mon %>% 
+  filter(month == 7) %>% 
+  group_by(SiteID) %>% 
+  mutate(ct = n()) %>% 
+  filter(ct > 4)
+
+order19 <- bb.july.n5 %>% group_by(SiteID) %>% filter(month == 7) %>% summarize(mean7 = mean(mean)) %>% arrange(desc(mean7)) %>% pull(SiteID)
+
+bb.july.n5 <- bb.july.n5 %>% 
+  mutate(SiteIDf = factor(SiteID, levels = order19))
+
+
+ggplot() +
+  geom_boxplot(data = bb.july.n5 %>% filter(month == 7),aes(x = mean, y = SiteIDf))  +
+  geom_point(data = bb.july.n5 %>% filter(year == 2019, month ==7), aes(x = mean, y = SiteIDf), color = "red")
+
+  mutate(site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0)) %>%
+  filter(month == 7) %>% 
+  ungroup() %>% 
+  count(SiteID)
+```
+
+

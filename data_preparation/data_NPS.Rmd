@@ -24,13 +24,15 @@ knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 
 # load packages
-library(tidyverse)
+library(googledrive)
 library(lubridate)
 library(readr)
 library(readxl)
 library(hms)
 library(plotly)
 library(DT)
+library(tidyverse)
+
 ```
 
 
@@ -58,36 +60,48 @@ nps.metadata
 
 ```{r}
 akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA") %>%
-  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
-  rename(AKOATS_ID = seq_id,
-         SiteID = Agency_ID) %>% 
-  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,
+         Sensor_accuracy,Waterbody_name, Waterbody_type) %>%
+  # rename(AKOATS_ID = seq_id,
+  #        SiteID = Agency_ID) %>% 
+  mutate(seq_id = as.numeric(seq_id),
          Latitude = as.numeric(Latitude),
          Longitude = as.numeric(Longitude))
 
-akoats.meta
+akoats.meta %>% 
+  filter(Contact_person == "Krista Bartz")
 
 ```
 
 Looks like Telaquana Lake array is not in AKOATS, but that lake is outside Bristol Bay anyways so should be removed. Also, No Savonoski River in AKOATS - Krista said that is a new site. Tlikakila River site A can be assigned to akoats id 1893 and remove site B - see figure using two datasets below.
 
 ```{r}
-nps.metadata <- left_join(nps.metadata, akoats.meta %>% filter(Contact_person == "Krista Bartz") %>% select(SiteID, AKOATS_ID)) 
+intersect(names(nps.metadata), names(akoats.meta))
+remove <- names(nps.metadata)
+
+akoats.meta %>% dplyr::select(-one_of(remove))
+
+nps.metadata <- left_join(nps.metadata, akoats.meta %>% dplyr::select(-one_of(names(nps.metadata))),
+                          by = c("SiteID" = "Agency_ID")) 
 
 nps.metadata <- nps.metadata %>% 
   filter(!(SiteID %in% c("TELAL_01_TEMP", "LACL_tlikr_stream_water_B"))) %>%
   mutate(SiteID = case_when(site_name == "Tlikakila_Water_A" ~ "LACL_tlikr_stream_water",
                              TRUE ~ SiteID),
-         AKOATS_ID = case_when(site_name == "Tlikakila_Water_A" ~ 1893,
-                               TRUE ~ AKOATS_ID))
+         seq_id = case_when(site_name == "Tlikakila_Water_A" ~ 1893,
+                               TRUE ~ seq_id),
+         Waterbody_type = case_when(is.na(Waterbody_type) ~ "S",
+                                    TRUE ~ Waterbody_type))
           
 
 #extra fields are for linking to data table, don't keep those for combined metadata.
 nps.metadata %>% 
-  select(AKOATS_ID, SiteID:Contact_person) %>% 
   saveRDS("output/nps_metadata.rds")
 
+nps.metadata %>% 
+  filter(Waterbody_type == "S")
 
+#26 total, 17 are streams
 ```
 
 
@@ -181,7 +195,7 @@ nps.data.2 <- left_join(nps.data.2, nps.metadata %>% select(site_name, SiteID, W
 nps.data.2 %>% distinct(site_name, SiteID, Waterbody_name)
 ```
 
-Check on differences between two tlikakila river sites, these are basically the same site and can be combined. Site B doesn't look very good, lots of missing data and strange values in early 2018. Just use Site A and assign it to the AKOATS ID provided by Krista.
+Check on differences between two Tlikakila river sites, these are basically the same site and can be combined. Site B doesn't look very good, lots of missing data and strange values in early 2018. Just use Site A and assign it to the AKOATS ID provided by Krista.
 
 ```{r tlikakila sites comparison}
 
@@ -226,7 +240,7 @@ for(i in nps.lake.files){
 nps.lakes
 ```
 
-Assign AgencyID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
+Assign Agency_ID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
 
 ```{r lake arrays join}
 nps.lakes <- left_join(nps.lakes, nps.metadata %>% select(SiteID, `File for B_Shaftel`, Waterbody_name), 
@@ -508,6 +522,9 @@ Everything looks better in original plot above after adding additional flags. Sa
 
 ```{r}
 
+nps.data %>% 
+  distinct(Waterbody_name, Depth)
+
 saveRDS(nps.data, "output/nps_data.rds")
 
 ```
@@ -526,5 +543,33 @@ nps.data %>%
 ```
 
 
+# Save daily data and metadata
 
+Save raw data for AKTEMP, which includes date and time. Save metadata file. Save daily data after screening for days with less than 90% of measurements.
+
+This is really for AKSSF so not using lake sites right now. 
+
+```{r save raw data}
+source("W:/Github/AKSSF/helper_functions.R")
+
+nps.metadata
+
+save_metadata_files(nps.metadata %>% anti_join(lake_sites) %>% filter(!grepl("beach", SiteID)), "nps_kb")
+
+nps.data.streams <- nps.data %>% 
+  mutate(UseData = 1) %>% 
+  anti_join(lake_sites) %>%
+  filter(!grepl("beach", SiteID))
+
+nps.data.streams %>% 
+  distinct(SiteID) %>% 
+  left_join(nps.metadata %>% 
+  filter(Waterbody_type == "S"))
+
+save_aktemp_files(nps.data.streams, "nps_kb")
+
+nps.daily <- temp_msmt_freq(nps.data.streams) %>% daily_screen(.)
+
+save_daily_files(nps.daily, "nps_kb")
+```
 

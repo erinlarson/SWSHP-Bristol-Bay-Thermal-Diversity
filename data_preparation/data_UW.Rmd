@@ -18,24 +18,22 @@ editor_options:
 
 Document last updated `r Sys.time()` by Rebecca Shaftel (rsshaftel@alaska.edu).
 
-Sent Daniel email summarizing TW dataset versus sites in Jackie's database - 3/5/21. Possibly just move forward with additional years of data for sites that Tim originally used for thermal sensitivity.
+Sent Daniel email summarizing TC dataset versus sites in Jackie's database - 3/5/21. Possibly just move forward with additional years of data for sites that Tim originally used for thermal sensitivity.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 # load packages
+library(googledrive)
 library(lubridate)
 library(readr)
 library(readxl)
 library(hms)
 library(plotly)
 library(DT)
-library(tidyverse)
 library(gridExtra)
-
-source("W:/Github/AKSSF/helper_functions.R")
-
+library(tidyverse)
 ```
 
 # Metadata
@@ -198,7 +196,7 @@ Becky emailed with Jackie in November 2020 to get metadata information for the 5
 * data file for Aleknagik Bear Creek for data through 2017
 * data file for all stream sites from 2018 through 2020  
 
-```{r}
+```{r 2020 data files}
 uw.lynx <- read_csv("data/Jackie Carter UW/Jackie Carter - 2020 data request/UW-FRI_LynxCreekALL_Temps_JC.csv", 
                     col_types = cols(.default = "c")) %>%
   mutate(file_name = "UW-FRI_LynxCreekALL_Temps_JC") %>%
@@ -223,7 +221,7 @@ uw.post2017 <- read_excel("data/Jackie Carter UW/Jackie Carter - 2020 data reque
 
 Join the multiple data frames in to single object. Start with all information, then pare down to just the fields that we need. For AKTEMP, may try to extract more metadata information from measurement type field to get sensor accuracy for data table.
 
-```{r}
+```{r bind all data}
 keep <- c("file_name", "Lake", "StationName", "SampleType", "MeasurementType", "sampleDate", "sampleTime", "Temperature")
 
 uw.data2 <- bind_rows(uw.data %>% select(one_of(keep)),
@@ -243,7 +241,7 @@ rm(uw.data, uw.lynx, uw.aleknagik.bear, uw.post2017)
 
 Fix duplicate SiteIDs that go to same location (see metadata section above for Jackie's notes on this). Also, Jackie couldn't find locations for two sites on Lynx Creek - beach and middle so remove those time series from the data frame.
 
-```{r}
+```{r collapse SiteIDs}
 uw.data2 %>% distinct(SiteID) %>% arrange(SiteID)
 
 uw.data2 <- uw.data2 %>% 
@@ -269,7 +267,7 @@ uw.meta
 
 Add a date-time and year field, which will be needed for data QA. Also can use to identify and remove duplicates in data.
 
-```{r}
+```{r add dt and year fields}
 uw.data2 <- uw.data2 %>% 
   mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M"),
          year = year(sampleDate))
@@ -325,7 +323,7 @@ uw.data2 %>%
 
 Summary csv to add as attributes to leaflet map.
 
-```{r}
+```{r eval = FALSE}
 uw.data2 %>% 
   group_by(SiteID) %>% 
   summarize(startYear = min(year(sampleDate)),
@@ -337,7 +335,7 @@ uw.data2 %>%
 
 Save a copy of the data for a table and figure.
 
-```{r}
+```{r eval = FALSE}
 uw.data2
 
 saveRDS(uw.data2, "output/uw_data.rds")
@@ -347,14 +345,15 @@ saveRDS(uw.data2, "output/uw_data.rds")
 
 
 
-## Tim Cline's data from Zotero
+# Tim Cline's data from Zotero
 
 Six files each for a separate year of data. Sites are different columns in the dataset.
 Data archived on Zenodo: https://zenodo.org/record/3523300#.YEKEN45KhaQ
 Unfortunately, the site names don't match Jackie's database and there are no lat/longs. I'll need to work with Jackie to try and get the most current years of data for these sites.
 
-```{r}
+```{r Tim Cline data}
 tc.files <- list.files("S:\\Stream Temperature Data\\Tim Cline UW", full.names = TRUE)
+tc.files <- tc.files[!grepl("Climate", tc.files)]
 
 tc.11 <- read_csv(tc.files[1]) %>%
   mutate(Date = parse_date_time(Date, orders = c('m/d/y', 'm/d/Y'))) %>% 
@@ -400,13 +399,14 @@ tc.16 <- read_csv(tc.files[6]) %>%
 
 tc.dat <- bind_rows(tc.11, tc.12, tc.13, tc.14, tc.15, tc.16)
 
-tc.11
+tc.dat %>% 
+  distinct(SiteID)
 
 ```
 
 Plot data
 
-```{r}
+```{r TC data daily time series}
 tc.dat %>% 
   mutate(day = format(Date, "%m-%d")) %>% 
   ggplot(aes(x = as.Date(day, format = "%m-%d"), y = Temperature, color = as.factor(year(Date)))) +
@@ -417,11 +417,12 @@ tc.dat %>% distinct(SiteID)
 
 summary(tc.dat)
 ```
-```{r}
+
+
+```{r merge TC and UW site names}
 
 tc.sites <- tc.dat %>% distinct(SiteID) %>% pull(SiteID) 
-uw.sites <- uw.dat2 %>% distinct(SiteID) %>% arrange(SiteID) %>% pull(SiteID)
-
+uw.sites <- uw.data2 %>% ungroup() %>% distinct(SiteID) %>% arrange(SiteID) %>% pull(SiteID)
 
 siteMerge <- data.frame()
 for(i in tc.sites) {
@@ -444,7 +445,8 @@ siteMerge
 
 Manually enter in some of the names in Jackie's dataset that logically match Tim's dataset. It looks like grep only did pattern matching if it was exact and I don't know how to do anything more complicated. Summarize data available in the two datsets and send to Daniel.
 
-```{r}
+```{r TC and UW data summaries}
+#note that bear, beaver, and moose 
 siteMerge2 <- read_csv("output/UW_site_merge.csv")
 
 jul.range <- tc.dat %>% 
@@ -454,24 +456,26 @@ jul.range <- tc.dat %>%
 
 tc.summ <- tc.dat %>% 
   count(SiteID, year = year(Date)) %>%
-  mutate(Source = "Tim Cline")
+  mutate(Source = "Tim Cline") %>% 
   pivot_wider(names_from = year, values_from = n, names_prefix = "TC_") %>% 
-  select(SiteID, TC_2011, TC_2012, TC_2013, TC_2014, TC_2015, TC_2016)
+  select(SiteID, TC_2011, TC_2012, TC_2013, TC_2014, TC_2015, TC_2016) %>% 
+  select(SiteID, TC_2011:TC_2016)
 
 uw.summ <- left_join(siteMerge2, uw.data2, by = c("uw" = "SiteID")) %>%
   rename(SiteID = uw) %>% 
   filter(format(sampleDate, "%j") %in% 152:258) %>% 
   distinct(SiteID, year = year(sampleDate), sampleDate) %>%
   count(SiteID, year) %>%
-  mutate(Source = "UW Database")
+  mutate(Source = "UW Database") %>% 
   pivot_wider(names_from = year, values_from = n, names_prefix = "UW_") %>% 
-  select(SiteID, paste0("UW_", 2006:2020))
+  select(SiteID, paste0("UW_", 2006:2020)) %>% 
+  select(SiteID, UW_2011:UW_2016)
 
 ```
 
 
 
-```{r}
+```{r TC and UW data availability figure}
 p3 <- bind_rows(left_join(siteMerge2, tc.summ, by = c("tc" = "SiteID")),
           left_join(siteMerge2, uw.summ , by = c("uw" = "SiteID"))) %>%
   filter(!is.na(Source)) %>% 
@@ -488,4 +492,26 @@ ggsave("output/UW Dataset.pdf", plot = p3, width = 12, height = 8, units = "in")
 
 ```
 
+Try to filter on just Tim's sites and get the new data. Look at just summertime and see if it is a relatively complete and QAed dataset.
+
+
+```{r TC sites combine with UW db}
+tc.dat2 <- left_join(tc.dat, siteMerge2, by = c("SiteID" = "tc")) %>% 
+  rename(TC_SiteID = SiteID,
+         SiteID = uw,
+         sampleDate = Date,
+         meanDT = Temperature)
+
+tc.dat %>% distinct(SiteID)
+tc.dat2 %>% distinct(SiteID)
+uw.data2
+
+left_join(uw.data2, siteMerge2, by = c("SiteID" = "uw")) %>% 
+  ungroup() %>% 
+  filter(!is.na(tc)) %>% 
+  distinct(SiteID)
+  daily_screen(uw.data2 %>% mutate(UseData = 1))
+
+tc.dat2 <- bind_rows(tc.dat, uw.data2)
+```
 

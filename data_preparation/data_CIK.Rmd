@@ -34,6 +34,7 @@ library(hms)
 library(plotly)
 library(DT)
 library(dataRetrieval)
+library(googledrive)
 ```
 
 # Metadata
@@ -41,16 +42,16 @@ library(dataRetrieval)
 AKOATS metadata
 
 ```{r}
-akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA", col_types = "text") %>%
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
+  filter(Sample_interval == "continuous") %>% 
   select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
-  rename(AKOATS_ID = seq_id,
-         SiteID = Agency_ID) %>% 
-  mutate(AKOATS_ID = as.numeric(AKOATS_ID),
+  mutate(seq_id = as.numeric(seq_id),
          Latitude = as.numeric(Latitude),
          Longitude = as.numeric(Longitude))
+  # rename(AKOATS_ID = seq_id,
+  #        SiteID = Agency_ID)  
 
 akoats.meta
-
 ```
 
 CIK metadata
@@ -61,13 +62,13 @@ Sue didn't provide lat/longs in her metadata file so need to try and match names
 
 cik.meta <- akoats.meta %>%
   filter(SourceName == "CIK") %>% 
-  select(SiteID, SourceName, Contact_person, Waterbody_name, Latitude, Longitude)
+  select(seq_id, Agency_ID, SourceName, Contact_person, Waterbody_name, Latitude, Longitude)
 
 #remove sites in cook inlet.
-cik.meta <- cik.meta[!grepl("CIK", cik.meta$SiteID),]
+cik.meta <- cik.meta[!grepl("CIK", cik.meta$Agency_ID),]
 
 cik.meta <- bind_rows(cik.meta,
-                      data.frame(SiteID = "Ben Courtney Creek",
+                      data.frame(Agency_ID = "Ben Courtney Creek",
                                  SourceName = "CIK",
                                  Contact_person = "Sue Mauger",
                                  Latitude = 59.272417,
@@ -75,7 +76,7 @@ cik.meta <- bind_rows(cik.meta,
                                  Waterbody_name = "Ben Courtney Creek"))
 
 cik.meta <- bind_rows(cik.meta,
-                      data.frame(SiteID = "Roadhouse Creek",
+                      data.frame(Agency_ID = "Roadhouse Creek",
                                  SourceName = "CIK",
                                  Contact_person = "Sue Mauger",
                                  Latitude = 59.7573,
@@ -83,8 +84,10 @@ cik.meta <- bind_rows(cik.meta,
                                  Waterbody_name = "Roadhouse Creek"))
 
 cik.meta <- cik.meta %>% 
-  mutate(SiteID = case_when(grepl("Gibraltar", SiteID) ~ "Gibraltar River",
-                            TRUE ~ SiteID))
+  mutate(Agency_ID = case_when(grepl("Gibraltar", Agency_ID) ~ "Gibraltar River",
+                            TRUE ~ Agency_ID))
+
+cik.meta
   
 saveRDS(cik.meta, "output/cik_metadata.rds")
 
@@ -156,3 +159,26 @@ cik.data %>% distinct(SiteID)
 
 ```
 
+# Save daily data and metadata
+
+Save raw data for AKTEMP, which includes date and time. Save metadata file. Save daily data after screening for days with less than 90% of measurements.
+
+```{r save raw data}
+source("W:/Github/AKSSF/helper_functions.R")
+
+cik.meta
+
+save_metadata_files(cik.meta, "cik_bb")
+
+cik.data
+
+cik.data %>% 
+  distinct(SiteID) %>% 
+  left_join(cik.meta, by = c("SiteID" = "Agency_ID"))
+
+save_aktemp_files(cik.data %>% mutate(UseData = 1), "cik_bb")
+
+cik.daily <- temp_msmt_freq(cik.data %>% mutate(UseData = 1)) %>% daily_screen(.)
+
+save_daily_files(cik.daily, "cik_bb")
+```

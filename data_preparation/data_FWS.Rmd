@@ -24,12 +24,13 @@ knitr::opts_knit$set(root.dir = normalizePath(".."))
 
 
 # load packages
-library(tidyverse)
+library(googledrive)
 library(lubridate)
 library(readr)
 library(readxl)
 library(hms)
 library(plotly)
+library(tidyverse)
 ```
 
 Note that we need to get the knb download for Meg's data. And, the lake data that Meg provided are at 5 m. This might not match what we want for the growth analysis so follow up and see if they have a surface logger too.
@@ -52,9 +53,13 @@ osm_md <- read_excel("S:\\Stream Temperature Data\\USFWS Perdue - complete 2020\
 
 # combine metadata sheets
 fws.metadata <- bind_rows(togiak1_metadata, wrb_metadata) %>%
-  select(SourceName, Contact_person, AKOATS_ID, SiteID, Waterbody_name, Latitude, Longitude)
+  select(SourceName, Contact_person, AKOATS_ID, SiteID, Waterbody_name, Waterbody_type, Sensor_Placement, Latitude, Longitude)
 
-fws.metadata <- bind_rows(osm_md %>% select(SourceName, Contact_person, AKOATS_ID, SiteID = Agency_ID, Waterbody_name, Latitude, Longitude), fws.metadata)
+fws.metadata <- bind_rows(osm_md %>% select(SourceName, Contact_person, AKOATS_ID, SiteID = Agency_ID, Waterbody_name, Waterbody_type, Sensor_Placement, Latitude, Longitude), fws.metadata)
+
+fws.metadata <- fws.metadata %>% 
+  mutate(Waterbody_type = case_when(grepl("Stream", Waterbody_type) ~ "S",
+                                    TRUE ~ Waterbody_type))
 
 saveRDS(fws.metadata, "output/fws_metadata.rds")
 
@@ -152,6 +157,18 @@ fws.data <- left_join(fws.data, fws.metadata %>% select(SiteID, Waterbody_name),
 ```
 
 
+Check to see what years of data we have and if we need to import knb data for FWS Bristol Bay. It looks like everything is in there.
+
+```{r}
+fws.data %>% 
+  group_by(SiteID) %>% 
+  summarize(min(year(sampleDate)), max(year(sampleDate)))
+
+fws.metadata
+```
+
+
+
 Summary csv to add as attributes to leaflet map.
 
 ```{r}
@@ -170,13 +187,37 @@ Save data for summary table and figure.
 saveRDS(fws.data, "output/fws_data.rds")
 ```
 
+# Save daily data and metadata
 
-#Complete sites and years
+Save raw data for AKTEMP, which includes date and time. Save metadata file. Save daily data after screening for days with less than 90% of measurements.
 
-Check to see which sites have complete summer data (80% of days in JJA) and also how many years.
+This is really for AKSSF so not using lake sites right now. 
 
-```{r}
-# fws.data
+```{r save raw data}
+source("W:/Github/AKSSF/helper_functions.R")
+
+fws.metadata 
+
+save_metadata_files(fws.metadata %>% anti_join(lake_sites), "fws_bb")
+
+lake_sites <- fws.metadata %>% 
+  filter(Waterbody_type == "L") %>% 
+  distinct(SiteID)
+
+fws.data.streams <- fws.data %>% 
+  mutate(UseData = 1) %>% 
+  anti_join(lake_sites) 
+
+fws.data.streams %>% 
+  distinct(SiteID) %>% # 23 sites
+  left_join(fws.metadata) %>% # all 23 are in metadata - note that 3 sites not in akoats may not be distinct sites 
+  filter(Waterbody_type == "S") # all are streams, which is correct.
+
+save_aktemp_files(fws.data.streams, "fws_bb")
+
+fws.daily <- temp_msmt_freq(fws.data.streams) %>% daily_screen(.)
+
+save_daily_files(fws.daily, "fws_bb")
 ```
 
 
