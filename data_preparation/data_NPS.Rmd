@@ -557,7 +557,6 @@ nps.metadata
 save_metadata_files(nps.metadata %>% anti_join(lake_sites) %>% filter(!grepl("beach", SiteID)), "nps_kb")
 
 nps.data.streams <- nps.data %>% 
-  mutate(UseData = 1) %>% 
   anti_join(lake_sites) %>%
   filter(!grepl("beach", SiteID))
 

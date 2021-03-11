@@ -8,6 +8,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 
 # load packages
+library(googledrive)
 library(tidyverse)
 library(lubridate)
 library(readr)
@@ -21,105 +22,144 @@ library(osmdata)
 
 Bringing in best set of daily data for each data provider and combining into one dataset so I can do some summaries for the AFS presentation.
 
+Bristol Bay
+
 * CIK data ready - saved to final_data folder 16 sites
 * ACCS data ready - saved 15 sites
 * NPS stream data ready - saved 17 stream sites
 * FWS stream data ready - saved 23 stream sites
 * UW filter on just TC sites and add in new summer data from Jackie's database - may need to filter out some air temps.
 
+Cook Inlet
+
+* CIK data ready
+* ACCS data ready
+* USFS data - screen on sites in cook inlet ready
+* Deshka project ready
+* Kenai project ready
+* Anchor-stariski project ready
+
+Optional
+* USGS data
+* Thermal regimes data
+
+
+
+# Metadata
+
 Bring in the metadata for each set of data and combine so that I can also create some simple maps showing years of data.
+Get metadata files off of google drive for both Cook Inlet and Bristol Bay.
 
-# metadata
+```{r metadata}
+gd.akssf.files <- drive_ls(path = "https://drive.google.com/drive/u/0/folders/1_qtmORSAow1fIxvh116ZP7oKd_PC36L0")
 
-```{r read in metadata}
-final.data.files <- list.files("data_preparation/final_data", full.names = TRUE)
-md.files <- final.data.files[grepl("Metadata", final.data.files)]
+gd.metadata.files <- gd.akssf.files %>% 
+  filter(grepl("Metadata", name) & grepl(".csv", name))
 
-md <- map_df(md.files, function(x) read_csv(x))
-md %>% 
-  count(Contact_person)
+folder <- "data_preparation/final_data/Metadata/"
 
-summary(md)
-```
-
-
-```{r}
-md_sf <- st_as_sf(md, coords = c('Longitude', 'Latitude'), crs = "WGS84")
-
-bb_huc8 <- st_read(dsn = "W:/GIS/AKSSF Bristol Bay", layer = "huc8_bb")
-st_crs(bb_huc8)
-
-bb_huc8_wgs84 <- st_transform(bb_huc8, crs = "WGS84")
+for (i in seq_along(gd.metadata.files$name)) {
+  drive_download(as_id(gd.metadata.files$id[i]),
+                 path = str_c(folder, gd.metadata.files$name[i]),
+                 overwrite = TRUE)
+}
 
 
-bb_sites <- st_join(md_sf, bb_huc8_wgs84)
+local.md.files <- list.files(folder, full.names = TRUE)
 
-bb_sites %>% 
-  count(Name)
-```
+md <- map_df(local.md.files, function(x) read_csv(x) %>%
+                      mutate(file_name = basename(x)))
 
-
-
-```{r}
-register_google(key = "") #saved locally and must redo each session
-```
-
-
-```{r basic map}
-ggplot() +
-  geom_sf(data = md_sf) +
-  geom_sf(data = bb_huc8_wgs84, fill = NA) +
-  geom_sf_text(data = bb_huc8_wgs84, aes(label = Name), size = 3) +
-  theme_bw()
-
-# map <- get_googlemap("Dillingham, Alaska", zoom = 8, maptype = "terrain")
-
+md <- md %>% 
+  mutate(SiteID = case_when(is.na(SiteID) ~ Agency_ID,
+                            TRUE ~ SiteID))
 
 ```
 
-```{r}
 
-# create map
-leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
-  #setView(-150.210169, 60.487694, zoom = 8) %>%
-  addMarkers(lng = md$Longitude, lat = md$Latitude)
-```
-
-
-```{r}
-getbb("Dillingham")
-
-q <- opq(bbox = "Bristol Bay, Alaska") %>% 
-  add_osm_feature(key = 'natural', value = 'water') %>% 
-  osmdata_sp()
-
-class(q)
-
-sp::plot(q$osm_polygons)
-ggplot() +
-  geom_sf(data = q)
-```
-
-
-# data
-
-```{r read in daily data}
-data.files <- final.data.files[grepl("Daily", final.data.files)]
-
-bbdat <- map_df(data.files, function(x) read_csv(x, col_types = "cDnnn"))
-
+```{r metadata sf}
+md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
 ```
 
 
 ```{r add huc8 names}
+huc8 <- st_read(dsn = "S:/Leslie/GIS/NHD Harmonized/WBD_19_GDB.gdb", layer = "WBDHU8")
 
-bbdat <- left_join(bbdat, st_drop_geometry(bb_sites) %>% 
-  select(SiteID, Name))
+st_crs(huc8)
+
+huc8_wgs84 <- st_transform(huc8, crs = "WGS84")
+
+md_sf <- st_join(md_sf, huc8_wgs84)
+
+```
 
 
-bbdat %>% 
+
+# Data
+
+
+Get daily files off of google drive for both Cook Inlet and Bristol Bay.
+
+```{r daily data}
+gd.akssf.files <- drive_ls(path = "https://drive.google.com/drive/u/0/folders/1_qtmORSAow1fIxvh116ZP7oKd_PC36L0")
+
+gd.daily.files <- gd.akssf.files %>% 
+  filter(grepl("Daily_Data", name) & grepl(".csv", name))
+
+folder <- "data_preparation/final_data/Daily_Data/"
+
+for (i in seq_along(gd.daily.files$name)) {
+  drive_download(as_id(gd.daily.files$id[i]),
+                 path = str_c(folder, gd.daily.files$name[i]),
+                 overwrite = TRUE)
+}
+
+
+local.daily.files <- list.files(folder, full.names = TRUE)
+
+daily.dat <- map_df(local.daily.files, function(x) read_csv(x, col_types = "cDnnn") %>%
+                      mutate(file_name = basename(x)))
+
+```
+
+Add in a region - bb or ci. 
+
+```{r add region to daily data}
+daily.dat %>% 
+  distinct(file_name)
+
+daily.dat <- daily.dat %>% 
+  mutate(Region = case_when(grepl("bb|kb", file_name) ~ "Bristol Bay",
+                            TRUE ~ "Cook Inlet"))
+
+daily.dat %>% 
+  distinct(file_name, Region)
+```
+
+Remove Luca's sites in the Copper River basin. Note that Dustin didn't add USFS to the md, but will fix. That will make Angela's sites merge later for the huc8 codes. 
+Something is wrong with little su metadata as well.
+
+```{r remove copper river sites}
+
+luca <- md %>% filter(grepl("Luca", Contact_person) | is.na(Contact_person)) %>% mutate(SiteID = paste0("USFS_", Agency_ID)) %>% pull(SiteID)
+
+daily.dat <- daily.dat %>% 
+  filter(!SiteID %in% luca)
+```
+
+Note some edits to fix here. 
+
+
+```{r add huc8 names}
+
+daily.dat <- left_join(daily.dat, st_drop_geometry(md_sf) %>% select(SiteID, Name))
+
+daily.dat %>% 
+  distinct(SiteID, Name)
+```
+
+```{r monthly time series}
+daily.dat %>% 
   group_by(Name, SiteID, month = month(sampleDate), year = year(sampleDate)) %>% 
   summarize(mean = mean(meanDT)) %>% 
   mutate(site_year = paste0(SiteID, year),
@@ -132,8 +172,8 @@ bbdat %>%
 
 ```
 
-```{r}
-bbdat %>% 
+```{r daily time series}
+daily.dat %>% 
   mutate(year = year(sampleDate),
          mo_day = format(sampleDate, "%m-%d"),
          site_year = paste0(SiteID, year),
@@ -143,9 +183,13 @@ bbdat %>%
   ggplot() +
   geom_line(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = factor(is_19))) +
   scale_color_manual(values = c("gray", "red")) +
-  facet_wrap(~Name)
+  facet_wrap(~Name) +
+  theme_minimal()
 ```
-```{r}
+
+
+
+```{r fig.height = 11, fig.width = 7}
 
 bb.mon <- bbdat %>% 
   mutate(mo_days = days_in_month(sampleDate)) %>% 
@@ -167,15 +211,119 @@ bb.july.n5 <- bb.july.n5 %>%
 
 
 ggplot() +
-  geom_boxplot(data = bb.july.n5 %>% filter(month == 7),aes(x = mean, y = SiteIDf))  +
-  geom_point(data = bb.july.n5 %>% filter(year == 2019, month ==7), aes(x = mean, y = SiteIDf), color = "red")
+  geom_boxplot(data = bb.july.n5 %>% filter(month == 7),aes(x = mean, y = SiteIDf, color = Name))  +
+  geom_point(data = bb.july.n5 %>% filter(year == 2019, month ==7), aes(x = mean, y = SiteIDf), color = "red") +
+  theme_minimal() +
+  theme(axis.text.y = element_blank()) +
+  labs(x = "Mean July Temperature", title = "Mean July Temperatures for 71 Streams in Bristol Bay with \nFive or More Years of Data",
+       subtitle = "Red dots indicate mean July temperatures for sites with data from 2019")
 
-  mutate(site_year = paste0(SiteID, year),
-         is_19 = case_when(year == 2019 ~ 1,
-                          TRUE ~ 0)) %>%
-  filter(month == 7) %>% 
-  ungroup() %>% 
-  count(SiteID)
 ```
 
+
+
+## Run metrics
+
+```{r}
+source('W:/Github/SWSHP-Bristol-Bay-Thermal-Diversity/Temperature Descriptor Function - daily inputs.R')
+
+bb.screen <- bbdat %>% 
+  rename(site_name = SiteID, date = sampleDate, mean = meanDT, min = minDT, max = maxDT) %>% 
+  tempscreen()
+
+bb.mets <- tempmetrics(as.data.frame(bb.screen), "output/metrics_2021-03-10")
+
+test1 <- data.frame(col1 = c("xxx.yyyy", "aa.bb", "cc.dd"))
+gsub("\\..*","", test1$col1 )
+
+bb.mets <- bb.mets %>% 
+  mutate(Site = gsub("\\..*","", site.year),
+         Year = gsub("^.*\\.","", site.year))
+
+
+bb.mets %>% 
+  ggplot(aes(x = DUR_mn18, y = MA7d_DAT, color = Year)) +
+  geom_point()
+
+```
+
+
+## Cook Inlet data
+
+Get daily datasets off of google drive.
+
+
+
+
+
+
+# Mapping
+
+
+```{r sites map}
+md_sf %>% 
+  count(Name) %>% 
+  ggplot() +
+  geom_histogram(aes(n))
+
+huc8_23 <- huc8_wgs84 %>% 
+  filter(Name %in% md_sf$Name) %>% 
+  left_join(st_drop_geometry(md_sf %>% count(Name))) %>% 
+  mutate(cutn = cut(n, breaks = quantile(n, probs = seq(0, 1, 0.2))))
+
+ggplot() +
+  geom_sf(data = huc8_23, aes(fill = cutn)) +
+  geom_sf(data = md_sf) 
+  scale_fill_continuous(breaks = c(5, 20), values = c("red", "blue"))
+
+```
+# STOPPED HERE 
+I THINK SOME OF THESE POINTS ARE GETTING DROPPED BC THEY WERE DROPPED FROM THE DAILY.DAT DATA FRAME. Keep working on maps and figures and clean up when dustin fixes the little su and chugach metadata. note that cik14 is also cik_14 so fix that to merge for the huc8 as well.
+
+
+```{r}
+md_sf <- left_join(md_sf, daily.dat %>% distinct(SiteID, year(sampleDate)) %>% count(SiteID)) %>% 
+  rename(year_ct = n)
+
+ggplot() +
+  geom_sf(data = huc8_23, aes(fill = cutn)) +
+  geom_sf(data = md_sf, aes(size = year_ct)) 
+  scale_fill_continuous(breaks = c(5, 20), values = c("red", "blue"))
+
+```
+
+
+```{r}
+register_google(key = "", write = TRUE) #saved locally outside github repo folders
+```
+
+
+```{r basic map}
+ggplot() +
+  geom_sf(data = md_sf) +
+  geom_sf(data = bb_huc8_wgs84, fill = NA) +
+  geom_sf_text(data = bb_huc8_wgs84, aes(label = Name), size = 3) +
+  theme_bw()
+
+location <- c(min(md$Longitude), min(md$Latitude), max(md$Longitude), max(md$Latitude))
+
+map <- get_map(location, maptype = "terrain", source = "google")
+
+ggmap(map)
+
+
+qmplot(Longitude, Latitude, data = md, color = SourceName, source = "stamen", maptype = "terrain",
+       legend = "bottom")
+
+```
+
+```{r}
+
+# create map
+leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
+  #setView(-150.210169, 60.487694, zoom = 8) %>%
+  addMarkers(lng = md$Longitude, lat = md$Latitude)
+```
 
