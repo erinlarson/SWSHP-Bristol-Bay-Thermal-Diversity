@@ -174,10 +174,10 @@ tempmetrics <- function(datainput,outtable) {
 
   }
 
-twb<-loadWorkbook(paste(outtable,".xlsx",sep=""),create=TRUE)
-createSheet(twb,name="Results")
-writeWorksheet(twb,tab,sheet="Results")
-saveWorkbook(twb)
+# twb<-loadWorkbook(paste(outtable,".xlsx",sep=""),create=TRUE)
+# createSheet(twb,name="Results")
+# writeWorksheet(twb,tab,sheet="Results")
+# saveWorkbook(twb)
 
 return(tab)
 }

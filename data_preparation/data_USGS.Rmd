@@ -199,3 +199,101 @@ x <- usgsData %>% select("AKOATS_ID","SiteID","sampleDate","sampleTime","Tempera
  write.csv(x,"output/USGS.csv", row.names = F)
 
 ```
+
+
+# RS code for getting all sites in BB and CI
+
+```{r metadata}
+usgs_temp <- whatNWISdata(stateCd = "AK", service = "dv", 
+                             parameterCd = c("00010"))
+
+usgs_temp <- usgs_temp %>% select(agency_cd:dec_long_va, huc_cd) %>% distinct()
+
+usgs_temp_sf <- st_as_sf(usgs_temp, coords = c("dec_long_va", "dec_lat_va"), crs = "WGS84")
+
+usgs_sa <- st_intersection(usgs_temp_sf, huc8_sa)
+
+usgs_md <- bind_cols(usgs_sa, as.data.frame(st_coordinates(usgs_sa))) %>% 
+  st_drop_geometry() %>% 
+  rename(SourceName = agency_cd,
+         SiteID = site_no,
+         Waterbody_name = station_nm,
+         Latitude = Y,
+         Longitude = X) %>% 
+  select(SourceName, SiteID, Waterbody_name, Latitude, Longitude)
+
+usgs_md %>% 
+  arrange(SiteID)
+```
+
+
+```{r daily data}
+usgs_dat <- readNWISdv(siteNumbers = usgs_sa$site_no, parameterCd = "00010", statCd = c("00001", "00002", "00003"))
+
+usgs_dat %>% 
+  distinct(X_00010_00001_cd)
+
+usgs_dat %>% 
+  distinct(X_00010_00002_cd)
+
+usgs_dat %>% 
+  distinct(X_00010_00003_cd)
+
+#get list of approved codes 
+A_codes <- usgs_dat %>% 
+  distinct(X_00010_00003_cd) %>% 
+  filter(grepl("A", X_00010_00003_cd)) %>% 
+  pull(X_00010_00003_cd)
+
+# a lot of data where mean is accepted, but other values are not.
+usgs_dat %>% 
+  filter(!(X_00010_00001_cd %in% A_codes) | !(X_00010_00002_cd %in% A_codes), X_00010_00003_cd %in% A_codes)
+
+usgs_dat %>% 
+  count(site_no, X_00010_00003_cd %in% A_codes) %>% 
+  pivot_wider(names_from = `X_00010_00003_cd %in% A_codes`, values_from = n)
+
+usgs_dat %>% 
+  filter(site_no == 15274600)
+
+#not filtering on just accepted data for now, the only other code is provisional, no rejected data.
+usgs_daily <- usgs_dat %>% 
+  # filter(X_00010_00003_cd %in% A_codes) %>% 
+  rename(SourceName = agency_cd,
+         SiteID = site_no,
+         sampleDate = Date,
+         maxDT = X_00010_00001,
+         minDT = X_00010_00002, 
+         meanDT = X_00010_00003) %>% 
+  select(-X_00010_00001_cd, -X_00010_00002_cd, -X_00010_00003_cd)
+
+usgs_daily %>% 
+  group_by(SiteID) %>% 
+  summarize(minyr = min(year(sampleDate)),
+            maxyr = max(year(sampleDate))) %>% 
+  left_join(usgs_temp %>% distinct(site_no, station_nm), by = c("SiteID" = "site_no"))
+
+usgs_daily %>% 
+  ggplot(aes(x = sampleDate, y = meanDT)) +
+  geom_line() +
+  facet_wrap(~SiteID)
+
+```
+  
+  
+Save daily data and metadata for AKSSF.
+
+
+```{r save raw data}
+source("W:/Github/AKSSF/helper_functions.R")
+
+usgs_daily %>% 
+  distinct(SiteID) %>%
+  left_join(usgs_md)
+
+save_metadata_files(usgs_md, "usgs")
+
+save_daily_files(usgs_daily, "usgs")
+```
+
+

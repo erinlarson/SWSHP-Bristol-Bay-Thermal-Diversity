@@ -37,6 +37,8 @@ library(dataRetrieval)
 library(googledrive)
 ```
 
+Sue used stream names for her site IDs in Bristol Bay. Add "CIK_" as a prefix to each in both the data and the metadata so we don't have duplicates later (e.g. Bear Creek x n).
+
 # Metadata
 
 AKOATS metadata
@@ -88,7 +90,16 @@ cik.meta <- cik.meta %>%
                             TRUE ~ Agency_ID))
 
 cik.meta
-  
+```
+
+Add SiteIDs to match with data that have CIK_ prefix.
+
+```{r}
+
+cik.meta <- cik.meta %>% 
+  mutate(SiteID = paste0("CIK_", Agency_ID))
+
+
 saveRDS(cik.meta, "output/cik_metadata.rds")
 
 ```
@@ -98,6 +109,8 @@ saveRDS(cik.meta, "output/cik_metadata.rds")
 # Data
 
 Read in temp observation data from CIK folder
+
+(Note checked error on logger out of water on silver salmon 2014, in another column so temp data will get an na there, all good.)
 
 ```{r}
 cik.files <-list.files(path = paste0("data/CIK Bristol Bay village and lodge sites"),
@@ -128,6 +141,19 @@ cik.data <- cik.data %>%
 
 
 ```
+
+Add SiteIDs to match with data that have CIK_ prefix.
+
+```{r}
+cik.data <- cik.data %>% 
+  mutate(SiteID = paste0("CIK_", SiteID))
+
+cik.data %>% 
+  distinct(SiteID) %>% 
+  left_join(cik.meta)
+```
+
+
 
 Summary csv to add as attributes to leaflet map.
 
@@ -174,9 +200,9 @@ cik.data
 
 cik.data %>% 
   distinct(SiteID) %>% 
-  left_join(cik.meta, by = c("SiteID" = "Agency_ID"))
+  left_join(cik.meta)
 
-save_aktemp_files(cik.data %>% mutate(UseData = 1), "cik_bb")
+# save_aktemp_files(cik.data %>% mutate(UseData = 1), "cik_bb")
 
 cik.daily <- temp_msmt_freq(cik.data %>% mutate(UseData = 1)) %>% daily_screen(.)
 

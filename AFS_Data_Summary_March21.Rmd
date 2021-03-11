@@ -9,16 +9,23 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 # load packages
 library(googledrive)
-library(tidyverse)
 library(lubridate)
 library(readr)
 library(hms)
 library(ggmap)
 library(sf)
-library(leaflet)
-library(osmdata)
+# library(leaflet)
+# library(osmdata)
+library(tidyverse)
+
+# install.packages("devtools")
+devtools::install_github("yutannihilation/ggsflabel")
+library(ggsflabel)
+
 ```
 
+
+notes: fix usgs daily by calculating a mean when only min and max are present.
 
 Bringing in best set of daily data for each data provider and combining into one dataset so I can do some summaries for the AFS presentation.
 
@@ -38,9 +45,9 @@ Cook Inlet
 * Deshka project ready
 * Kenai project ready
 * Anchor-stariski project ready
+* USGS data - ready for both ci and bb
 
 Optional
-* USGS data
 * Thermal regimes data
 
 
@@ -50,7 +57,7 @@ Optional
 Bring in the metadata for each set of data and combine so that I can also create some simple maps showing years of data.
 Get metadata files off of google drive for both Cook Inlet and Bristol Bay.
 
-```{r metadata}
+```{r read in metadata}
 gd.akssf.files <- drive_ls(path = "https://drive.google.com/drive/u/0/folders/1_qtmORSAow1fIxvh116ZP7oKd_PC36L0")
 
 gd.metadata.files <- gd.akssf.files %>% 
@@ -67,42 +74,80 @@ for (i in seq_along(gd.metadata.files$name)) {
 
 local.md.files <- list.files(folder, full.names = TRUE)
 
-md <- map_df(local.md.files, function(x) read_csv(x) %>%
-                      mutate(file_name = basename(x)))
+local.md.files <- local.md.files[!grepl("Eyak", local.md.files)]
+
+md <- map_df(local.md.files, function(x) read_csv(x, col_types = "ccccccccccccccc") %>%
+                      mutate(file_name = basename(x))) %>% 
+  mutate(Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
 
 md <- md %>% 
   mutate(SiteID = case_when(is.na(SiteID) ~ Agency_ID,
                             TRUE ~ SiteID))
 
 ```
+Remove Luca's sites in the Copper River basin. 
 
+```{r remove copper river sites}
+luca <- md %>% filter(grepl("Luca", Contact_person), !grepl("Williwaw", SiteID)) %>% pull(SiteID)
 
-```{r metadata sf}
+md <- md %>% 
+  filter(!SiteID %in% luca)
+```
+
+Read in HUC8 feature class and identify sites from the Togiak Refuge that are in the Kuskokwim Delta HUC8, outside Bristol Bay.
+
+Create an SF object from the md for intersecting with HUC8s.
+
+```{r create metadata sf}
 md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
 ```
 
+Read in HUC8s and reproject.
 
-```{r add huc8 names}
+```{r add huc8 names to md_sf}
 huc8 <- st_read(dsn = "S:/Leslie/GIS/NHD Harmonized/WBD_19_GDB.gdb", layer = "WBDHU8")
-
 st_crs(huc8)
-
 huc8_wgs84 <- st_transform(huc8, crs = "WGS84")
 
 md_sf <- st_join(md_sf, huc8_wgs84)
 
 ```
 
+Remove Kuskokwim Delta sites from md and md_sf.
+
+```{r remove kuskokwim sites}
+kusko <- md_sf %>% filter(Name == "Kuskokwim Delta") %>% pull(SiteID)
+
+md <- md %>% 
+  filter(!SiteID %in% kusko)
+
+md_sf <- md_sf %>% 
+  filter(!SiteID %in% kusko)
+
+```
+
+Add in a region - Bristol Bay or Cook Inlet. The file names can't be used since the USGS data are from both BB and CI.
+
+```{r add region to md}
+ci_hucs <- st_drop_geometry(md_sf) %>% 
+  filter(HUC8 < 19030000) %>% 
+  distinct(HUC8) %>% 
+  pull(HUC8)
+
+md_sf <- md_sf %>% 
+  mutate(Region = case_when(HUC8 %in% ci_hucs ~ "Cook Inlet",
+                            TRUE ~ "Bristol Bay"))
+
+md <- left_join(md, st_drop_geometry(md_sf) %>% distinct(SiteID, HUC8, Name, Region))
+```
 
 
 # Data
 
-
 Get daily files off of google drive for both Cook Inlet and Bristol Bay.
 
-```{r daily data}
-gd.akssf.files <- drive_ls(path = "https://drive.google.com/drive/u/0/folders/1_qtmORSAow1fIxvh116ZP7oKd_PC36L0")
-
+```{r read in daily data}
 gd.daily.files <- gd.akssf.files %>% 
   filter(grepl("Daily_Data", name) & grepl(".csv", name))
 
@@ -122,57 +167,190 @@ daily.dat <- map_df(local.daily.files, function(x) read_csv(x, col_types = "cDnn
 
 ```
 
-Add in a region - bb or ci. 
+Remove Luca's sites in the Copper River basin and Togiak Refuge sites from Kuskokwim. 
 
-```{r add region to daily data}
-daily.dat %>% 
-  distinct(file_name)
-
+```{r remove copper and kuskokwim sites}
 daily.dat <- daily.dat %>% 
-  mutate(Region = case_when(grepl("bb|kb", file_name) ~ "Bristol Bay",
-                            TRUE ~ "Cook Inlet"))
+  filter(!SiteID %in% c(luca, kusko))
 
+#check
 daily.dat %>% 
-  distinct(file_name, Region)
+  distinct(SiteID, file_name) %>% 
+  count(file_name) %>% 
+  rename(daily_n = n) %>% bind_cols(md %>% 
+  distinct(SiteID, file_name) %>% 
+  count(file_name))
 ```
 
-Remove Luca's sites in the Copper River basin. Note that Dustin didn't add USFS to the md, but will fix. That will make Angela's sites merge later for the huc8 codes. 
-Something is wrong with little su metadata as well.
+Calculate thermal regime metrics for summer data only - June through August.
 
-```{r remove copper river sites}
+```{r temperature metrics}
+source('W:/Github/SWSHP-Bristol-Bay-Thermal-Diversity/Temperature Descriptor Function - daily inputs.R')
 
-luca <- md %>% filter(grepl("Luca", Contact_person) | is.na(Contact_person)) %>% mutate(SiteID = paste0("USFS_", Agency_ID)) %>% pull(SiteID)
-
-daily.dat <- daily.dat %>% 
-  filter(!SiteID %in% luca)
-```
-
-Note some edits to fix here. 
-
-
-```{r add huc8 names}
-
-daily.dat <- left_join(daily.dat, st_drop_geometry(md_sf) %>% select(SiteID, Name))
-
+#count missing max and min for usgs sites - two sites missing max and min altogether, just remove
 daily.dat %>% 
-  distinct(SiteID, Name)
+  group_by(SiteID) %>% 
+  summarize(mxct = sum(!is.na(maxDT)),
+            mnct = sum(!is.na(minDT)),
+            meanct = sum(!is.na(meanDT)))
+
+nrow(daily.dat)
+nrow(daily.dat %>% na.omit(.))
+
+mets.input <- daily.dat %>%
+  na.omit(.) %>% 
+  group_by(SiteID, Year = year(sampleDate), month = month(sampleDate)) %>% 
+  filter(month %in% 6:8) %>% 
+  mutate(mon_total = days_in_month(month),
+         mon_ct = n()) %>% 
+  filter(mon_ct > 0.8 * mon_total)
+
+
+# daily.sum <- daily.dat %>% 
+#   rename(site_name = SiteID, date = sampleDate, mean = meanDT, min = minDT, max = maxDT) %>% 
+#   tempscreen()
+
+#modified so no longer saving to excel file, I just need the data frame output.
+mets <- daily.sum %>% 
+  rename(site_name = SiteID, date = sampleDate, mean = meanDT, min = minDT, max = maxDT) %>% 
+  mutate(site.year = paste(site_name,year(date),sep=".")) %>% 
+  as.data.frame() %>% 
+  tempmetrics(., "output/metrics_2021-03-11")
+
+mets <- mets %>% 
+  mutate(Site = gsub("\\..*","", site.year),
+         Year = gsub("^.*\\.","", site.year))
+
 ```
 
-```{r monthly time series}
-daily.dat %>% 
-  group_by(Name, SiteID, month = month(sampleDate), year = year(sampleDate)) %>% 
-  summarize(mean = mean(meanDT)) %>% 
-  mutate(site_year = paste0(SiteID, year),
-         is_19 = case_when(year == 2019 ~ 1,
-                          TRUE ~ 0)) %>% 
-  ggplot() +
-  geom_line(aes(x = month, y = mean, group = site_year, color = factor(is_19))) +
-  scale_color_manual(values = c("gray", "red")) +
-  facet_wrap(~Name)
+
+# HUC8 Summaries
+
+SF objects for md and HUC8s already created above. And HUC8 names to daily data by joining to md.
+
+Data summary table by HUC8. Add back to the HUC8 SF object for mapping.
+
+* count of sites in a HUC8, 
+* count of years in a HUC8, 
+* number of long-term sites in a HUC8, > 9 years of data
+* number of sites with at least 3 years of data in a HUC8
+
+
+```{r data availability by huc8}
+
+#get huc8 names on daily data frame for summarizing.
+daily.dat <- left_join(daily.dat, st_drop_geometry(md_sf) %>% distinct(SiteID, Region, Name))
+
+huc8.siteCt <- daily.dat %>% 
+  distinct(Region, Name, SiteID) %>% 
+  count(Region, Name) %>% 
+  rename(Site_Count = n)
+
+huc8.yearCt <- daily.dat %>% 
+  distinct(Region, Name, SiteID, Year = year(sampleDate)) %>% 
+  count(Region, Name) %>% 
+  rename(Year_Count = n)
+
+huc8.LTsiteCt <- daily.dat %>% 
+  distinct(Region, Name, SiteID, Year = year(sampleDate)) %>% 
+  count(Region, Name, SiteID) %>%
+  filter(n > 9) %>% 
+  count(Region, Name) %>% 
+  rename(LT_Site_Count = n)
+
+huc8.3yrsiteCt <- daily.dat %>% 
+  distinct(Region, Name, SiteID, Year = year(sampleDate)) %>% 
+  count(Region, Name, SiteID) %>%
+  filter(n > 2) %>% 
+  count(Region, Name) %>% 
+  rename(Yr3_Site_Count = n)
 
 ```
+
+Create HUC8 SF for just COok Inlet and Bristol Bay and add the summaries to the object for mapping.
+
+```{r filter HUC8s to CI and BB and add summaries}
+#get vector of HUC8 names for just ci and bb -- study area (sa)
+huc8_names_sa <- st_drop_geometry(md_sf) %>% distinct(Name) %>% pull(Name)
+
+huc8_sa <- huc8_wgs84 %>% 
+  filter(Name %in% c(huc8_names_sa)) %>% 
+  left_join(huc8.siteCt) %>% 
+  left_join(huc8.yearCt) %>% 
+  left_join(huc8.LTsiteCt) %>% 
+  left_join(huc8.3yrsiteCt)
+
+#check
+ggplot() +
+  geom_sf(data = huc8_sa, aes(fill = Site_Count, color = Region)) +
+  geom_sf(data = md_sf) +
+  scale_fill_viridis_b() +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+```
+
+
+```{r create cities sf}
+cities <- st_as_sf(data.frame(place = c("Dillingham", "Anchorage"),
+                              longitude = c(-158.508665, -149.9),
+                              latitude = c(59.046751, 61.216667)), coords = c("longitude", "latitude"), 
+                   crs = "WGS84")
+
+```
+ 
+
+# Figures
+
+
+```{r boxplot of mean july temperatures}
+daily.sum <- daily.dat %>%
+  group_by(SiteID, Year = year(sampleDate), month = month(sampleDate)) %>% 
+  filter(month %in% 6:8) %>% 
+  mutate(mon_total = days_in_month(month),
+         mon_ct = n()) %>% 
+  filter(mon_ct > 0.8 * mon_total)
+
+mon.summ <- daily.sum %>% 
+  filter(!is.na(meanDT)) %>% 
+  group_by(Region, Name, SiteID, month = month(sampleDate), year = year(sampleDate)) %>% 
+  summarize(mon_mn = mean(meanDT))  
+
+site.order <- mon.summ %>%
+  filter(month == 7) %>% 
+  group_by(Name) %>% 
+  summarize(mean_huc = mean(mon_mn)) %>% 
+  arrange(desc(mean_huc)) %>% 
+  pull(Name)
+
+mon.summ %>% 
+  filter(month == 7) %>% 
+  mutate(Namef = factor(Name, levels = site.order)) %>%
+  ggplot(data = ) +
+  geom_boxplot(aes(y = Namef, color = Region, x = mon_mn)) +
+  geom_text(inherit.aes = FALSE, data = . %>% group_by(Namef) %>% count(), 
+            aes(label = paste0("(", n, ")"), y = Namef, x = -0.2), size = 3) +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.title.y = element_blank()) +
+  labs(x = "Temperature (°C)",
+       title = "Mean July Temperatures by Watershed",
+       subtitle = "Bristol Bay and Cook Inlet")
+```
+
 
 ```{r daily time series}
+daily.dat %>% 
+  mutate(year = year(sampleDate)) %>% 
+  filter(month(sampleDate) %in% 6:9) %>% 
+  distinct(year) %>% 
+  arrange(year)
+
+daily.dat %>% 
+  mutate(year = year(sampleDate)) %>% 
+  distinct(SiteID, year) %>% 
+  count(SiteID) %>% 
+  arrange(n)
+
 daily.dat %>% 
   mutate(year = year(sampleDate),
          mo_day = format(sampleDate, "%m-%d"),
@@ -181,10 +359,18 @@ daily.dat %>%
                           TRUE ~ 0)) %>%
   filter(month(sampleDate) %in% 6:9) %>% 
   ggplot() +
-  geom_line(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = factor(is_19))) +
-  scale_color_manual(values = c("gray", "red")) +
+  geom_line(data = . %>% filter(is_19 == 0), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
+  geom_line(data = . %>% filter(is_19 == 1), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = "red")) +
   facet_wrap(~Name) +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.x = element_blank()) +
+  labs(title = "Stream Temperatures for Cook Inlet and Bristol Bay Watersheds",
+       subtitle = "351 sites with one to 26 years of data from 1974-2020 \n2019 data in red",
+       y = "Mean Daily Temperature (°C)")
+
+ggsave("output/AFS/Daily Temps for all sites.jpg", units = "in", width = 10, height = 7.5)
 ```
 
 
@@ -222,49 +408,33 @@ ggplot() +
 
 
 
-## Run metrics
-
-```{r}
-source('W:/Github/SWSHP-Bristol-Bay-Thermal-Diversity/Temperature Descriptor Function - daily inputs.R')
-
-bb.screen <- bbdat %>% 
-  rename(site_name = SiteID, date = sampleDate, mean = meanDT, min = minDT, max = maxDT) %>% 
-  tempscreen()
-
-bb.mets <- tempmetrics(as.data.frame(bb.screen), "output/metrics_2021-03-10")
-
-test1 <- data.frame(col1 = c("xxx.yyyy", "aa.bb", "cc.dd"))
-gsub("\\..*","", test1$col1 )
-
-bb.mets <- bb.mets %>% 
-  mutate(Site = gsub("\\..*","", site.year),
-         Year = gsub("^.*\\.","", site.year))
-
-
-bb.mets %>% 
-  ggplot(aes(x = DUR_mn18, y = MA7d_DAT, color = Year)) +
-  geom_point()
-
-```
-
-
-## Cook Inlet data
-
-Get daily datasets off of google drive.
-
-
-
-
 
 
 # Mapping
 
 
-```{r sites map}
-md_sf %>% 
-  count(Name) %>% 
-  ggplot() +
-  geom_histogram(aes(n))
+## Data Availability Maps
+
+```{r site count map}
+
+huc8_sa %>% names
+
+ggplot() +
+  geom_sf(data = huc8_sa, aes(fill = Site_Count, color = Region)) +
+  geom_sf(data = md_sf, color = "white", shape = 21, fill = NA, size = 2) +
+  # geom_sf(data = md_sf, color = "black", size = 0.5) +
+  geom_sf_label_repel(data = cities, aes(label = place), nudge_x = -3, size = 3, nudge_y = 1.5) +
+  scale_fill_viridis_b() +
+  # theme_minimal() +
+  theme(legend.position = "bottom", axis.title = element_blank()) +
+  labs(fill = "Number of Sites in each HUC8")
+
+ggsave("output/AFS/Sites by HUC.jpeg", units = "in", height = 7.5, width = 10)
+```
+
+
+
+```{r map with counts as discrete classes}
 
 huc8_23 <- huc8_wgs84 %>% 
   filter(Name %in% md_sf$Name) %>% 
@@ -275,22 +445,11 @@ ggplot() +
   geom_sf(data = huc8_23, aes(fill = cutn)) +
   geom_sf(data = md_sf) 
   scale_fill_continuous(breaks = c(5, 20), values = c("red", "blue"))
-
 ```
-# STOPPED HERE 
-I THINK SOME OF THESE POINTS ARE GETTING DROPPED BC THEY WERE DROPPED FROM THE DAILY.DAT DATA FRAME. Keep working on maps and figures and clean up when dustin fixes the little su and chugach metadata. note that cik14 is also cik_14 so fix that to merge for the huc8 as well.
 
 
-```{r}
-md_sf <- left_join(md_sf, daily.dat %>% distinct(SiteID, year(sampleDate)) %>% count(SiteID)) %>% 
-  rename(year_ct = n)
 
-ggplot() +
-  geom_sf(data = huc8_23, aes(fill = cutn)) +
-  geom_sf(data = md_sf, aes(size = year_ct)) 
-  scale_fill_continuous(breaks = c(5, 20), values = c("red", "blue"))
 
-```
 
 
 ```{r}
@@ -299,11 +458,6 @@ register_google(key = "", write = TRUE) #saved locally outside github repo folde
 
 
 ```{r basic map}
-ggplot() +
-  geom_sf(data = md_sf) +
-  geom_sf(data = bb_huc8_wgs84, fill = NA) +
-  geom_sf_text(data = bb_huc8_wgs84, aes(label = Name), size = 3) +
-  theme_bw()
 
 location <- c(min(md$Longitude), min(md$Latitude), max(md$Longitude), max(md$Latitude))
 
@@ -311,9 +465,10 @@ map <- get_map(location, maptype = "terrain", source = "google")
 
 ggmap(map)
 
-
-qmplot(Longitude, Latitude, data = md, color = SourceName, source = "stamen", maptype = "terrain",
-       legend = "bottom")
+md %>% 
+  select(Latitude, Longitude) %>% 
+  qmplot(Longitude, Latitude, data = ., source = "google", maptype = "terrain",
+         legend = "bottom", zoom = 6)
 
 ```
 
