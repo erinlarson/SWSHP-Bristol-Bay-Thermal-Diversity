@@ -1,0 +1,71 @@
+---
+title: "data_NPS_DanYoung"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Read in data. They also provided USGS data for the Chulitna River, but I have that already in the nwis download.
+
+```{r}
+dy.files <- list.files("S:/Stream Temperature Data/NPS Dan Young/Dan_Young_Data", pattern = ".csv", full.names = TRUE) 
+
+#one site has different formatting.
+dy.files <- dy.files[!grepl("LACL", dy.files)]
+
+dy.dat <- map_df(dy.files, function(x) read_csv(x, comment = "#") %>% mutate(file_name = basename(x)))
+
+dy.dat %>% distinct(Grade)
+dy.dat %>% distinct(Qualifiers)
+dy.dat %>% distinct(`Approval Level`)
+
+dy.dat <- dy.dat %>% 
+  mutate(sampleDate = as.Date(`Timestamp (UTC-08:00)`),
+         sampleTime = as_hms(`Timestamp (UTC-08:00)`),
+         dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S"),
+         SiteID = gsub(".csv","",basename(file_name)),
+         UseData = 1) %>%
+  mutate(SiteID = case_when(SiteID == "Chulitna_Dan_2007_2011" ~ "Chulitna_SiteB",
+                            TRUE ~ SiteID)) %>% 
+  rename(Temperature = Value) %>% 
+  select(file_name, SiteID, sampleDate, sampleTime, dt, Temperature, UseData)
+
+```
+
+This is a site on the Chulitna River that corresponds to an old USGS gage location.
+
+```{r}
+dy.lacl <- read_csv("S:/Stream Temperature Data/NPS Dan Young/Dan_Young_Data/LACL_chulr_temp_20200925export.csv", skip = 1)
+
+dy.lacl <- dy.lacl %>% 
+  rename(sampleTime = `Time, GMT-08:00`,
+         Temperature = `Temp, °C (LGR S/N: 11001174, SEN S/N: 11001174, LBL: LACL_CHULR_TEMP_)`) %>% 
+  mutate(sampleDate = as.Date(Date, format = "%m/%d/%Y"), 
+         SiteID = 15298040,
+         dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S"),
+         UseData = 1) %>% 
+  select(SiteID, sampleDate, sampleTime, Temperature, UseData)
+```
+
+Look at the data:
+* Chulitna R looks like it is getting dewatered very regularly. I would throw this site out altogether except anything that might be useful from 2018 could be combined with the historic USGS data. 2019 and 2020 are out -- too much bad data.
+
+
+```{r}
+p1 <- dy.lacl %>% 
+  ggplot(aes(x = dt, y = Temperature)) + 
+  geom_line()
+
+dy.sites <- dy.dat %>% distinct(SiteID) %>% pull(SiteID)
+
+p2 <- dy.dat %>% 
+  filter(SiteID == dy.sites[2]) %>% 
+  ggplot(aes(x = dt, y = Temperature)) + 
+  geom_line()
+
+
+ggplotly(p2)
+```
+

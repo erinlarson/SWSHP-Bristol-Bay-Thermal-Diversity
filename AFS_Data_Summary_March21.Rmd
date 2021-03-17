@@ -16,6 +16,8 @@ library(ggmap)
 library(sf)
 # library(leaflet)
 # library(osmdata)
+library(broom)
+library(caTools)
 library(tidyverse)
 
 # install.packages("devtools")
@@ -182,9 +184,56 @@ daily.dat %>%
   count(file_name))
 ```
 
+Filter to only include site years with 80% of days in the summertime (6-8).
+
+```{r create daily.sum}
+
+daily.dat %>% 
+  filter(is.na(meanDT))
+
+daily.sum <- daily.dat %>%
+  filter(!is.na(meanDT)) %>% 
+  group_by(SiteID, Year = year(sampleDate)) %>% 
+  filter(month(sampleDate) %in% 6:8) %>% 
+  mutate(summer_ct = n()) %>% 
+  filter(summer_ct > 0.8 * 92) %>% 
+  left_join(md %>% select(SiteID, Name, Region)) %>% 
+  ungroup()
+
+nrow(daily.dat %>% distinct(SiteID, Year = year(sampleDate)))
+nrow(daily.sum %>% distinct(SiteID, Year = year(sampleDate)))
+
+#397 site years lost because incomplete.
+1897-1500
+```
+
 Calculate thermal regime metrics for summer data only - June through August.
 
-```{r temperature metrics}
+* Maximum mean daily temperature 
+* MWAT Max of 7-day rolling average of mean daily temp
+* Timing of MWAT - low priority
+
+
+```{r mets from daily mean}
+max_meanDT <- daily.sum %>%
+  filter(!is.na(meanDT)) %>% 
+  group_by(SiteID, Year = year(sampleDate)) %>% 
+  summarize(max_DAT = max(meanDT, na.rm = TRUE))
+  
+MWAT <- daily.sum %>%
+  filter(!is.na(meanDT)) %>% 
+  group_by(SiteID, Year = year(sampleDate)) %>% 
+  summarize(MWAT = max(runmean(meanDT, k = 7, endrule = "NA", align = "center"), na.rm=TRUE))
+
+
+mets <- left_join(max_meanDT, MWAT)
+mets <- left_join(mets, md %>% select(SiteID, Name, Region))
+```
+
+
+Old code chunk when we had min mean and max for all sites. UW data is mean only so just calculating metrics for plotting.
+
+```{r temperature metrics, eval = FALSE}
 source('W:/Github/SWSHP-Bristol-Bay-Thermal-Diversity/Temperature Descriptor Function - daily inputs.R')
 
 #count missing max and min for usgs sites - two sites missing max and min altogether, just remove
@@ -238,27 +287,26 @@ Data summary table by HUC8. Add back to the HUC8 SF object for mapping.
 
 ```{r data availability by huc8}
 
-#get huc8 names on daily data frame for summarizing.
-daily.dat <- left_join(daily.dat, st_drop_geometry(md_sf) %>% distinct(SiteID, Region, Name))
+# use daily.sum because that is filtered on sites with 80% of data for summer months.
 
-huc8.siteCt <- daily.dat %>% 
+huc8.siteCt <- daily.sum %>% 
   distinct(Region, Name, SiteID) %>% 
   count(Region, Name) %>% 
   rename(Site_Count = n)
 
-huc8.yearCt <- daily.dat %>% 
+huc8.yearCt <- daily.sum %>% 
   distinct(Region, Name, SiteID, Year = year(sampleDate)) %>% 
   count(Region, Name) %>% 
   rename(Year_Count = n)
 
-huc8.LTsiteCt <- daily.dat %>% 
+huc8.LTsiteCt <- daily.sum %>% 
   distinct(Region, Name, SiteID, Year = year(sampleDate)) %>% 
   count(Region, Name, SiteID) %>%
   filter(n > 9) %>% 
   count(Region, Name) %>% 
   rename(LT_Site_Count = n)
 
-huc8.3yrsiteCt <- daily.dat %>% 
+huc8.3yrsiteCt <- daily.sum %>% 
   distinct(Region, Name, SiteID, Year = year(sampleDate)) %>% 
   count(Region, Name, SiteID) %>%
   filter(n > 2) %>% 
@@ -280,14 +328,6 @@ huc8_sa <- huc8_wgs84 %>%
   left_join(huc8.LTsiteCt) %>% 
   left_join(huc8.3yrsiteCt)
 
-#check
-ggplot() +
-  geom_sf(data = huc8_sa, aes(fill = Site_Count, color = Region)) +
-  geom_sf(data = md_sf) +
-  scale_fill_viridis_b() +
-  theme_minimal() +
-  theme(legend.position = "bottom")
-
 ```
 
 
@@ -304,13 +344,6 @@ cities <- st_as_sf(data.frame(place = c("Dillingham", "Anchorage"),
 
 
 ```{r boxplot of mean july temperatures}
-daily.sum <- daily.dat %>%
-  group_by(SiteID, Year = year(sampleDate), month = month(sampleDate)) %>% 
-  filter(month %in% 6:8) %>% 
-  mutate(mon_total = days_in_month(month),
-         mon_ct = n()) %>% 
-  filter(mon_ct > 0.8 * mon_total)
-
 mon.summ <- daily.sum %>% 
   filter(!is.na(meanDT)) %>% 
   group_by(Region, Name, SiteID, month = month(sampleDate), year = year(sampleDate)) %>% 
@@ -326,7 +359,7 @@ site.order <- mon.summ %>%
 mon.summ %>% 
   filter(month == 7) %>% 
   mutate(Namef = factor(Name, levels = site.order)) %>%
-  ggplot(data = ) +
+  ggplot() +
   geom_boxplot(aes(y = Namef, color = Region, x = mon_mn)) +
   geom_text(inherit.aes = FALSE, data = . %>% group_by(Namef) %>% count(), 
             aes(label = paste0("(", n, ")"), y = Namef, x = -0.2), size = 3) +
@@ -339,19 +372,24 @@ mon.summ %>%
 
 
 ```{r daily time series}
-daily.dat %>% 
+
+hucs9 <- huc8.siteCt %>% arrange(desc(Site_Count)) %>% filter(Site_Count > 9) %>% pull(Name)
+
+daily.sum %>% 
   mutate(year = year(sampleDate)) %>% 
-  filter(month(sampleDate) %in% 6:9) %>% 
+  filter(Name %in% hucs9) %>% 
   distinct(year) %>% 
   arrange(year)
 
-daily.dat %>% 
+daily.sum %>% 
   mutate(year = year(sampleDate)) %>% 
+  filter(Name %in% hucs9) %>% 
   distinct(SiteID, year) %>% 
   count(SiteID) %>% 
   arrange(n)
 
-daily.dat %>% 
+daily.sum %>% 
+  filter(Name %in% hucs9) %>% 
   mutate(year = year(sampleDate),
          mo_day = format(sampleDate, "%m-%d"),
          site_year = paste0(SiteID, year),
@@ -363,14 +401,211 @@ daily.dat %>%
             aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
   geom_line(data = . %>% filter(is_19 == 1), 
             aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = "red")) +
+  geom_abline(aes(intercept = 20, slope = 0), linetype = 2) +
   facet_wrap(~Name) +
   theme_minimal() +
   theme(legend.position = "none", axis.title.x = element_blank()) +
   labs(title = "Stream Temperatures for Cook Inlet and Bristol Bay Watersheds",
-       subtitle = "351 sites with one to 26 years of data from 1974-2020 \n2019 data in red",
+       subtitle = "299 sites with one to 23 years of data from 1975-2020 \n2019 data in red",
        y = "Mean Daily Temperature (°C)")
 
-ggsave("output/AFS/Daily Temps for all sites.jpg", units = "in", width = 10, height = 7.5)
+ggsave("output/AFS/Daily Temps for Nine HUCs.jpg", units = "in", width = 10, height = 7.5)
+```
+
+Dotplot of metrics
+
+```{r dotplot of MWAT}
+mwat.order <- mets %>%
+  group_by(SiteID) %>% 
+  summarize(mn_mwat = mean(MWAT)) %>% 
+  arrange(mn_mwat) %>% 
+  pull(SiteID)
+
+mets %>% 
+  filter(Name == "Lower Susitna River")
+
+names.filter <- c("Lake Clark", "Togiak", "Lower Susitna River", "Anchorage")
+
+mets %>%
+  mutate(SiteIDf = factor(SiteID, levels = mwat.order)) %>% 
+  # filter(Name %in% names.filter) %>% 
+  ggplot() +
+  geom_point(data = . %>% filter(Year != 2019), aes(x = MWAT, y = SiteIDf, color = Region)) +
+  geom_point(data = . %>% filter(Year == 2019), aes(x = MWAT, y = SiteIDf), color = "black") +
+  geom_vline(aes(xintercept = 13), linetype = 2) +
+  geom_vline(aes(xintercept = 18), linetype = 2) +
+  geom_vline(aes(xintercept = 20), linetype = 2) +
+  facet_wrap(~Name, scales = "free") +
+  theme_bw() +
+  theme(axis.text.y = element_blank()) 
+```
+
+```{r boxplot of MWAT 9 HUCs}
+huc.mwat.order <- mets %>%
+  filter(Name %in% hucs9) %>% 
+  group_by(Name) %>% 
+  summarize(mean_huc = mean(MWAT)) %>% 
+  arrange(desc(mean_huc)) %>% 
+  pull(Name)
+
+mets %>% 
+  mutate(Namef = factor(Name, levels = huc.mwat.order)) %>%
+  filter(Year != 2019, Name %in% hucs9) %>% 
+  ggplot() +
+  geom_boxplot(aes(y = Namef, color = Region, x = MWAT)) +
+  geom_text(inherit.aes = FALSE, data = . %>% group_by(Namef) %>% count(), 
+            aes(label = paste0("(", n, ")"), y = Namef, x = -0.2), size = 3) +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.title.y = element_blank()) +
+  labs(x = "Temperature (°C)",
+       title = "MWAT by Watershed",
+       subtitle = "Bristol Bay and Cook Inlet")
+```
+
+CIK_28 = deshka, why only 5 years of data? -- lots of incomplete years for evaluating summer thermal regimes.
+
+```{r check Deshka data}
+daily.dat %>% 
+  filter(SiteID == "CIK_28") %>%
+  group_by(year(sampleDate)) %>% 
+  summarize(min(sampleDate),
+             max(sampleDate))
+daily.sum %>% 
+  filter(SiteID == "CIK_28") %>% 
+  distinct(year(sampleDate))
+
+```
+
+
+```{r boxplot of MWAT LT Sites}
+
+ltSites <- daily.sum %>% 
+  left_join(md %>% distinct(SiteID, Waterbody_name)) %>% 
+  distinct(Region, Name, SiteID, Waterbody_name, Year = year(sampleDate)) %>% 
+  count(Region, Name, Waterbody_name, SiteID) %>%
+  filter(n > 9) %>% 
+  pull(SiteID)
+
+lt.mwat.order <- mets %>%
+  filter(SiteID %in% ltSites) %>% 
+  left_join(md %>% select(SiteID, Waterbody_name)) %>% 
+  mutate(Waterbody_name = case_when(SiteID == "Aleknagik Bear Creek" ~ "Bear Cr",
+                                    SiteID == "15261000" ~ "Cooper Cr",
+                                    SiteID == "15283700" ~ "Moose Cr nr Palmer",
+                                    SiteID == "15300250" ~ "Upper Talarik Cr",
+                                    SiteID == "15239070" ~ "Bradley R",
+                                    SiteID == "15302200" ~ "Koktuli R",
+                                    SiteID == "15258000" ~ "Kenai R at Cooper Landing",
+                                    SiteID == "15302250" ~ "NF Koktuli R",
+                                    SiteID == "15266300" ~ "Kenai R at Soldotna",
+                                    SiteID == "15300100" ~ "Bear Cr nr Iliamna",
+                                    SiteID == "PULR" ~ "Pungokepuk-Downstream",
+                                    SiteID == "PULO" ~ "Pungokepuk-Lake Outlet",
+                                    TRUE ~ Waterbody_name)) %>% 
+  group_by(Waterbody_name, SiteID) %>% 
+  summarize(mwat.mn = mean(MWAT),
+            n = n()) %>% 
+  arrange(desc(mwat.mn)) #%>% 
+  pull(Waterbody_name)
+
+# lt.mwat.order <- mets %>%
+#   filter(SiteID %in% ltSites) %>% 
+#   left_join(md %>% select(SiteID, Waterbody_name)) %>% 
+#   group_by(Waterbody_name, SiteID) %>% 
+#   summarize(mwat.mn = mean(MWAT),
+#             n = n()) %>% 
+#   arrange(desc(mwat.mn)) %>% 
+#   pull(SiteID)
+
+mets %>% 
+  filter(SiteID %in% ltSites) %>% 
+  left_join(lt.mwat.order %>% select(SiteID, Waterbody_name)) %>% 
+  mutate(wbf = factor(Waterbody_name, levels = lt.mwat.order %>% pull(Waterbody_name))) %>%
+  ggplot() +
+  geom_boxplot(data = . %>% filter(Year != 2019), aes(y = wbf, color = Region, x = MWAT)) +
+  # geom_text(inherit.aes = FALSE, data = . %>% group_by(SiteIDf) %>% count(), 
+  #           aes(label = paste0("(", n, ")"), y = SiteIDf, x = -0.2), size = 3) +
+  geom_point(data = . %>% filter(Year == 2019), aes(y = wbf, x = MWAT, fill = "2019"), shape = 15, size = 1.5) +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.title.y = element_blank()) +
+  labs(x = "Temperature (°C)",
+       title = paste("Maximum Weekly Average Temperature for \nSites with", "\u2265 10", "Years of Data"),
+       fill = "")
+
+ggsave("output/AFS/MWAT for long-term sites.jpg", units = "in", width = 10, height = 7.5)
+```
+
+
+
+```{r monthly data frame}
+
+month.dat <- daily.dat %>% 
+  mutate(daysMonth = days_in_month(sampleDate),
+         month = month(sampleDate),
+         year = year(sampleDate)) %>% 
+  group_by(SiteID, year, month, daysMonth) %>%
+  summarize(meanMon = mean(meanDT),
+            monCt = n()) %>% 
+  filter(monCt > (0.9 * daysMonth))
+```
+
+
+
+```{r trends in June temps}
+junSites <- month.dat %>% 
+  ungroup() %>% 
+  filter(month %in% 6) %>% 
+  distinct(SiteID, year) %>% 
+  count(SiteID) %>% 
+  filter(n > 10) %>% 
+  pull(SiteID)
+
+#June
+left_join(month.dat, md %>% select(SiteID, Waterbody_name, Name, Region)) %>% 
+  filter(SiteID %in% junSites, month %in% 6) %>% 
+  ggplot(aes(x = year, y = meanMon, color = Waterbody_name)) + 
+  geom_point() +
+  # geom_line() +
+  geom_smooth(method = "lm") +
+  scale_x_continuous(limits = c(2000, 2020)) +
+  facet_wrap(~Region) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+```
+
+```{r linear reg. of monthly means}
+ltMonths <- month.dat %>% 
+  ungroup() %>% 
+  distinct(SiteID, year, month) %>% 
+  count(SiteID, month) %>% 
+  filter(n > 10)
+
+monthlyLMs <- month.dat %>% 
+  filter(!year == 2019) %>% 
+  right_join(ltMonths) %>% 
+  nest(data = c(-SiteID, -month)) %>% 
+  mutate(
+    fit = map(data, ~ lm(meanMon ~ year, data = .x)),
+    tidied = map(fit, tidy)
+  ) %>% 
+  unnest(tidied) 
+
+sig_trends <- monthlyLMs %>% 
+  filter(p.value < 0.05, term == "year") %>% 
+  select(month)
+
+left_join(monthlyLMs, md %>% select(SiteID, Waterbody_name, Name, Region)) %>% 
+  filter(p.value < 0.05, term == "year") %>% 
+  ggplot(aes(x = as.factor(month), y = estimate, color = Waterbody_name)) +
+  geom_point() +
+  theme_minimal() +
+  geom_abline(aes(intercept = 0, slope = 0))  +
+  facet_wrap(~Region) +
+  theme(legend.position = "bottom")
+
+
 ```
 
 
@@ -415,7 +650,120 @@ ggplot() +
 
 ## Data Availability Maps
 
-```{r site count map}
+```{r number of sites in each huc8}
+huc8_reg <- huc8_sa %>% 
+  group_by(Region) %>% 
+  summarize()
+
+huc8_sa %>% arrange(Site_Count) %>% pull(Site_Count) 
+huc8_sa %>% st_drop_geometry() %>% arrange(Site_Count) %>% summarize(sum(Site_Count, na.rm = TRUE))
+
+site_yrCt <- daily.sum %>% 
+  distinct(SiteID, Year) %>% 
+  count(SiteID) %>% 
+  rename(yrct = n)
+
+md_sf <- left_join(md_sf, site_yrCt)
+
+huc8_sa %>% 
+  mutate(cutn = cut(Site_Count, breaks = c(0, 5, 10, 30, 130), 
+                    labels = c("1-5", "6-10", "11-30", "31-125"))) %>%
+  ggplot() +
+  geom_sf(aes(fill = cutn), color = "gray") + 
+  geom_sf(data = huc8_reg, color = "black", fill = NA, lwd = 1) +
+  geom_sf(data = md_sf, size = 1.2) +
+  # geom_sf(data = md_sf, aes(size = yrct), shape = 21, fill = NA) +
+  # geom_sf(data = md_sf, color = "black", shape = 21, fill = NA, size = 1.5) +
+  geom_sf_label_repel(data = huc8_reg, aes(label = Region), nudge_x = -1.5, nudge_y = 2) +
+  annotate(geom = "text", x = -160, y = 63, label = "N = 341 Sites", size = 4) +
+  scale_fill_brewer(type = "seq", palette = 3) +
+  # theme_minimal() +
+  theme(legend.position = "bottom", axis.title = element_blank()) +
+  labs(fill = "Number of Sites: ")
+
+ggsave("output/AFS/Sites by HUC.jpeg", units = "in", height = 7.5, width = 10)
+```
+
+
+```{r number of years in each huc8}
+huc8_sa %>% arrange(Year_Count) %>% pull(Year_Count) 
+huc8_sa %>% st_drop_geometry() %>% arrange(Year_Count) %>% summarize(sum(Year_Count, na.rm = TRUE))
+
+huc8_sa %>% 
+  mutate(cutn = cut(Year_Count, breaks = c(0, 10, 50, 100, 320), 
+                    labels = c("4-10", "11-50", "51-100", "101-316"))) %>%
+  ggplot() +
+  geom_sf(aes(fill = cutn), color = "gray") + 
+  geom_sf(data = huc8_reg, color = "black", fill = NA, lwd = 1) +
+  geom_sf(data = md_sf, size = 1.2) +
+  geom_sf_label_repel(data = huc8_reg, aes(label = Region), nudge_x = -1.5, nudge_y = 2) +
+  annotate(geom = "text", x = -160, y = 63, label = "N = 1500 Years", size = 4) +
+  scale_fill_brewer(type = "seq", palette = 3) +
+  # theme_minimal() +
+  theme(legend.position = "bottom", axis.title = element_blank()) +
+  labs(fill = "Number of Years: ")
+
+ggsave("output/AFS/Years by HUC.jpeg", units = "in", height = 7.5, width = 10)
+```
+
+```{r Location of long-term sites}
+
+
+
+huc8_sa %>% arrange(LT_Site_Count) %>% pull(LT_Site_Count) 
+huc8_sa %>% st_drop_geometry() %>% arrange(LT_Site_Count) %>% summarize(sum(LT_Site_Count, na.rm = TRUE))
+
+huc8_sa %>% 
+  mutate(cutn = cut(LT_Site_Count, breaks = c(0, 3, 7), 
+                    labels = c("1-3", "4-7"))) %>%
+  ggplot() +
+  geom_sf(aes(fill = cutn), color = "gray") + 
+  geom_sf(data = huc8_reg, color = "black", fill = NA, lwd = 1) +
+  geom_sf(data = md_sf %>% filter(SiteID %in% ltSites), size = 1.2) +
+  geom_sf_label_repel(data = huc8_reg, aes(label = Region), nudge_x = -1.5, nudge_y = 2) +
+  annotate(geom = "text", x = -159, y = 63, label = "N = 36 Long-Term Sites", size = 4) +
+  scale_fill_brewer(type = "seq", palette = 3) +
+  # theme_minimal() +
+  theme(legend.position = "bottom", axis.title = element_blank()) +
+  labs(fill = paste("Number of Sites with", "\u2265 10", "Years of Data: "))
+
+ggsave("output/AFS/LT Sites by HUC.jpeg", units = "in", height = 7.5, width = 10)
+```
+
+
+```{r Location of sites with 3 years of data}
+
+huc8_sa %>% arrange(Yr3_Site_Count) %>% pull(Yr3_Site_Count) 
+huc8_sa %>% st_drop_geometry() %>% arrange(Yr3_Site_Count) %>% summarize(sum(Yr3_Site_Count, na.rm = TRUE))
+
+yr3Sites <- daily.sum %>% 
+  distinct(Region, Name, SiteID, Year = year(sampleDate)) %>% 
+  count(Region, Name, SiteID) %>%
+  filter(n > 2) %>% 
+  pull(SiteID)
+
+huc8_sa %>% 
+  mutate(cutn = cut(Yr3_Site_Count, breaks = c(0, 5, 20, 60), 
+                    labels = c("1-5", "6-20", "21-59"))) %>%
+  ggplot() +
+  geom_sf(aes(fill = cutn), color = "gray") + 
+  geom_sf(data = huc8_reg, color = "black", fill = NA, lwd = 1) +
+  geom_sf(data = md_sf, size = 1.2, color = "red") +
+  geom_sf(data = md_sf %>% filter(SiteID %in% yr3Sites), size = 1.2) +
+  geom_sf_label_repel(data = huc8_reg, aes(label = Region), nudge_x = -1.5, nudge_y = 2) +
+  annotate(geom = "text", x = -160, y = 63, label = "N = 214 Sites", size = 4) +
+  scale_fill_brewer(type = "seq", palette = 3) +
+  # theme_minimal() +
+  theme(legend.position = "bottom", axis.title = element_blank()) +
+  labs(fill = paste("Number of Sites with", "\u2265 3", "Years of Data: "))
+
+ggsave("output/AFS/Sites with 3 yrs of data by HUC.jpeg", units = "in", height = 7.5, width = 10)
+```
+
+
+
+
+```{r site count map old}
 
 huc8_sa %>% names
 
@@ -431,22 +779,6 @@ ggplot() +
 
 ggsave("output/AFS/Sites by HUC.jpeg", units = "in", height = 7.5, width = 10)
 ```
-
-
-
-```{r map with counts as discrete classes}
-
-huc8_23 <- huc8_wgs84 %>% 
-  filter(Name %in% md_sf$Name) %>% 
-  left_join(st_drop_geometry(md_sf %>% count(Name))) %>% 
-  mutate(cutn = cut(n, breaks = quantile(n, probs = seq(0, 1, 0.2))))
-
-ggplot() +
-  geom_sf(data = huc8_23, aes(fill = cutn)) +
-  geom_sf(data = md_sf) 
-  scale_fill_continuous(breaks = c(5, 20), values = c("red", "blue"))
-```
-
 
 
 
@@ -470,15 +802,5 @@ md %>%
   qmplot(Longitude, Latitude, data = ., source = "google", maptype = "terrain",
          legend = "bottom", zoom = 6)
 
-```
-
-```{r}
-
-# create map
-leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
-  #setView(-150.210169, 60.487694, zoom = 8) %>%
-  addMarkers(lng = md$Longitude, lat = md$Latitude)
 ```
 

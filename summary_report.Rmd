@@ -316,4 +316,20 @@ leaflet() %>%
 ```
 
 
+```{r}
+leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
+  #setView(-150.210169, 60.487694, zoom = 8) %>%
+  addMarkers(lng = uw.md$Longitude, lat = uw.md$Latitude)
+
+
+             popup = paste("SiteID = ", all.dat$SiteID, "<br>",
+                           "Data Source = ", all.dat$SourceName, "<br>",
+                           "Start Year = ", all.dat$startYear, "<br>",
+                           "End Year = ", all.dat$endYear, "<br>",
+                           "Total Years of Data = ", all.dat$totYears, "<br>"))
+```
+
+
 

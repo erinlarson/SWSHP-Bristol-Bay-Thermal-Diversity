@@ -21,11 +21,8 @@ Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-# clear environment
-rm(list=ls())
 
 # load packages
-library(tidyverse)
 library(lubridate)
 library(readr)
 library(readxl)
@@ -33,6 +30,9 @@ library(hms)
 library(plotly)
 library(DT)
 library(dataRetrieval)
+library(sf)
+library(tidyverse)
+
 ```
 
 <br>
@@ -201,7 +201,11 @@ x <- usgsData %>% select("AKOATS_ID","SiteID","sampleDate","sampleTime","Tempera
 ```
 
 
-# RS code for getting all sites in BB and CI
+# RS code for getting all sites
+
+First filter from AK down to AKSSF, then separate split for Bristol Bay only.
+
+Read in all sites with daily values for AK and temperature. Convert to an SF object.
 
 ```{r metadata}
 usgs_temp <- whatNWISdata(stateCd = "AK", service = "dv", 
@@ -211,7 +215,12 @@ usgs_temp <- usgs_temp %>% select(agency_cd:dec_long_va, huc_cd) %>% distinct()
 
 usgs_temp_sf <- st_as_sf(usgs_temp, coords = c("dec_long_va", "dec_lat_va"), crs = "WGS84")
 
-usgs_sa <- st_intersection(usgs_temp_sf, huc8_sa)
+ggplot() +
+  geom_sf(data = usgs_temp_sf)
+```
+```{r}
+#old filter on Bristol Bay and Cook Inlet only.
+# usgs_sa <- st_intersection(usgs_temp_sf, huc8_sa)
 
 usgs_md <- bind_cols(usgs_sa, as.data.frame(st_coordinates(usgs_sa))) %>% 
   st_drop_geometry() %>% 

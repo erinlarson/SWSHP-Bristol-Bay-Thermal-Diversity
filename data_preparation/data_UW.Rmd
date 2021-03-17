@@ -305,6 +305,8 @@ uw.data2 %>%
 Look at logger type and measurement frequency. Possibly we should only focus on the newer data.
 
 ```{r}
+source("W:/Github/AKSSF/helper_functions.R")
+
 uw.data2 <- temp_msmt_freq(uw.data2)
 
 uw.data2 %>% 
@@ -397,8 +399,7 @@ tc.16 <- read_csv(tc.files[6]) %>%
   select(SiteID, Date, Temperature) %>% 
   arrange(SiteID, Date)
 
-tc.dat <- bind_rows(tc.11, tc.12, tc.13, tc.14, tc.15, tc.16)
-
+tc.dat <- bind_rows(tc.11, tc.12, tc.13, tc.14, tc.15, tc.16) 
 tc.dat %>% 
   distinct(SiteID)
 
@@ -443,11 +444,11 @@ siteMerge
 # write_csv(siteMerge, path = "output/UW_site_merge.csv")
 ```
 
-Manually enter in some of the names in Jackie's dataset that logically match Tim's dataset. It looks like grep only did pattern matching if it was exact and I don't know how to do anything more complicated. Summarize data available in the two datsets and send to Daniel.
+Manually enter in some of the names in Jackie's dataset that logically match Tim's dataset. Talked with Daniel and cleared up some of the matches: Bear = Aleknagik Bear (NerkaBear already in Tim's dataset), Moose = Beverly Moose, Whitefish = Big Whitefish. The other sites with just one year of data in Tim's dataset, but not in the database are from P. Lisi's research and can be dropped since they didn't continue those sites (ChauekX and UpnukXX). Still not sure about MooseSpit because I forgot to ask Daniel, but emailed him about it.
 
 ```{r TC and UW data summaries}
 #note that bear, beaver, and moose 
-siteMerge2 <- read_csv("output/UW_site_merge.csv")
+siteMerge2 <- read_csv("output/UW_site_merge_rs.csv")
 
 jul.range <- tc.dat %>% 
   distinct(Date) %>% 
@@ -456,7 +457,7 @@ jul.range <- tc.dat %>%
 
 tc.summ <- tc.dat %>% 
   count(SiteID, year = year(Date)) %>%
-  mutate(Source = "Tim Cline") %>% 
+  mutate(Source = "Tim Cline") #%>% 
   pivot_wider(names_from = year, values_from = n, names_prefix = "TC_") %>% 
   select(SiteID, TC_2011, TC_2012, TC_2013, TC_2014, TC_2015, TC_2016) %>% 
   select(SiteID, TC_2011:TC_2016)
@@ -466,14 +467,12 @@ uw.summ <- left_join(siteMerge2, uw.data2, by = c("uw" = "SiteID")) %>%
   filter(format(sampleDate, "%j") %in% 152:258) %>% 
   distinct(SiteID, year = year(sampleDate), sampleDate) %>%
   count(SiteID, year) %>%
-  mutate(Source = "UW Database") %>% 
+  mutate(Source = "UW Database") #%>% 
   pivot_wider(names_from = year, values_from = n, names_prefix = "UW_") %>% 
   select(SiteID, paste0("UW_", 2006:2020)) %>% 
   select(SiteID, UW_2011:UW_2016)
 
 ```
-
-
 
 ```{r TC and UW data availability figure}
 p3 <- bind_rows(left_join(siteMerge2, tc.summ, by = c("tc" = "SiteID")),
@@ -488,6 +487,8 @@ p3 <- bind_rows(left_join(siteMerge2, tc.summ, by = c("tc" = "SiteID")),
   theme_minimal() +
   theme(legend.position = "bottom", axis.title.y = element_blank()) 
 
+p3
+
 ggsave("output/UW Dataset.pdf", plot = p3, width = 12, height = 8, units = "in")
 
 ```
@@ -500,18 +501,190 @@ tc.dat2 <- left_join(tc.dat, siteMerge2, by = c("SiteID" = "tc")) %>%
   rename(TC_SiteID = SiteID,
          SiteID = uw,
          sampleDate = Date,
-         meanDT = Temperature)
+         meanDT = Temperature) %>% 
+  mutate(sampleDate = as.Date(sampleDate)) %>% 
+  filter(!is.na(SiteID), !is.na(meanDT)) #sites not in uw database with only 1 year of data.
 
 tc.dat %>% distinct(SiteID)
-tc.dat2 %>% distinct(SiteID)
-uw.data2
+tc.dat2 %>% distinct(TC_SiteID, SiteID)
+tc.dat2 %>% summary
 
-left_join(uw.data2, siteMerge2, by = c("SiteID" = "uw")) %>% 
+#Filter on sites in Tim's dataset, years after 2016, and convert to dailies.
+uw.tcmerge <- uw.data2 %>% 
   ungroup() %>% 
-  filter(!is.na(tc)) %>% 
-  distinct(SiteID)
-  daily_screen(uw.data2 %>% mutate(UseData = 1))
+  left_join(siteMerge2, by = c("SiteID" = "uw")) %>% 
+  rename(TC_SiteID = tc) %>% 
+  filter(!is.na(TC_SiteID), year(sampleDate) > 2016) %>% 
+  mutate(UseData = 1) %>% 
+  daily_screen(.) %>% 
+  ungroup()
 
-tc.dat2 <- bind_rows(tc.dat, uw.data2)
+#Bind with TC dataset to get complete dataset.
+intersect(names(tc.dat2), names(uw.tcmerge))
+uw.daily <- bind_rows(tc.dat2, uw.tcmerge) %>% 
+  select(SiteID, sampleDate, meanDT)
+summary(uw.daily)
+
+uw.daily %>% 
+  distinct(SiteID)
+```
+
+Plot of daily temperatures over all years for each site, rolling pdf.
+
+These data are generally ok but probably need a little more review before analysis. Ok to include in AFS summary, just include June - August, some bad temps in September for sure.
+
+```{r}
+sites <- uw.daily %>% distinct(SiteID) %>% pull(SiteID)
+
+pdf("output/UW Daily Dataset by Site.pdf")
+
+for(i in sites) {
+  dat <- uw.daily %>% filter(SiteID == i, month(sampleDate) %in% 6:9)
+  p1 <- dat %>%
+    # complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+    mutate(year = year(sampleDate),
+           mo_day = format(sampleDate, "%m-%d")) %>% 
+    ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, color = as.factor(year))) +
+    geom_line() +
+    scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+    scale_color_discrete(limits = factor(2011:2020)) +
+    facet_wrap(~ SiteID, labeller = label_wrap_gen(width = 15, multi_line = TRUE), ncol = 5) +
+    labs(x = "Date", y = "Mean Daily Temperature", color = "Year") +
+    theme_bw() +
+    ggtitle(paste("UW Daily Logger Data for", i))
+  print(p1)
+}
+
+dev.off()
+
+
+```
+
+
+Save metadata and daily data files for AFS summary.
+
+```{r}
+uw.meta %>% 
+  filter(SiteID %in% sites) %>% 
+  save_metadata_files(., "uw_draft")
+
+uw.daily %>% 
+  save_daily_files(., "uw_draft")
+
+uw.daily %>% 
+  distinct(SiteID, year(sampleDate)) %>% 
+  count(SiteID) %>% 
+  arrange(desc(n))
+
+uw.daily %>% summary()
+```
+Save formatted data from UW database for review by Priscilla.
+
+```{r}
+#Filter on sites in Tim's dataset, years after 2016, and convert to dailies.
+uw.post16 <- uw.data2 %>% 
+  ungroup() %>% 
+  left_join(siteMerge2, by = c("SiteID" = "uw")) %>% 
+  rename(TC_SiteID = tc) 
+
+
+```
+
+Are there any sites in Jackie's db that we should include in the QA because they have a lot of data?
+
+```{r}
+uw.5sites <- uw.post16 %>% 
+  filter(is.na(TC_SiteID), month(sampleDate) %in% 6:8) %>% 
+  distinct(SiteID, sampleDate, year) %>% 
+  count(SiteID, year) %>% 
+  arrange(year) %>% 
+  filter(n > 64) %>% #70% of days in JJA
+  count(SiteID) %>% 
+  filter(n > 2) %>% 
+  pull(SiteID)
+  # pivot_wider(names_from = year, values_from = n)
+
+uw.data2 %>% 
+  ungroup() %>% 
+  filter(SiteID %in% uw.5sites) %>% 
+  distinct(SiteID, mode_diff)
+
+```
+
+
+Look at data for just these five sites:
+* Agulowak looks like it has two summers with pretty bad data, dewatered.
+* Agulukpak has some air temps too and very strange data.
+* sunshine - air temp but patterns look better.
+
+Send to Priscilla and Dustin as a separate dataset that is *possibly* useable.
+
+```{r}
+p1 <- uw.data2 %>% 
+  filter(SiteID %in% uw.5sites[5]) %>% 
+  ggplot(aes(x = dt, y = Temperature)) +
+  geom_line()  
+
+ggplotly(p1)
+```
+
+
+
+```{r}
+
+uw.post16.tcsites <- uw.post16 %>% 
+  filter(!is.na(TC_SiteID), year(sampleDate) > 2016) %>% 
+  mutate(UseData = 1) 
+
+  
+#good times.
+uw.post16.tcsites %>% 
+  distinct(mode_diff)
+
+#all tidbit
+uw.post16.tcsites %>% 
+  distinct(MeasurementType)
+
+uw.post16.tcsites %>% 
+  count(SiteID, year) %>% 
+  pivot_wider(names_from = year, values_from = n)
+
+#june 1 to mid-september
+uw.post16.tcsites %>% 
+  group_by(SiteID, year) %>% 
+  summarize(minDate = min(sampleDate),
+            maxDate = max(sampleDate))
+    
+#only one record for this site-year
+uw.post16.tcsites %>% 
+  filter(SiteID == "Nerka Seventh Creek", year == 2019)
+
+#no dups
+uw.post16.tcsites %>% 
+  count(SiteID, sampleDate, sampleTime, dt, year, Temperature) %>% 
+  arrange(desc(n))
+
+uw.forQA <- uw.post16.tcsites %>% 
+  filter(!is.na(mode_diff),
+         !(SiteID == "Nerka Seventh Creek" & year == 2019)) %>% 
+  select(file_name, SiteID, sampleDate, sampleTime, dt, year, Temperature, UseData)
+```
+
+Save dataset of Tim's sites as priority for QA and also the other 5 sites with at least 3 years of data in Jackie's database as lower priority for QA.
+
+```{r}
+saveRDS(uw.forQA, "data_preparation/formatted_data/uw.post16.tcsites.rds")
+
+uw.data2 %>% 
+  filter(is.na(mode_diff))
+
+uw.5sites.forQA <- uw.data2 %>% 
+  filter(!is.na(mode_diff),
+         SiteID %in% uw.5sites) %>%
+  mutate(UseData = 1) %>% 
+  select(file_name, SiteID, sampleDate, sampleTime, dt, year, Temperature, UseData)
+
+saveRDS(uw.5sites.forQA, "data_preparation/formatted_data/uw.5sites.rds")
+
 ```
 
