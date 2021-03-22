@@ -74,6 +74,7 @@ saveRDS(fws.metadata, "output/fws_metadata.rds")
 Read in Excel files, one at a time.  Note: data is structured such that individual sites are separated by tabs, with one tab for metadata.
 
 Read in "Togiak_Oct2020_Part1.xlsx"
+
 ```{r}
 
 togiak1 <- "data/FWS/Togiak_Oct2020_Part1.xlsx"
@@ -93,6 +94,7 @@ tog1_dat
 
 
 Read in "Togiak_Oct2020_Part2.xlsx"
+
 ```{r}
 togiak2 <- "data/FWS/Togiak_Oct2020_Part2.xlsx"
 
@@ -114,6 +116,7 @@ tog2_dat
 
 
 Read in Egegik data, "WRB_Oct2020.xlsx"
+
 ```{r}
 egegik <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "580223156504200", skip = 1, 
                     col_types = c("date", "date", "numeric"), na = "---", col_names = c("sampleDate", "sampleTime", "Temperature")) %>% 
@@ -133,9 +136,8 @@ newhalen <- newhalen %>%
   mutate(SiteID = "Newhalen River") 
 ```
 
-
-
 Combine the three data sources and format as specified in Project_notes.Rmd
+
 ```{r}
 fws.data <- bind_rows(tog1_dat, tog2_dat, egegik, newhalen) %>%
   mutate(Temperature = as.numeric(Temperature),
@@ -153,9 +155,7 @@ Join metadata to data to get the waterbody name for each site for figures.
 ```{r}
 fws.data <- left_join(fws.data, fws.metadata %>% select(SiteID, Waterbody_name), by = "SiteID") 
 
-
 ```
-
 
 Check to see what years of data we have and if we need to import knb data for FWS Bristol Bay. It looks like everything is in there.
 
@@ -166,8 +166,6 @@ fws.data %>%
 
 fws.metadata
 ```
-
-
 
 Summary csv to add as attributes to leaflet map.
 

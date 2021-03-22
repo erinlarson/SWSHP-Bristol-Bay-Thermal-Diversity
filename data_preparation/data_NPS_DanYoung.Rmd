@@ -5,7 +5,16 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+library(googledrive)
+library(readxl)
+library(plotly)
+library(hms)
+library(tidyverse)
 ```
+
+# Data
 
 Read in data. They also provided USGS data for the Chulitna River, but I have that already in the nwis download.
 
@@ -32,6 +41,8 @@ dy.dat <- dy.dat %>%
   rename(Temperature = Value) %>% 
   select(file_name, SiteID, sampleDate, sampleTime, dt, Temperature, UseData)
 
+dy.dat
+
 ```
 
 This is a site on the Chulitna River that corresponds to an old USGS gage location.
@@ -46,26 +57,108 @@ dy.lacl <- dy.lacl %>%
          SiteID = 15298040,
          dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S"),
          UseData = 1) %>% 
-  select(SiteID, sampleDate, sampleTime, Temperature, UseData)
+  select(SiteID, sampleDate, sampleTime, dt, Temperature, UseData)
 ```
 
 Look at the data:
-* Chulitna R looks like it is getting dewatered very regularly. I would throw this site out altogether except anything that might be useful from 2018 could be combined with the historic USGS data. 2019 and 2020 are out -- too much bad data.
-
+* Chulitna R looks like it is getting dewatered very regularly. 2019 and 2020 are totally out and too much bad data in 2018 (one month of air  temps) to include it in the dataset.
 
 ```{r}
 p1 <- dy.lacl %>% 
   ggplot(aes(x = dt, y = Temperature)) + 
   geom_line()
 
+ggplotly(p1)
+```
+
+Six other sites, lots of long-term data. 
+
+* Chulitna Site B looks ok, 2008 incomplete, but might be enough to include, ended late August. 2010/11 look good.
+* Hardenburg Bay has many years of data and only a few spikes indicating air temps.
+* Little Kijik River has many years of data and only some air temp spikes. Need to email Paul about whether this should be combined with their site, which is upstream above a cold water spring. We can keep them separate.
+* Newhalen R also looks like it gets dewatered a lot, but a lot of years of data. Pass along and see if there is enough that we can keep it.
+* Six mile outlet only has two years of data and it doesn't look the best, incomplete, some air temps.
+* Tazimina incomplete. Paul sent this to combine with their site, but 2001 incomplete started in late August and 2002 looks like it was buried. 
+
+```{r}
 dy.sites <- dy.dat %>% distinct(SiteID) %>% pull(SiteID)
 
-p2 <- dy.dat %>% 
-  filter(SiteID == dy.sites[2]) %>% 
-  ggplot(aes(x = dt, y = Temperature)) + 
-  geom_line()
+i <- 6
 
+p2 <- dy.dat %>% 
+  filter(SiteID == dy.sites[i]) %>% 
+  ggplot(aes(x = dt, y = Temperature)) + 
+  geom_line() +
+  labs(title = dy.sites[i])
 
 ggplotly(p2)
+```
+
+Remove Tazimina and keep Little Kijik Separate for now. Five sites for Priscilla to review.
+
+```{r}
+dy.dat %>% 
+  filter(!SiteID %in% "Tazimina_Dan") %>% 
+  saveRDS("data_preparation/formatted_data/nps_dy_5sites.rds")
+```
+
+```{r}
+test <- readRDS(file = "data_preparation/formatted_data/nps_dy_5sites.rds")
+test %>% distinct(SiteID)
+```
+
+# Metadata
+
+Paul provided a crosswalk with lat/longs and akoats ids. Note that Sixmile Outlet is in AKOATS, seq_id is 770.
+
+```{r}
+dy.md <- read_excel("S:/Stream Temperature Data/NPS Dan Young/Dan_Young_Data/Crosswalk.xlsx") 
+
+#remove sites we aren't using.
+dy.md <- dy.md %>% 
+  filter(!`AKOATS ID` %in% c("Chulitna River - USGS - Site 15298040", 
+                             "Tazimina River - NPS - Site LACL_tazir_stream_water")) %>% 
+  mutate(seq_id = as.numeric(`AKOATS seq_id`),
+         seq_id = case_when(`File Name` == "Sixmile_Outlet.csv" ~ 770,
+                            TRUE ~ seq_id))
+
+```
+
+AKOATS metadata
+
+```{r}
+akoats.meta <- read_excel("S:/EPA AKTEMP/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
+  filter(Sample_interval == "continuous") %>% 
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  mutate(seq_id = as.numeric(seq_id),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+  # rename(AKOATS_ID = seq_id,
+  #        SiteID = Agency_ID)  
+
+akoats.meta %>% 
+  filter(seq_id %in% c(778, 781, 766, 789))
+```
+Get metadata from akoats and compare lat/long before just using original akoats metadata for these sites.
+
+```{r}
+intersect(names(dy.md), names(akoats.meta))
+
+#all match
+left_join(dy.md, akoats.meta) %>% 
+  select(Lat, Latitude,
+         Long, Longitude)
+
+dy.md <- left_join(dy.md, akoats.meta) %>% 
+  select(-(`File Name`:Comments))
+
+```
+
+Save metadata file on google drive and locally.
+
+```{r}
+source("W:/Github/AKSSF/helper_functions.R")
+
+save_metadata_files(dy.md, "nps_dy")
 ```
 
