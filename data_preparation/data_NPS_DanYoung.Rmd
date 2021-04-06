@@ -152,6 +152,16 @@ left_join(dy.md, akoats.meta) %>%
 dy.md <- left_join(dy.md, akoats.meta) %>% 
   select(-(`File Name`:Comments))
 
+#add a siteid field that will link to data with nps in front because the waterbody names are causing problems.
+dy.md <- dy.md %>% 
+  mutate(SiteID = case_when(Agency_ID == "Chulitna River" ~ "Chulitna_SiteB",
+                            Agency_ID == "Little Kijik River below Kijik Lake" ~ "Little Kijik River Dan",
+                            Agency_ID == "Sixmile Lake outlet" ~ "Six Mile Outlet",
+                            TRUE ~ Agency_ID),
+         SiteID = paste0("NPS_", SiteID),
+         SiteID = gsub(" ", "_", SiteID))
+
+dy.md %>% distinct(Agency_ID, SiteID)
 ```
 
 Save metadata file on google drive and locally.

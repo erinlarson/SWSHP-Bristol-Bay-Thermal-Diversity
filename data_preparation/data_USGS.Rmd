@@ -214,15 +214,24 @@ usgs_temp <- whatNWISdata(stateCd = "AK", service = "dv",
 usgs_temp <- usgs_temp %>% select(agency_cd:dec_long_va, huc_cd) %>% distinct()
 
 usgs_temp_sf <- st_as_sf(usgs_temp, coords = c("dec_long_va", "dec_lat_va"), crs = "WGS84")
+usgs_akalb <- st_transform(usgs_temp_sf, crs = 3338)
+
 
 ggplot() +
   geom_sf(data = usgs_temp_sf)
 ```
+
+
 ```{r}
 #old filter on Bristol Bay and Cook Inlet only.
 # usgs_sa <- st_intersection(usgs_temp_sf, huc8_sa)
 
-usgs_md <- bind_cols(usgs_sa, as.data.frame(st_coordinates(usgs_sa))) %>% 
+akssf_sa <- st_read(dsn = "W:/GIS/AKSSF Southcentral/AKSSF_Hydrography.gdb", layer = "AKSSF_studyarea_HUC8")
+st_crs(akssf_sa) == st_crs(usgs_akalb)
+usgs_sa <- st_intersection(usgs_akalb, akssf_sa)
+usgs_sa_wgs84 <- st_transform(usgs_sa, crs = "wgs84")
+
+usgs_md <- bind_cols(usgs_sa_wgs84, as.data.frame(st_coordinates(usgs_sa_wgs84))) %>% 
   st_drop_geometry() %>% 
   rename(SourceName = agency_cd,
          SiteID = site_no,
@@ -240,13 +249,13 @@ usgs_md %>%
 usgs_dat <- readNWISdv(siteNumbers = usgs_sa$site_no, parameterCd = "00010", statCd = c("00001", "00002", "00003"))
 
 usgs_dat %>% 
-  distinct(X_00010_00001_cd)
+  count(X_00010_00001_cd)
 
 usgs_dat %>% 
-  distinct(X_00010_00002_cd)
+  count(X_00010_00002_cd)
 
 usgs_dat %>% 
-  distinct(X_00010_00003_cd)
+  count(X_00010_00003_cd)
 
 #get list of approved codes 
 A_codes <- usgs_dat %>% 

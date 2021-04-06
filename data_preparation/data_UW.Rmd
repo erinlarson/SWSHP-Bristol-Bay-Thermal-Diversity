@@ -564,9 +564,6 @@ dev.off()
 Save metadata and daily data files for AFS summary.
 
 ```{r}
-uw.meta %>% 
-  filter(SiteID %in% sites) %>% 
-  save_metadata_files(., "uw_draft")
 
 uw.daily %>% 
   save_daily_files(., "uw_draft")
@@ -577,6 +574,9 @@ uw.daily %>%
   arrange(desc(n))
 
 uw.daily %>% summary()
+
+uw.meta %>% 
+  arrange(SiteID)
 ```
 Save formatted data from UW database for review by Priscilla.
 
@@ -672,7 +672,7 @@ uw.forQA <- uw.post16.tcsites %>%
 
 Save dataset of Tim's sites as priority for QA and also the other 5 sites with at least 3 years of data in Jackie's database as lower priority for QA.
 
-```{r}
+```{r save data to google drive}
 saveRDS(uw.forQA, "data_preparation/formatted_data/uw.post16.tcsites.rds")
 
 uw.data2 %>% 
@@ -685,6 +685,19 @@ uw.5sites.forQA <- uw.data2 %>%
   select(file_name, SiteID, sampleDate, sampleTime, dt, year, Temperature, UseData)
 
 saveRDS(uw.5sites.forQA, "data_preparation/formatted_data/uw.5sites.rds")
+
+tc.dat2 <- tc.dat2 %>% 
+  mutate(SiteID = paste0("UW_", SiteID))
+tc.dat2
+
+save_daily_files(tc.dat2, "UW_tc")
+
+uw.meta <- uw.meta %>% 
+  mutate(SiteID = paste0("UW_", SiteID))
+
+uw.meta %>% 
+  # filter(SiteID %in% sites) %>% 
+  save_metadata_files(., "UW")
 
 ```
 

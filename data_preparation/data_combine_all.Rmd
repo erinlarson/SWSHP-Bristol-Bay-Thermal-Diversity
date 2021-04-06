@@ -1,0 +1,268 @@
+---
+title: "data_combine_all"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+
+# load packages
+library(googledrive)
+library(lubridate)
+library(readr)
+library(hms)
+library(ggmap)
+library(sf)
+# library(leaflet)
+# library(osmdata)
+library(broom)
+library(caTools)
+library(tidyverse)
+
+# install.packages("devtools")
+devtools::install_github("yutannihilation/ggsflabel")
+library(ggsflabel)
+
+```
+
+This will be used for just Bristol Bay data for collaboration with Erik and Sue.
+
+# Metadata
+
+Bring in the metadata for each set of data and combine so that I can also create some simple maps showing years of data.
+Get metadata files off of google drive for both Bristol Bay.
+
+edits to metadata for later
+- siteid should be filled in for all
+- our agency id should be changed to the new names
+- some fWS site ids are waterbody names and should get fws in front.
+
+```{r read in metadata}
+gd.akssf.files <- drive_ls(path = "https://drive.google.com/drive/u/0/folders/1_qtmORSAow1fIxvh116ZP7oKd_PC36L0")
+
+gd.metadata.files <- gd.akssf.files %>% 
+  filter(grepl("UW|bb|nps_dy|nps_kb|usgs", name) & grepl(".csv", name) & grepl("Metadata", name))
+
+folder <- "data_preparation/final_data/Metadata/"
+
+for (i in seq_along(gd.metadata.files$name)) {
+  drive_download(as_id(gd.metadata.files$id[i]),
+                 path = str_c(folder, gd.metadata.files$name[i]),
+                 overwrite = TRUE)
+}
+
+local.md.files <- list.files(folder, full.names = TRUE)
+
+md <- map_df(local.md.files, function(x) read_csv(x, col_types = "ccccccccccccccc") %>%
+                      mutate(file_name = basename(x))) %>% 
+  mutate(Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+md <- md %>% 
+  mutate(SiteID = case_when(is.na(SiteID) ~ Agency_ID,
+                            TRUE ~ SiteID))
+
+md %>% distinct(SourceName)
+```
+
+
+# Spatial attributes
+
+Attribute sites with HUC8 names so that we have a meaningful way to summarize data across the region.
+
+Create an SF object from the md for intersecting with HUC8s.
+
+```{r create metadata sf}
+md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
+md_sf <- st_transform(md_sf, crs = 3338)
+
+ggplot() +
+  geom_sf(data = md_sf)
+```
+
+Read in HUC8s and reproject.
+
+```{r add huc8 names to md_sf}
+akssf_sa <- st_read(dsn = "W:/GIS/AKSSF Southcentral/AKSSF_Hydrography.gdb", layer = "AKSSF_studyarea_HUC8")
+st_crs(akssf_sa) == st_crs(md_sf)
+
+ggplot() +
+  geom_sf(data = akssf_sa) +
+  geom_sf(data = md_sf)
+
+md_sf <- st_join(md_sf, akssf_sa)
+
+```
+
+
+```{r add HUC8 name to md}
+md <- left_join(md, md_sf %>% st_drop_geometry() %>% select(SiteID, HUC8_Name = Name))
+
+```
+
+
+Just keep sites that are in Bristol Bay -- HUC8 start 1903. Sites without HUC8 are in Kuskokwim (FWS Togiak Refuge sites) and others are USGS sites in AKSSF study area.
+
+```{r remove sites outside BB}
+md_sf %>% count(Name, HUC8)
+
+md_sf %>% filter(is.na(Name))
+
+remove_sites <- md_sf %>% filter(!grepl("1903", HUC8)) %>% pull(SiteID)
+
+md <- md %>% 
+  filter(!SiteID %in% remove_sites)
+
+md_sf <- md_sf %>% 
+  filter(!SiteID %in% remove_sites)
+
+
+ggplot() +
+  geom_sf(data = akssf_sa) +
+  geom_sf(data = md_sf)
+```
+
+
+# Daily data
+
+```{r read in daily data}
+gd.daily.files <- gd.akssf.files %>% 
+  filter(grepl("Daily_Data", name) & grepl(".csv", name) & grepl("UW_5sites|UW_16sites|UW_tc|bb|npsDanY|nps_kb|usgs", name))
+
+folder <- "data_preparation/final_data/Daily_Data/"
+
+for (i in seq_along(gd.daily.files$name)) {
+  drive_download(as_id(gd.daily.files$id[i]),
+                 path = str_c(folder, gd.daily.files$name[i]),
+                 overwrite = TRUE)
+}
+
+local.daily.files <- list.files(folder, full.names = TRUE)
+
+daily.dat <- map_df(local.daily.files, function(x) read_csv(x, col_types = "cDnnn") %>%
+                      mutate(file_name = basename(x)))
+
+summary(daily.dat)
+
+daily.dat %>% 
+  filter(is.na(minDT)) %>% 
+  distinct(SiteID)
+```
+
+```{r remove extra sites from daily data}
+daily.dat <- daily.dat %>% 
+  filter(!SiteID %in% remove_sites)
+```
+
+Some Checks.
+
+```{r}
+daily.dat %>% 
+  filter(grepl("Newhalen", SiteID), month(sampleDate) == 7) %>% 
+  count(SiteID, year(sampleDate))
+
+left_join(daily.dat, md %>% select(SiteID, Waterbody_name, HUC8_Name)) %>% 
+  filter(is.na(HUC8_Name)) %>% distinct(HUC8_Name, SiteID)
+```
+
+
+Filter to only include site years with 80% of days in the summertime (6-8).
+
+```{r create daily.sum}
+
+daily.dat %>% 
+  filter(is.na(meanDT))
+
+daily.sum <- daily.dat %>%
+  group_by(SiteID, Year = year(sampleDate)) %>% 
+  filter(month(sampleDate) %in% 6:8) %>% 
+  mutate(summer_ct = n()) %>% 
+  filter(summer_ct > 0.8 * 92) %>% 
+  left_join(md %>% select(SiteID, Waterbody_name)) %>% 
+  ungroup()
+
+nrow(daily.dat %>% distinct(SiteID, Year = year(sampleDate)))
+nrow(daily.sum %>% distinct(SiteID, Year = year(sampleDate)))
+
+#165 site years lost because incomplete.
+868-703
+```
+
+Calculate thermal regime metrics for summer data only - June through August.
+
+* Maximum mean daily temperature 
+* MWAT Max of 7-day rolling average of mean daily temp
+* Timing of MWAT - low priority
+
+
+```{r mets from daily mean}
+max_meanDT <- daily.sum %>%
+  filter(!is.na(meanDT)) %>% 
+  group_by(SiteID, Year = year(sampleDate)) %>% 
+  summarize(max_DAT = max(meanDT, na.rm = TRUE))
+  
+MWAT <- daily.sum %>%
+  filter(!is.na(meanDT)) %>% 
+  group_by(SiteID, Year = year(sampleDate)) %>% 
+  summarize(MWAT = max(runmean(meanDT, k = 7, endrule = "NA", align = "center"), na.rm=TRUE))
+
+
+mets <- left_join(max_meanDT, MWAT)
+mets <- left_join(mets, md %>% select(SiteID, Name, Region))
+```
+
+
+Old code chunk when we had min mean and max for all sites. UW data is mean only so just calculating metrics for plotting.
+
+```{r temperature metrics, eval = FALSE}
+source('W:/Github/SWSHP-Bristol-Bay-Thermal-Diversity/Temperature Descriptor Function - daily inputs.R')
+
+#count missing max and min for usgs sites - two sites missing max and min altogether, just remove
+daily.dat %>% 
+  group_by(SiteID) %>% 
+  summarize(mxct = sum(!is.na(maxDT)),
+            mnct = sum(!is.na(minDT)),
+            meanct = sum(!is.na(meanDT)))
+
+nrow(daily.dat)
+nrow(daily.dat %>% na.omit(.))
+
+mets.input <- daily.dat %>%
+  na.omit(.) %>% 
+  group_by(SiteID, Year = year(sampleDate), month = month(sampleDate)) %>% 
+  filter(month %in% 6:8) %>% 
+  mutate(mon_total = days_in_month(month),
+         mon_ct = n()) %>% 
+  filter(mon_ct > 0.8 * mon_total)
+
+
+# daily.sum <- daily.dat %>% 
+#   rename(site_name = SiteID, date = sampleDate, mean = meanDT, min = minDT, max = maxDT) %>% 
+#   tempscreen()
+
+#modified so no longer saving to excel file, I just need the data frame output.
+mets <- daily.sum %>% 
+  rename(site_name = SiteID, date = sampleDate, mean = meanDT, min = minDT, max = maxDT) %>% 
+  mutate(site.year = paste(site_name,year(date),sep=".")) %>% 
+  as.data.frame() %>% 
+  tempmetrics(., "output/metrics_2021-03-11")
+
+mets <- mets %>% 
+  mutate(Site = gsub("\\..*","", site.year),
+         Year = gsub("^.*\\.","", site.year))
+
+```
+
+
+```{r save data files}
+
+saveRDS(daily.dat, "output/daily.dat.rds")
+
+saveRDS(md_sf, "output/md_sf.rds")
+
+
+```
+

@@ -36,10 +36,114 @@ library(hms)
 library(plotly)
 library(DT)
 library(leaflet)
+library(sf)
 
 
 ```
 
+```{r}
+daily.dat <- readRDS("output/daily.dat.rds")
+md_sf <- readRDS("output/md_sf.rds")
+
+daily.dat %>% distinct(SiteID)
+```
+
+
+
+# Map of sites and years of data
+
+This leaflet map shows the location of all of the sites that we have data for. Selecting each marker will show the data provider, the site name, the start year, the end year, and the number of years of data. Currently, only streams and rivers sites have been included.
+
+```{r site summary}
+daily.summ <- left_join(daily.dat, md_sf %>% select(SiteID, Waterbody_name, Name)) %>% 
+  filter(month(sampleDate) %in% 6:9) %>% 
+  count(Name, SiteID, Waterbody_name, year = year(sampleDate)) 
+
+site.summ <- daily.summ %>% 
+  filter(n > .7*122) %>% 
+  group_by(SiteID, Waterbody_name) %>% 
+  summarize(start_year = min(year),
+            end_year = max(year),
+            total_years = n()) 
+  
+md_sf <- merge(md_sf, site.summ)
+
+ggplot() +
+  geom_sf(data = md_sf)
+```
+
+
+
+```{r leaflet map}
+
+leaflet(md_sf) %>% 
+  addTiles() %>% 
+  addMarkers(popup = paste("SiteID = ", md_sf$SiteID, "<br>",
+                           "Waterbody Name = ", md_sf$Waterbody_name, "<br>",
+                           "Data Source = ", md_sf$SourceName, "<br>",
+                           "Start Year = ", md_sf$start_year, "<br>",
+                           "End Year = ", md_sf$end_year, "<br>",
+                           "Total Years of Data = ", md_sf$total_years, "<br>"))
+
+```
+
+
+
+# Summary of complete dataset
+
+Data availability figure
+
+```{r}
+
+
+p3 <- daily.summ %>%
+  ggplot() +
+  geom_tile(aes(x = year, y = reorder(SiteID, desc(SiteID)), fill = n)) +
+  # scale_fill_gradient(limits = range(min(uw.summ$n), max(uw.summ$n))) +
+  # coord_cartesian(xlim = c(2017,2020)) + 
+  # geom_vline(aes(xintercept = 2016.5)) +
+  facet_wrap(~HUC8_Name, scale = "free_y") +
+  theme_minimal() +
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank()) 
+
+p3
+
+```
+Distribution of sites with data from 2019.
+
+```{r}
+left_join()
+```
+
+Summary of sites by year.
+
+```{r}
+daily.summ %>%
+  filter(n > .7*122) %>% 
+  count(year) %>% 
+  ggplot() +
+  geom_point(aes(y = factor(year), x = n))
+```
+
+
+```{r create data filtered on complete years}
+
+daily.dat2 <- left_join(daily.dat, md %>% select(SourceName, SiteID, Waterbody_name, HUC8_Name)) %>% 
+  filter(month(sampleDate) %in% 6:9) %>% 
+  group_by(SourceName, HUC8_Name, SiteID, Waterbody_name, Year = year(sampleDate)) %>% 
+  mutate(yrCt = n(),
+         Source = case_when(grepl("FWS|fws", SourceName) ~ "FWS",
+                            grepl("uaa", SourceName) ~ "UAA",
+                            grepl("nps", SourceName) ~ "NPS",
+                            grepl("uw", SourceName) ~ "UW",
+                            TRUE ~ SourceName)) %>% 
+  filter(yrCt > .7*122) %>% 
+  ungroup()
+  
+daily.dat2 %>% distinct(SourceName, Source)
+md_sf %>% st_drop_geometry() %>%  distinct(SourceName)
+```
+# STOPPED HERE CAN UPDATE BELOW WITH PROVIDER NOW.
 
 
 # Cook Inletkeeper
@@ -252,84 +356,5 @@ uw.data %>%
   ggtitle("UW Original Logger Data by Site and Year")
 
 ```
-
-
-# Map of sites and years of data
-
-This leaflet map shows the location of all of the sites that we have data for. Selecting each marker will show the data provider, the site name, the start year, the end year, and the number of years of data. Currently, only streams and rivers sites have been included.
-
-```{r uw}
-uw.md <- read_rds("output/uw_metadata.rds")
-uw.sum <- read_rds("output/uw_data_summ.rds")
-uw.dat <- left_join(uw.md, uw.sum)
-
-```
-
-```{r accs}
-accs.md <- read_rds("output/accs_metadata.rds")
-accs.sum <- read_rds("output/accs_data_summ.rds")
-accs.dat <- left_join(accs.md, accs.sum)
-
-```
-
-```{r cik}
-cik.md <- read_rds("output/cik_metadata.rds")
-cik.sum <- read_rds("output/cik_data_summ.rds")
-cik.dat <- left_join(cik.md, cik.sum)
-
-```
-
-```{r fws}
-fws.md <- read_rds("output/fws_metadata.rds")
-fws.sum <- read_rds("output/fws_data_summ.rds")
-fws.dat <- left_join(fws.md, fws.sum)
-
-```
-
-```{r nps}
-nps.md <- read_rds("output/nps_metadata.rds")
-nps.sum <- read_rds("output/nps_data_summ.rds")
-nps.dat <- left_join(nps.md, nps.sum)
-
-```
-
-
-```{r combine}
-all.dat <- bind_rows(uw.dat, accs.dat, cik.dat, fws.dat, nps.dat)
-```
-
-
-```{r leaflet map}
-
-# create map
-leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
-  #setView(-150.210169, 60.487694, zoom = 8) %>%
-  addMarkers(lng = all.dat$Longitude, lat = all.dat$Latitude,
-             popup = paste("SiteID = ", all.dat$SiteID, "<br>",
-                           "Data Source = ", all.dat$SourceName, "<br>",
-                           "Start Year = ", all.dat$startYear, "<br>",
-                           "End Year = ", all.dat$endYear, "<br>",
-                           "Total Years of Data = ", all.dat$totYears, "<br>"))
-
-```
-
-
-```{r}
-leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  #fitBounds(-150, 60.04,-149.0, 60.02) %>%
-  #setView(-150.210169, 60.487694, zoom = 8) %>%
-  addMarkers(lng = uw.md$Longitude, lat = uw.md$Latitude)
-
-
-             popup = paste("SiteID = ", all.dat$SiteID, "<br>",
-                           "Data Source = ", all.dat$SourceName, "<br>",
-                           "Start Year = ", all.dat$startYear, "<br>",
-                           "End Year = ", all.dat$endYear, "<br>",
-                           "Total Years of Data = ", all.dat$totYears, "<br>"))
-```
-
 
 
