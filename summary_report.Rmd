@@ -352,3 +352,41 @@ uw.data %>%
 ```
 
 
+# USGS
+
+USGS sites were downloaded and filtered to Bristol Bay using the R dataRetrieval library.
+
+```{r usgs data table}
+usgs.data <- daily.dat2 %>% filter(Source == "USGS")
+
+usgs.data.summary <- usgs.data %>%
+  group_by(SiteID, Waterbody_name, Year) %>%
+  summarize(meanTemp = mean(meanDT, na.rm = T),
+            maxTemp = max(meanDT, na.rm = T),
+            minTemp = min(meanDT, na.rm = T),
+            sdTemp = sd(meanDT, na.rm = T),
+            n_obs = n())
+
+usgs.data.summary %>%
+  datatable() %>%
+  formatRound(columns=c("meanTemp","maxTemp","minTemp","sdTemp"), digits=2)
+```
+
+```{r usgs_figure, fig.height=15, fig.width=8}
+
+usgs.data %>%
+  mutate(facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  complete(facetLabel, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, color = as.factor(year))) +
+  geom_line() +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b", limits = c(as.Date("06-01", format = "%m-%d"), as.Date("09-30", format = "%m-%d"))) +
+  facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 18, multi_line = TRUE)) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
+       title = "USGS Original Logger Data by Site and Year") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+  
+
+```
