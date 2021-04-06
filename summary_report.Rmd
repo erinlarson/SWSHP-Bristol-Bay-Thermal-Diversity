@@ -45,9 +45,25 @@ library(sf)
 daily.dat <- readRDS("output/daily.dat.rds")
 md_sf <- readRDS("output/md_sf.rds")
 
-daily.dat %>% distinct(SiteID)
 ```
 
+Suggested filter for analyses would be using sites and years with 70% of days in the June - September period.
+
+```{r create data filtered on complete years}
+
+daily.dat2 <- left_join(daily.dat, md_sf %>% st_drop_geometry() %>% select(SourceName, SiteID, Waterbody_name, Name)) %>% 
+  filter(month(sampleDate) %in% 6:9) %>% 
+  group_by(SourceName, Name, SiteID, Waterbody_name, Year = year(sampleDate)) %>% 
+  mutate(yrCt = n(),
+         Source = case_when(grepl("FWS|fws", SourceName) ~ "FWS",
+                            grepl("uaa", SourceName) ~ "UAA",
+                            grepl("nps", SourceName) ~ "NPS",
+                            grepl("uw", SourceName) ~ "UW",
+                            TRUE ~ SourceName)) %>% 
+  filter(yrCt > .7*122) %>% 
+  ungroup()
+
+```
 
 
 # Map of sites and years of data
@@ -55,12 +71,10 @@ daily.dat %>% distinct(SiteID)
 This leaflet map shows the location of all of the sites that we have data for. Selecting each marker will show the data provider, the site name, the start year, the end year, and the number of years of data. Currently, only streams and rivers sites have been included.
 
 ```{r site summary}
-daily.summ <- left_join(daily.dat, md_sf %>% select(SiteID, Waterbody_name, Name)) %>% 
-  filter(month(sampleDate) %in% 6:9) %>% 
+daily.summ <- left_join(daily.dat2, md_sf %>% select(SiteID, Waterbody_name, Name)) %>% 
   count(Name, SiteID, Waterbody_name, year = year(sampleDate)) 
 
 site.summ <- daily.summ %>% 
-  filter(n > .7*122) %>% 
   group_by(SiteID, Waterbody_name) %>% 
   summarize(start_year = min(year),
             end_year = max(year),
@@ -68,16 +82,12 @@ site.summ <- daily.summ %>%
   
 md_sf <- merge(md_sf, site.summ)
 
-ggplot() +
-  geom_sf(data = md_sf)
 ```
 
 
-
 ```{r leaflet map}
-
 leaflet(md_sf) %>% 
-  addTiles() %>% 
+  addTiles() %>%
   addMarkers(popup = paste("SiteID = ", md_sf$SiteID, "<br>",
                            "Waterbody Name = ", md_sf$Waterbody_name, "<br>",
                            "Data Source = ", md_sf$SourceName, "<br>",
@@ -88,13 +98,11 @@ leaflet(md_sf) %>%
 ```
 
 
-
 # Summary of complete dataset
 
-Data availability figure
+Data availability figure that indicates the number of days of data by year and watershed.
 
 ```{r}
-
 
 p3 <- daily.summ %>%
   ggplot() +
@@ -102,48 +110,53 @@ p3 <- daily.summ %>%
   # scale_fill_gradient(limits = range(min(uw.summ$n), max(uw.summ$n))) +
   # coord_cartesian(xlim = c(2017,2020)) + 
   # geom_vline(aes(xintercept = 2016.5)) +
-  facet_wrap(~HUC8_Name, scale = "free_y") +
+  facet_wrap(~Name, scale = "free_y") +
   theme_minimal() +
   theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank()) 
 
 p3
 
 ```
-Distribution of sites with data from 2019.
-
-```{r}
-left_join()
-```
 
 Summary of sites by year.
 
 ```{r}
 daily.summ %>%
-  filter(n > .7*122) %>% 
   count(year) %>% 
   ggplot() +
-  geom_point(aes(y = factor(year), x = n))
+  geom_point(aes(x = year, y = n)) +
+  theme_bw() +
+  theme(axis.title.x = element_blank()) +
+  labs(y = "Number of Sites")
 ```
 
 
-```{r create data filtered on complete years}
+Distribution of sites with complete summer data from 2019.
 
-daily.dat2 <- left_join(daily.dat, md %>% select(SourceName, SiteID, Waterbody_name, HUC8_Name)) %>% 
-  filter(month(sampleDate) %in% 6:9) %>% 
-  group_by(SourceName, HUC8_Name, SiteID, Waterbody_name, Year = year(sampleDate)) %>% 
-  mutate(yrCt = n(),
-         Source = case_when(grepl("FWS|fws", SourceName) ~ "FWS",
-                            grepl("uaa", SourceName) ~ "UAA",
-                            grepl("nps", SourceName) ~ "NPS",
-                            grepl("uw", SourceName) ~ "UW",
-                            TRUE ~ SourceName)) %>% 
-  filter(yrCt > .7*122) %>% 
-  ungroup()
-  
-daily.dat2 %>% distinct(SourceName, Source)
-md_sf %>% st_drop_geometry() %>%  distinct(SourceName)
+```{r table of 2019 sites by watershed}
+daily.summ %>% 
+  filter(year == 2019) %>% 
+  count(Name) 
 ```
-# STOPPED HERE CAN UPDATE BELOW WITH PROVIDER NOW.
+
+```{r map of 2019 sites, eval = FALSE}
+sites19 <- daily.summ %>% 
+  filter(year == 2019) %>% 
+  pull(SiteID)
+
+sites19
+
+leaflet(md_sf %>% filter(SiteID %in% sites19)) %>% 
+  addTiles() %>%
+  addMarkers()
+popup = paste("SiteID = ", md_sf$SiteID, "<br>",
+                           "Waterbody Name = ", md_sf$Waterbody_name, "<br>",
+                           "Data Source = ", md_sf$SourceName, "<br>",
+                           "Start Year = ", md_sf$start_year, "<br>",
+                           "End Year = ", md_sf$end_year, "<br>",
+                           "Total Years of Data = ", md_sf$total_years, "<br>"))
+
+```
 
 
 # Cook Inletkeeper
@@ -151,15 +164,15 @@ md_sf %>% st_drop_geometry() %>%  distinct(SourceName)
 Sue Mauger provided temperature data collected in partnership with lodges and villages around Bristol Bay from 16 sites from 2014 to 2020. Data were reviewed prior to submission and bad data removed.
 
 ```{r}
-cik.data <- read_rds("output/cik_data.rds")
+cik.data <- daily.dat2 %>% filter(Source == "CIK")
 
 cik.data.summary <- cik.data %>%
   mutate(year = year(sampleDate)) %>%
   group_by(SiteID, year) %>%
-  summarize(meanTemp = mean(Temperature, na.rm = T),
-            maxTemp = max(Temperature, na.rm = T),
-            minTemp = min(Temperature, na.rm = T),
-            sdTemp = sd(Temperature, na.rm = T),
+  summarize(meanTemp = mean(meanDT, na.rm = T),
+            maxTemp = max(meanDT, na.rm = T),
+            minTemp = min(meanDT, na.rm = T),
+            sdTemp = sd(meanDT, na.rm = T),
             n_obs = n())
 
 cik.data.summary %>%
@@ -170,14 +183,12 @@ cik.data.summary %>%
 ```{r cik_figure, fig.height=10, fig.width=8}
 
 cik.data %>%
-  group_by(SiteID, sampleDate) %>% 
-  summarize(meanT = mean(Temperature)) %>%
   complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
   mutate(year = year(sampleDate),
          mo_day = format(sampleDate, "%m-%d")) %>% 
-  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, color = as.factor(year))) +
   geom_line() +
-  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b", limits = c(as.Date("06-01", format = "%m-%d"), as.Date("09-30", format = "%m-%d"))) +
   facet_wrap(~ SiteID) +
   labs(x = "Date", y = "Mean Daily Temperature", color = "Year",
        title = "CIK Original Logger Data by Site and Year") +
@@ -190,16 +201,15 @@ cik.data %>%
 UAA has data from 15 sites in the Kvichak and Nushagak watersheds from 2013 to 2019. All data have been reviewed. 
 
 ```{r}
-accs.data <- read_rds("output/accs_data.rds")
+accs.data <- daily.dat2 %>% filter(Source == "UAA")
 
 accs.data.summary <- accs.data %>%
-  # filter(UseData == 1) %>% 
   mutate(year = year(sampleDate)) %>%
   group_by(SiteID, Waterbody_name, year) %>%
-  summarize(meanTemp = mean(Temperature, na.rm = T),
-            maxTemp = max(Temperature, na.rm = T),
-            minTemp = min(Temperature, na.rm = T),
-            sdTemp = sd(Temperature, na.rm = T),
+  summarize(meanTemp = mean(meanDT, na.rm = T),
+            maxTemp = max(meanDT, na.rm = T),
+            minTemp = min(meanDT, na.rm = T),
+            sdTemp = sd(meanDT, na.rm = T),
             n_obs = n())
 
 accs.data.summary %>%
@@ -210,41 +220,37 @@ accs.data.summary %>%
 ```{r accs_figure, fig.width=8, fig.height=10}
 
 accs.data %>%
-  # filter(UseData == 1) %>% 
-  group_by(Waterbody_name, SiteID, sampleDate) %>% 
-  summarize(meanT = mean(Temperature)) %>%
-  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+  mutate(facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  complete(facetLabel, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
   mutate(year = year(sampleDate),
-         mo_day = format(sampleDate, "%m-%d"),
-         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
-  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+         mo_day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, color = as.factor(year))) +
   geom_line() +
-  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
-    facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 22, multi_line = TRUE)) +
-  labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
-       title = "ACCS Original Logger Data by Site and Year") +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b", limits = c(as.Date("06-01", format = "%m-%d"), as.Date("09-30", format = "%m-%d"))) +
+  facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 22, multi_line = TRUE)) +
+  labs(x = "Date", y = "Mean Daily Temperature", color = "Year",
+       title = "UAA Original Logger Data by Site and Year") +
   theme_bw() +
   theme(legend.position = "bottom")
+  
 
 ```
 
 # NPS
 
-Krista Bartz and Paul Gabriel provided data from 20 stream or lakeshore sites and also temperature data from depth arrays for 6 lakes. All data have been reviewed or clipped to June 1 - Sept 30 per input from Krista. The summary table and figure are based on the surface depths only for the lake arrays. It looks like the 0 meter depth is not always available so we may need to use the next depth for some of our analyses.
+Krista Bartz and Paul Gabriel provided data from 17 stream site and also data Dan Young collected at an additional five stream sites.
+
+Note that there are additional lakeshore sites and also temperature data from depth arrays for 6 lakes, which are not shown here. All data have been reviewed or clipped to June 1 - Sept 30 per input from Krista. The summary table and figure are based on the surface depths only for the lake arrays. It looks like the 0 meter depth is not always available so we may need to use the next depth for some of our analyses.
 
 ```{r}
-nps.data <- read_rds("output/nps_data.rds")
-
-# nps.data %>% distinct(SiteID, Waterbody_name)
+nps.data <- daily.dat2 %>% filter(Source == "NPS")
 
 nps.data.summary <- nps.data %>%
-  filter(UseData == 1 & (is.na(Depth) | Depth == 0)) %>% 
-  mutate(year = year(sampleDate)) %>%
-  group_by(SiteID, Waterbody_name, year) %>%
-  summarize(meanTemp = mean(Temperature, na.rm = T),
-            maxTemp = max(Temperature, na.rm = T),
-            minTemp = min(Temperature, na.rm = T),
-            sdTemp = sd(Temperature, na.rm = T),
+  group_by(SiteID, Waterbody_name, Year) %>%
+  summarize(meanTemp = mean(meanDT, na.rm = T),
+            maxTemp = max(meanDT, na.rm = T),
+            minTemp = min(meanDT, na.rm = T),
+            sdTemp = sd(meanDT, na.rm = T),
             n_obs = n())
 
 nps.data.summary %>%
@@ -255,23 +261,19 @@ nps.data.summary %>%
 ```{r nps_figure, fig.height=15, fig.width=8}
 
 nps.data %>%
-  filter(UseData == 1 & (is.na(Depth) | Depth == 0)) %>% 
-  group_by(Waterbody_name, SiteID, sampleDate) %>% 
-  summarize(meanT = mean(Temperature)) %>%
-  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
+  mutate(facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  complete(facetLabel, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>%
   mutate(year = year(sampleDate),
-         mo_day = format(sampleDate, "%m-%d"),
-         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
-  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+         mo_day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, color = as.factor(year))) +
   geom_line() +
-  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b", limits = c(as.Date("06-01", format = "%m-%d"), as.Date("09-30", format = "%m-%d"))) +
   facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 18, multi_line = TRUE)) +
   labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
        title = "NPS Original Logger Data by Site and Year") +
   theme_bw() +
   theme(legend.position = "bottom")
   
-
 ```
 
 # USFWS
@@ -279,15 +281,14 @@ nps.data %>%
 Meg Perdue provided data from 23 sites in the Togiak Refuge and also from the Egegik River from 2001 to 2019. 
 
 ```{r}
-fws.data <- read_rds("output/fws_data.rds")
+fws.data <- daily.dat2 %>% filter(Source == "FWS")
 
 fws.data.summary <- fws.data %>%
-  mutate(year = year(sampleDate)) %>%
-  group_by(SiteID, Waterbody_name, year) %>%
-  summarize(meanTemp = mean(Temperature, na.rm = T),
-            maxTemp = max(Temperature, na.rm = T),
-            minTemp = min(Temperature, na.rm = T),
-            sdTemp = sd(Temperature, na.rm = T),
+  group_by(SiteID, Waterbody_name, Year) %>%
+  summarize(meanTemp = mean(meanDT, na.rm = T),
+            maxTemp = max(meanDT, na.rm = T),
+            minTemp = min(meanDT, na.rm = T),
+            sdTemp = sd(meanDT, na.rm = T),
             n_obs = n())
 
 fws.data.summary %>%
@@ -298,15 +299,13 @@ fws.data.summary %>%
 ```{r fws_figure, fig.height=15, fig.width=8}
 
 fws.data %>%
-  group_by(Waterbody_name, SiteID, sampleDate) %>% 
-  summarize(meanT = mean(Temperature)) %>%
-  complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
+  mutate(facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
+  complete(facetLabel, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
   mutate(year = year(sampleDate),
-         mo_day = format(sampleDate, "%m-%d"),
-         facetLabel = paste0(Waterbody_name, " (", SiteID, ")")) %>% 
-  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+         mo_day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, color = as.factor(year))) +
   geom_line() +
-  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b", limits = c(as.Date("06-01", format = "%m-%d"), as.Date("09-30", format = "%m-%d"))) +
   facet_wrap(~ facetLabel, labeller = label_wrap_gen(width = 18, multi_line = TRUE)) +
   labs(x = "Date", y = "Mean Daily Temperature", color = "Year", 
        title = "FWS Original Logger Data by Site and Year") +
@@ -321,16 +320,14 @@ fws.data %>%
 Daniel Schindler and Jackie Carter provided data from the University of Washington for 70 stream and river sites from 2006 to 2020. Jackie will send over all of their lake data once they receive the loggers back from 2020.
 
 ```{r}
-uw.data <- read_rds("output/uw_data.rds")
+uw.data <- daily.dat2 %>% filter(Source == "UW")
 
 uw.data.summary <- uw.data %>%
-  filter(UseData == 1) %>% 
-  mutate(year = year(sampleDate)) %>%
-  group_by(SiteID, year) %>%
-  summarize(meanTemp = mean(Temperature, na.rm = T),
-            maxTemp = max(Temperature, na.rm = T),
-            minTemp = min(Temperature, na.rm = T),
-            sdTemp = sd(Temperature, na.rm = T),
+  group_by(SiteID, Year) %>%
+  summarize(meanTemp = mean(meanDT, na.rm = T),
+            maxTemp = max(meanDT, na.rm = T),
+            minTemp = min(meanDT, na.rm = T),
+            sdTemp = sd(meanDT, na.rm = T),
             n_obs = n())
 
 uw.data.summary %>%
@@ -341,15 +338,12 @@ uw.data.summary %>%
 ```{r uw_figure, fig.height=30, fig.width=10}
 
 uw.data %>%
-  filter(UseData == 1) %>% 
-  group_by(SiteID, sampleDate) %>% 
-  summarize(meanT = mean(Temperature)) %>%
   complete(SiteID, sampleDate = seq.Date(min(sampleDate), max(sampleDate), by = "day")) %>% 
   mutate(year = year(sampleDate),
          mo_day = format(sampleDate, "%m-%d")) %>% 
-  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanT, color = as.factor(year))) +
+  ggplot(aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, color = as.factor(year))) +
   geom_line() +
-  scale_x_date(date_breaks = "3 months", date_labels = "%b") +
+  scale_x_date(date_breaks = "1 months", date_labels = "%b", limits = c(as.Date("06-01", format = "%m-%d"), as.Date("09-30", format = "%m-%d"))) +
   facet_wrap(~ SiteID, labeller = label_wrap_gen(width = 15, multi_line = TRUE), ncol = 5) +
   labs(x = "Date", y = "Mean Daily Temperature", color = "Year") +
   theme_bw() +

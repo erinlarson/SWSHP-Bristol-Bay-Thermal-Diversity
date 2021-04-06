@@ -77,7 +77,7 @@ Create an SF object from the md for intersecting with HUC8s.
 
 ```{r create metadata sf}
 md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
-md_sf <- st_transform(md_sf, crs = 3338)
+# md_sf <- st_transform(md_sf, crs = 3338)
 
 ggplot() +
   geom_sf(data = md_sf)
@@ -87,13 +87,14 @@ Read in HUC8s and reproject.
 
 ```{r add huc8 names to md_sf}
 akssf_sa <- st_read(dsn = "W:/GIS/AKSSF Southcentral/AKSSF_Hydrography.gdb", layer = "AKSSF_studyarea_HUC8")
-st_crs(akssf_sa) == st_crs(md_sf)
+akssf_sa_wgs84 <- st_transform(akssf_sa, crs = "wgs84")
+st_crs(akssf_sa_wgs84) == st_crs(md_sf)
 
 ggplot() +
   geom_sf(data = akssf_sa) +
   geom_sf(data = md_sf)
 
-md_sf <- st_join(md_sf, akssf_sa)
+md_sf <- st_join(md_sf, akssf_sa_wgs84)
 
 ```
 
@@ -260,6 +261,7 @@ mets <- mets %>%
 ```{r save data files}
 
 saveRDS(daily.dat, "output/daily.dat.rds")
+
 
 saveRDS(md_sf, "output/md_sf.rds")
 
