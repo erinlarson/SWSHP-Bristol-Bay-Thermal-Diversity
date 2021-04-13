@@ -33,13 +33,16 @@ library(readxl)
 library(hms)
 library(plotly)
 library(DT)
+library(googledrive)
+library(googlesheets4)
+
 ```
 
 # Metadata
 
 Copied over Dustin's md table from the Bristol Bay Temperature repo. Create this data frame first because it has all 15 sites with new SiteIDs in the clean data file along with the akoats ids. Then link to the akoats metadata to get lat/longs.
 
-```{r AKOATS, table}
+```{r BBay md, table}
 # Create akoats metadata table using new site ids - Big Creek:ilbig01,
 
 accs.md <- tibble(
@@ -53,14 +56,15 @@ accs.md <- tibble(
              "mussm15", "mutsk09", "mutsk02", 
              "muekm23", "iltnr19","ilbig01"),
   Waterbody_name = c("Little Mulchatna River",
-                     "Unnamed Tributary Koksetna River", "Kaskanak Creek",
+                     "Unnamed Tributary to Koksetna River", "Kaskanak Creek",
                      "Chilchitna River", "Bonanza Creek",
                      "South Fork Koktuli River", "Stuyahok River",
-                     "Tazimina River", "Victoria Creek", "Koktuli River",
-                     "Tributary of Koktuli River 1",
-                     "Tributary of Koktuli River 2",
-                     "Tributary of Koktuli River 3",
-                     "Tributary of Newhalen River", "Big Creek")
+                     "Tazimina River", "Victoria Creek",
+                     "Tributary to Koktuli River 3",
+                     "Tributary to Koktuli River 1",
+                     "Tributary to Koktuli River 2",
+                     "Tributary to Koktuli River 4",
+                     "Tributary to Newhalen River", "Big Creek")
 )
 
 accs.md%>% 
@@ -68,21 +72,55 @@ accs.md%>%
 
 ```
 
+DM Notes: Use GOOGLE SHEET Copy for consistency if user has access - method prefferred as everyone using the same version of AKOATS md
 
-```{r}
-akoats.md <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
-  filter(Sample_interval == "continuous") %>% 
-  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
-  mutate(seq_id = as.numeric(seq_id),
-         Latitude = as.numeric(Latitude),
-         Longitude = as.numeric(Longitude))
+```{r AKOATS MD from Google Sheet}
+
+# akoats <- "https://docs.google.com/spreadsheets/d/1SPZXNGm_Tc39-GuJXY8j7Eb1lX6DwXTQ1en2_LvCI1I/edit#gid=1281874712"
+# 
+# akoats.md <- read_sheet(akoats, sheet = "AKOATS_COMPLETE",
+#                     col_names = TRUE,
+#                     col_types = "c") %>%
+#   filter( Sample_interval == "continuous") %>%
+#   select( seq_id, Agency_ID, Contact_person, SourceName, Contact_email,
+#           Contact_telephone, Latitude, Longitude, Sensor_accuracy,
+#           Waterbody_name) %>%
+#   # rename(AKOATS_ID = seq_id) %>%
+#   #        SiteID = Agency_ID) %>%
+#   mutate(seq_id = as.numeric(seq_id),
+#          Latitude = as.numeric(Latitude),
+#          Longitude = as.numeric(Longitude))
+# 
+# intersect(names(accs.md), names(akoats.md))
+# 
+# #Site IDs changed so just join on akoats id.
+# accs.md <- left_join(accs.md, akoats.md %>% select( -Waterbody_name),
+#                      by = c("AKOATS_ID" = "seq_id"))
+# 
+# saveRDS(accs.md, "output/accs_metadata.rds")
+
+```
+
+Use local copy of AKOATS md if user does not have access to google sheet.
+
+```{r AKOATS MD from Local Copy}
+akoats.md <- read_excel( "data/AKOATS_DATA_2020_Working.xlsx",
+                        sheet = "AKOATS_COMPLETE", col_types = "text") %>%
+  filter( Sample_interval == "continuous") %>%
+  select( seq_id, Agency_ID, Contact_person, SourceName, Contact_email,
+          Contact_telephone, Latitude, Longitude, Sensor_accuracy,
+          Waterbody_name) %>%
+  mutate(seq_id = as.numeric( seq_id),
+         Latitude = as.numeric( Latitude),
+         Longitude = as.numeric( Longitude))
   # rename(AKOATS_ID = seq_id,
   #        SiteID = Agency_ID)  
 
-intersect(names(accs.md), names(akoats.md))
+intersect(names( accs.md), names( akoats.md))
 
 #Site IDs changed so just join on akoats id.
-accs.md <- left_join(accs.md, akoats.md %>% select(-Waterbody_name), by = c("AKOATS_ID" = "seq_id"))
+accs.md <- left_join( accs.md, akoats.md %>% select( -Waterbody_name),
+                      by = c("AKOATS_ID" = "seq_id"))
 
 saveRDS(accs.md, "output/accs_metadata.rds")
 ```
@@ -92,7 +130,7 @@ saveRDS(accs.md, "output/accs_metadata.rds")
 
 Read in Dustin's clean data file from the Bristol Bay Temperature repo.
 
-```{r}
+```{r Read in Temp Data}
 
 accs.data <- read_csv("W:/Github/Bristol-Bay-Temperature/output/BB_Temp_Clean_2020-12-18.csv")
 
@@ -105,7 +143,7 @@ accs.data %>%
 
 For visualization and data QA/QC, we want waterbody name associated with each dataset, which we need from the metadata. 
 
-```{r}
+```{r Join Waterbody name to Temp Data}
 
 accs.data <- left_join(accs.data, accs.md %>% select(SiteID, Waterbody_name), by = "SiteID")
 
@@ -116,7 +154,7 @@ accs.data %>% distinct(Waterbody_name, SiteID)
 
 Summary csv to add as attributes to leaflet map.
 
-```{r}
+```{r Summarize data for map}
 accs.data %>% 
   group_by(SiteID, Waterbody_name) %>% 
   summarize(startYear = min(year(sampleDate)),
@@ -129,18 +167,15 @@ accs.data %>%
 
 Save a copy of the data for a summary table and figure.
 
-```{r}
+```{r Save Summary}
 saveRDS(accs.data, "output/accs_data.rds")
 ```
-
-
-
 
 # Data review
 
 Perform a quick visualization to see extent and form of data. Note that these data have now been qaed by Dustin.
 
-```{r}
+```{r Plot Data by Site and Year}
 
 accs.data %>%
   filter(UseData == 1) %>% 
