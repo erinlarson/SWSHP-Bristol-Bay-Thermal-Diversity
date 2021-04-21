@@ -265,6 +265,12 @@ saveRDS(daily.dat, "output/daily.dat.rds")
 
 saveRDS(md_sf, "output/md_sf.rds")
 
+names(md_sf)
+
+#save as shp so we can check catchment locations in ArcGIS
+md_sf %>% 
+  select(SiteID:Waterbody_type) %>% 
+  st_write(., "output/bb_md.shp")
 
 ```
 

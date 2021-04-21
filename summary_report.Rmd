@@ -37,6 +37,9 @@ library(plotly)
 library(DT)
 library(leaflet)
 library(sf)
+library(tmap)
+library(tmaptools)
+
 
 
 ```
@@ -68,7 +71,7 @@ daily.dat2 <- left_join(daily.dat, md_sf %>% st_drop_geometry() %>% select(Sourc
 
 # Map of sites and years of data
 
-This leaflet map shows the location of all of the sites that we have data for. Selecting each marker will show the data provider, the site name, the start year, the end year, and the number of years of data. Currently, only streams and rivers sites have been included.
+This map shows the location of all of the sites that we have data for. Selecting each marker will show the start year, the end year, and the number of years of data. Currently, only streams and rivers sites have been included.
 
 ```{r site summary}
 daily.summ <- left_join(daily.dat2, md_sf %>% select(SiteID, Waterbody_name, Name)) %>% 
@@ -85,24 +88,25 @@ md_sf <- merge(md_sf, site.summ)
 ```
 
 
-```{r leaflet map}
-leaflet(md_sf) %>% 
-  addTiles() %>%
-  addMarkers(popup = paste("SiteID = ", md_sf$SiteID, "<br>",
-                           "Waterbody Name = ", md_sf$Waterbody_name, "<br>",
-                           "Data Source = ", md_sf$SourceName, "<br>",
-                           "Start Year = ", md_sf$start_year, "<br>",
-                           "End Year = ", md_sf$end_year, "<br>",
-                           "Total Years of Data = ", md_sf$total_years, "<br>"))
+```{r}
+tmap_mode("view")
+
+sitemap <- md_sf %>%
+  tm_shape() +
+  tm_dots(id = "SiteID", size = 0.05, group = "Sites", col = "SourceName",
+          popup.vars = c("Waterbody_name", "start_year", "end_year", "total_years")) +
+  tm_text("SiteID", size = 1.5, shadow = TRUE, auto.placement = TRUE,
+          just = "bottom", remove.overlap = TRUE, clustering = TRUE, group = "Labels" ) +
+  tm_basemap(server = c(Topo = "Esri.WorldTopoMap", Imagery = "Esri.WorldImagery" ))
+
+sitemap
 
 ```
 
-
 # Summary of complete dataset
 
-Data availability figure that indicates the number of days of data by year and watershed.
 
-```{r}
+```{r eval = FALSE}
 
 p3 <- daily.summ %>%
   ggplot() +
@@ -118,25 +122,32 @@ p3
 
 ```
 
-Summary of sites by year.
+Number of sites by year and major watershed.
 
 ```{r}
 daily.summ %>%
-  count(year) %>% 
   ggplot() +
-  geom_point(aes(x = year, y = n)) +
+  geom_bar(aes(x = year, fill = Name)) +
   theme_bw() +
   theme(axis.title.x = element_blank()) +
   labs(y = "Number of Sites")
 ```
 
 
-Distribution of sites with complete summer data from 2019.
+Count of total number of sites in each watershed and also sites with data from 2019.
 
 ```{r table of 2019 sites by watershed}
+site_ct <- daily.summ %>%
+  distinct(Name, SiteID) %>% 
+  group_by(Name) %>% 
+  summarize(site_count = n()) 
+
 daily.summ %>% 
   filter(year == 2019) %>% 
-  count(Name) 
+  group_by(Name) %>%
+  summarize(n = n()) %>% 
+  left_join(site_ct) %>% 
+  rename("Total Sites" = site_count, "2019 Sites" = n)
 ```
 
 ```{r map of 2019 sites, eval = FALSE}
@@ -156,6 +167,30 @@ popup = paste("SiteID = ", md_sf$SiteID, "<br>",
                            "End Year = ", md_sf$end_year, "<br>",
                            "Total Years of Data = ", md_sf$total_years, "<br>"))
 
+```
+
+
+```{r}
+daily.dat2 %>% 
+  # filter(Name %in% hucs9) %>% 
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0)) %>%
+  filter(month(sampleDate) %in% 6:9) %>% 
+  ggplot() +
+  geom_line(data = . %>% filter(is_19 == 0), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
+  geom_line(data = . %>% filter(is_19 == 1), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = "red")) +
+  geom_abline(aes(intercept = 20, slope = 0), linetype = 2) +
+  facet_wrap(~Name) +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.x = element_blank()) +
+  labs(title = "Stream Temperatures for Bristol Bay Watersheds",
+       subtitle = "127 sites with one to 17 years of data from 2001-2020 \n2019 data in red",
+       y = "Mean Daily Temperature (°C)")
 ```
 
 
