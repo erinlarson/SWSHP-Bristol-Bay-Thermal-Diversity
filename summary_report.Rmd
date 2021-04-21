@@ -170,7 +170,7 @@ popup = paste("SiteID = ", md_sf$SiteID, "<br>",
 ```
 
 
-```{r}
+```{r fig.width=8, fig.height=10}
 daily.dat2 %>% 
   # filter(Name %in% hucs9) %>% 
   mutate(year = year(sampleDate),
@@ -185,7 +185,7 @@ daily.dat2 %>%
   geom_line(data = . %>% filter(is_19 == 1), 
             aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = "red")) +
   geom_abline(aes(intercept = 20, slope = 0), linetype = 2) +
-  facet_wrap(~Name) +
+  facet_wrap(~Name, ncol = 3) +
   theme_minimal() +
   theme(legend.position = "none", axis.title.x = element_blank()) +
   labs(title = "Stream Temperatures for Bristol Bay Watersheds",
