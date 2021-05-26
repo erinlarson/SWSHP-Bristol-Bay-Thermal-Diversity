@@ -1,53 +1,29 @@
-﻿SiteID,sampleDate,flag
-KATM_lbrooo_lvl,6/6/2006,start air
-KATM_lbrooo_lvl,6/7/2006,
-KATM_lbrooo_lvl,6/8/2006,end air
-KATM_lbrooo_lvl,4/29/2007,malfunction
-KATM_lbrooo_lvl,8/11/2007,malfunction
-KATM_lbrooo_lvl,9/20/2007,air
-KATM_lbrooo_lvl,9/26/2007,air
-KATM_lbrooo_lvl,6/5/2008,start air
-KATM_lbrooo_lvl,6/6/2008,end air
-KATM_lbrooo_lvl,9/13/2008,start air
-KATM_lbrooo_lvl,9/14/2008,
-KATM_lbrooo_lvl,9/15/2008,
-KATM_lbrooo_lvl,9/16/2008,
-KATM_lbrooo_lvl,9/17/2008,
-KATM_lbrooo_lvl,9/18/2008,
-KATM_lbrooo_lvl,9/19/2008,
-KATM_lbrooo_lvl,9/20/2008,
-KATM_lbrooo_lvl,9/21/2008,
-KATM_lbrooo_lvl,9/22/2008,end air
-KATM_lbrooo_lvl,9/23/2008,additional air identified by plotting
-KATM_lbrooo_lvl,9/24/2008,additional air identified by plotting
-KATM_lbrooo_lvl,9/25/2008,additional air identified by plotting
-KATM_lbrooo_lvl,9/26/2008,additional air identified by plotting
-KATM_lbrooo_lvl,9/27/2008,additional air identified by plotting
-KATM_lbrooo_lvl,9/28/2008,additional air identified by plotting
-KATM_lbrooo_lvl,9/29/2008,additional air identified by plotting
-KATM_lbrooo_lvl,10/7/2011,air
-KATM_lbrooo_lvl,9/20/2012,air
-KATM_lbrooo_lvl,9/21/2012,air
-KATM_lbrooo_lvl,10/7/2015,air
-KATM_lbrooo_lvl,5/20/2016,air
-KATM_lbrooo_lvl,9/9/2016,air
-KATM_lbrooo_lvl,9/11/2016,air
-KATM_lbrooo_lvl,1/16/2017,start ice
-KATM_lbrooo_lvl,2/26/2017,end ice
-KATM_lbrooo_lvl,9/25/2006,additional air identified by plotting
-KATM_lbrooo_lvl,9/26/2006,additional air identified by plotting
-KATM_lbrooo_lvl,9/27/2006,additional air identified by plotting
-KATM_lbrooo_lvl,9/28/2006,additional air identified by plotting
-KATM_lbrooo_lvl,9/29/2006,additional air identified by plotting
-KATM_lbrooo_lvl,9/30/2006,additional air identified by plotting
-KATM_lbrooo_lvl,10/1/2006,additional air identified by plotting
-KATM_lbrooo_lvl,10/2/2006,additional air identified by plotting
-KATM_lbrooo_lvl,10/3/2006,additional air identified by plotting
-KATM_lbrooo_lvl,10/4/2006,additional air identified by plotting
-LACL_lclaro_lvl,6/6/2011,additional air identified by plotting
-LACL_lclaro_lvl,6/7/2011,additional air identified by plotting
-LACL_lclaro_lvl,6/8/2011,additional air identified by plotting
-LACL_lclaro_lvl,9/15/2009,additional air identified by plotting
-LACL_lclaro_lvl,6/10/2013,additional air identified by plotting
-LACL_lclaro_lvl,9/30/2013,additional air identified by plotting
-LACL_lclaro_lvl,9/30/2014,additional air identified by plotting
+﻿SiteID,FlagStart,FlagEnd,FlagReason,UseSite,UseData,Notes
+KATM_lbrooo_lvl,6/6/2006,6/8/2006,Air Temperature,1,0,
+KATM_lbrooo_lvl,9/25/2006,9/30/2006,Air Temperature,1,0,QA through September only.
+KATM_lbrooo_lvl,8/11/2007,8/11/2007,Logger Failure,1,0,From KB notes.
+KATM_lbrooo_lvl,9/26/2007,9/27/2007,Air Temperature,1,0,
+KATM_lbrooo_lvl,6/5/2008,6/6/2008,Air Temperature,1,0,
+KATM_lbrooo_lvl,9/13/2008,9/29/2008,Air Temperature,1,0,
+KATM_lbrooo_lvl,9/20/2012,9/21/2012,Air Temperature,1,0,
+KATM_lbrooo_lvl,9/9/2016,9/9/2016,Air Temperature,1,0,
+KATM_lbrooo_temp,9/20/2016,9/30/2016,Air Temperature,1,0,
+KATM_lbrooo_lvl,9/13/2018,9/13/2018,Air Temperature,1,0,
+KATM_lbrooo_temp,,,,0,0,"Matches level logger data, use that site since much longer time series."
+LACL_lclaro_lvl,9/15/2009,9/15/2009,Air Temperature,1,0,
+LACL_lclaro_lvl,10/13/2010,10/15/2010,Air Temperature,1,0,
+LACL_lclaro_lvl,6/6/2011,6/8/2011,Air Temperature,1,0,
+LACL_lclaro_lvl,6/10/2013,6/10/2013,Air Temperature,1,0,
+LACL_lclaro_lvl,9/30/2013,9/30/2013,Air Temperature,1,0,
+LACL_lclaro_lvl,9/30/2014,9/30/2014,Air Temperature,1,0,
+LACL_lclaro_lvl,,,,0,0,"The level logger is consistently colder than the sonde, which also has several years of data. The time stamp also drifted on the level logger."
+LACL_lclaro_temp,1/1/2015,12/31/2019,Other,1,0,Use sonde data for 2015-2019.
+LACL_lclaro_continuous_wq,1/1/2014,12/31/2014,Other,1,0,"Use hobo temp logger for 2014 because complete data for September, note it is ~0.4 degree warmer than sonde when both are available this year."
+LACL_lclaro_continuous_wq,1/1/2020,12/31/2020,Other,1,0,"Use hobo temp logger for 2014 because complete data for June and September, both loggers track closely this year."
+LACL_lkijr_stream_water,,,,0,1,"On LB below cold water input, tracks colder than temp logger or level logger on RB."
+LACL_kijilo_lvl,1/1/2014,12/31/2015,Other,1,0,Use temp logger for 2014 and 2015.
+LACL_kijilo_lvl,1/1/2017,12/31/2020,Other,1,0,"Use temp logger for 2017-2020, lvl logger time stamp eventually drifts in 2020 and peaks don't match hobo or stream water sensor."
+LACL_kijilo_temp,9/25/2018,9/30/2018,Other,1,0,Erratic temps for both temp and lvl logger not seen in stream water sensor on LB.
+KATM_naknlo_lvl,6/1/2006,6/2/2006,Air Temperature,1,0,
+KATM_naknlo_continuous_wq,,,,0,0,"Use level logger for this site, the sonde was deployed mid-channel and is much colder, also a shorter time series."
+KATM_naknlo_temp,,,,0,0,"Use level logger for this site, the hobo only has 2 years of data."
