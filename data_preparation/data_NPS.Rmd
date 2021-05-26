@@ -53,8 +53,21 @@ nps.metadata  <- read_excel("data/NPS Bartz/Site_Info_RSS.xlsx", skip = 4) %>%
   select(SiteID = Agency_ID, Waterbody_name = Waterbody_Name, Latitude = Lat, Longitude = Long, 
          SourceName, Contact_person, `File for B_Shaftel`, site_name)
 
-nps.metadata
+nps.metadata 
 
+```
+
+Note that Krista has level loggers and temp loggers at four sites. We should check which to keep, per email on 5/14/21 it may be better to keep the temp loggers. Check in data below to see if the time series match and how well they are correlated.
+
+```{r}
+lvl_loggers <- nps.metadata %>% 
+  filter(grepl("lvl", SiteID)) %>% 
+  mutate(lvl_short = substr(SiteID, 1, 11)) %>% 
+  pull(lvl_short)
+
+nps.metadata %>% 
+  filter(grepl(paste(lvl_loggers, collapse = "|"), SiteID)) %>% 
+  arrange(SiteID) 
 ```
 
 
@@ -171,8 +184,11 @@ nps.data.1 %>% distinct(Qualifiers)
 nps.data.1 <- left_join(nps.data.1, nps.metadata %>% select(SiteID, `File for B_Shaftel`, Waterbody_name), 
           by = c("file_name" = "File for B_Shaftel"))
 
-nps.data.1
+nps.data.1 %>% distinct(SiteID)
+
+nps.data.1 %>% filter(SiteID == "LACL_lclaro_lvl", sampleDate == "2015-06-06")
 ```
+
 
 Pilot sites.
 
@@ -272,7 +288,53 @@ nps.lakes %>% distinct(SiteID, Waterbody_name)
 ```
 
 
+Add in new time series downloaded in 2021.
+
+```{r}
+nps.files.2021 <- list.files("S:\\Stream Temperature Data\\NPS Krista Bartz\\May21 Data", full.names = TRUE) 
+
+keep <- c("file_name", "sampleDate", "sampleTime", "Temperature")
+
+chull <- read_csv(nps.files.2021[grepl("chull", nps.files.2021)], skip = 2, col_types = cols(.default = "c"), col_names = F) %>%
+           mutate(file_name = gsub(".csv","",basename(nps.files.2021[grepl("chull", nps.files.2021)])),
+                  sampleDate = as.Date(parse_date_time(X2, orders = "mdY")),
+                  sampleTime = as_hms(parse_date_time(X3, orders = "IMS p")),
+                  Temperature = as.numeric(X4)) %>% 
+  select(one_of(keep))
+
+porta <- read_csv(nps.files.2021[grepl("porta", nps.files.2021)], skip = 2, col_types = cols(.default = "c"), col_names = F) %>%
+           mutate(file_name = gsub(".csv","",basename(nps.files.2021[grepl("porta", nps.files.2021)])),
+                  sampleDate = as.Date(parse_date_time(X2, orders = "mdy IMS p")),
+                  sampleTime = as_hms(parse_date_time(X2, orders = "mdy IMS p")),
+                  Temperature = as.numeric(X3)) %>% 
+  select(one_of(keep))
+
+lclaro <- read_csv(nps.files.2021[grepl("lclaro_lvl", nps.files.2021)], skip = 15, col_types = cols(.default = "c"), col_names = F) %>%
+           mutate(file_name = gsub(".csv","",basename(nps.files.2021[grepl("lclaro_lvl", nps.files.2021)])),
+                  sampleDate = as.Date(parse_date_time(X1, orders = "mdY")),
+                  sampleTime = as_hms(parse_date_time(X2, orders = "IMS p")),
+                  Temperature = as.numeric(X4)) %>% 
+  select(one_of(keep))
+
+lclarot <- read_csv(nps.files.2021[grepl("lclaro_temp", nps.files.2021)], skip = 2, col_types = cols(.default = "c"), col_names = F) %>%
+           mutate(file_name = gsub(".csv","",basename(nps.files.2021[grepl("lclaro_temp", nps.files.2021)])),
+                  sampleDate = as.Date(parse_date_time(X2, orders = "mdy IMS p")),
+                  sampleTime = as_hms(parse_date_time(X2, orders = "mdy IMS p")),
+                  Temperature = as.numeric(X3)) %>% 
+  select(one_of(keep))
+
+nps.2021 <- bind_rows(chull, porta, lclaro, lclarot)
+
+```
+
+
+# STOPPED HERE
+bind 2021 to other data and complete flagging of sites with multiple loggers - level, sonde, and hobos.
+
+
 # Data review
+
+NOTES on data quality 5/21/21: the four sites with level loggers and temp loggers need further review. These are paired at the sites and there are a lot of bad data that needs to be flagged further. I emailed Krista some plots so she can tell me what loggers to move forward with. 
 
 From Krista and Paul - all data from pilot study workbook have been QAed in addition to the lake temperature arrays. Krista has also plotted all level logger data from 6/1-9/30 and everything looked fine. 
 
@@ -514,6 +576,142 @@ left_join(other_sites, nps.data) %>%
 
 
 
+# Compare level logger data to temp logger data - 4 sites
+
+
+Compare data from level loggers to temp loggers at 4 sites.
+
+lbrooo site, just the two loggers. Level logger data for 2006-2008, 2012-2013, 2015-2019. Temp logger provides a good check, but only available for four of those years. Go with level logger for this site as I don't see any major problems and it has a longer time series.
+
+* 2015 looks good, they match.
+* 2016 9/8-9/12 problem with level logger.
+* 2016 9/20 to end of September, looks like temp logger got exposed, two air events.
+* 2016 summer many of the peaks are slightly higher for the temp logger, but only by ~0.5 degree.
+* 2017 looks good, they match.
+* 2019 looks good, they match.
+
+
+```{r}
+nps.data <- readRDS("output/nps_data.rds")
+
+nps.data %>% 
+  filter(grepl(paste(lvl_loggers, collapse = "|"), SiteID)) %>% 
+  distinct(SiteID) 
+
+lbrooo <- nps.data %>% 
+  filter(SiteID %in% c("KATM_lbrooo_lvl", "KATM_lbrooo_temp"), month(sampleDate) %in% 6:9, UseData == 1) %>%
+  filter(year(sampleDate) == 2016) %>%
+  mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S")) %>% 
+  ggplot(aes(x = dt, y = Temperature, color = SiteID)) +
+  geom_line(aes(linetype = SiteID))
+
+ggplotly(lbrooo)
+
+```
+
+
+lclaro site. Level logger data for 2009-2011, 2013-2018. Temp logger provides a good check, but only available for 2014-2018. Note that LACL_claro_continuous_wq (2010, 2012-2020) is also at this location and would probably be the best to use given the problems between the level and temp loggers - time offsets and temp differences.
+
+* 2014 logger patterns match, but they differ by > 1 degree. It's difficult to understand what caused this, was the level logger buried? Are there site notes for visits from summer 2014? Temp logger mostly spans summer months so could just go with that logger.
+* 2015 patterns generally match for early part of summer when both loggers have data, but they are off by 7 hours. The temp logger seems more believable because maximum temperatures are in late afternoon, not early morning.
+* 2016 same problem with temperatures, they are off by 7 hours and I *think* the temp logger is most likely correct. The maximums for the level logger are lower but only by about 0.2 degree.
+* 2017 times are still off by 7 hours, same as 2014, patterns generally match, but level logger is 1 degree colder, maybe buried. Temp logger mostly spans summer months so could just go with that logger.
+* 2018 temp logger has two air spikes and only goes to mid-July. Temperatures are off by 1 degree again, level logger is colder. Drop data for this year?
+
+Use sonde for this site -- pretty long time series. May have small gaps in summer for maintenance, fill in as needed. Level logger time stamp may drift. 
+
+```{r}
+lclaro <- nps.data %>% 
+  filter(SiteID %in% c("LACL_lclaro_lvl", "LACL_lclaro_temp", "LACL_lclaro_continuous_wq"), UseData == 1) %>% 
+  # filter(year(sampleDate) == 2017) %>%
+  mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S")) %>% 
+  ggplot(aes(x = dt, y = Temperature, color = SiteID)) +
+  geom_line(aes(linetype = SiteID))
+
+ggplotly(lclaro)
+
+```
+
+lkijilo site, there are three loggers at same location with data from 2014-2020 except temp logger missing 2016. Note that stream water sites is on opposite bank so could have slightly different temperatures given width at sampling location (~30 m bankfull). Talk with Krista about which she prefers, but don't use level logger, either temp logger or stream water.
+
+* 2014 patterns generally match but stream water site is ~0.5 degree colder. Also some strange erratic patterns in the fall the don't match smoother patterns typically seen for temperatures and at other two loggers.
+* 2015 two air temp spikes in level logger that should be flagged. Stream water logger still about 0.5 degree colder.
+* 2016 patterns match, Stream water logger still about 0.5 degree colder.
+* 2017 patterns match, Stream water logger still about 0.5 degree colder.
+* 2018 bad data for level logger and temp logger from 9/25 to end of month. But other than that same patterns and differences in temperature as before.
+* 2019 patterns match, Stream water logger still about 0.5 degree colder.
+* 2020 times on level logger are off, now ahead by 8 hours. Stream water logger looks buried from mid-June through July. Go with temp logger for this year.
+
+Stream water site directly downstream of a cold water creek on LB. Use temp logger, but fill in level logger for 2016.
+
+
+```{r}
+kijilo <- nps.data %>% 
+  filter(SiteID %in% c("LACL_kijilo_lvl", "LACL_kijilo_temp", "LACL_lkijr_stream_water"), UseData == 1,
+         month(sampleDate) %in% 6:9) %>% 
+  filter(year(sampleDate) == 2015) %>%
+  mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S")) %>% 
+  ggplot(aes(x = dt, y = Temperature, color = SiteID)) +
+  geom_line(aes(linetype = SiteID))
+
+ggplotly(kijilo)
+```
+
+
+naknlo site, note there are three datasets at same location. level logger has longest time series, 2006-2007, 2009-2018. The cont wq logger has data from 2012-2019 and the temp logger has data only for 2017-2018.
+
+* 2006 air spike level logger.
+* 2012 several periods where level logger is 0.5 degree warmer than cont wq. Cont wq also not complete mid June to mid Sept.
+* 2013 cont wq missing most of summer and colder than level logger for august/sept.
+* 2014 same pattern where cont wq tends to be colder than level logger, but only for some periods. In this year, it starts mid-August and goes until end of year. Possibly this logger is getting buried? Ask Krista if they have retrieval records.
+* 2015 cont wq colder by > 1 degree entire summer. 
+* 2016 cont wq colder by > 1 degree entire summer. 
+* 2017 temp logger gets buried mid-July for at least a month. Level logger starts to deviate from cont wq sensor in early August and is much colder, which is opposite to the pattern from earlier years and earlier in the summer, when the cont wq was colder. Likely the level logger also got buried this year.
+* 2018 all three loggers are different this year, cont wq about 1 or more degrees colder than level logger and temp logger is somewhere in between.
+
+Probably best to use level logger for this dataset. Temp logger has very short time series and the cont wq logger is logging some part of the stream that is colder... maybe deeper placement. But, in 2017, cont wq sensor is only one that doesn't get buried. Krista can look at level logger data for 2017 where the level logger switched and became colder than the sonde.
+
+
+```{r}
+naknlo <- nps.data %>% 
+  filter(SiteID %in% c("KATM_naknlo_lvl", "KATM_naknlo_temp", "KATM_naknlo_continuous_wq"), UseData == 1,
+         month(sampleDate) %in% 6:9) %>% 
+  filter(year(sampleDate) == 2017) %>%
+  mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S")) %>% 
+  ggplot(aes(x = dt, y = Temperature, color = SiteID)) +
+  geom_line(aes(linetype = SiteID))
+
+ggplotly(naknlo)
+```
+
+Create some plots by year comparing the two sets of loggers at the four sites.
+
+```{r}
+lvl_loggers
+
+pdf("output/NPS Level Logger Comparison.pdf", width = 11, height = 8.5)
+for(i in 1:4) {
+  plot.site <- lvl_loggers[i]
+  dat <- nps.data %>% 
+    filter(SiteID %in% c(paste0(plot.site, "_lvl", collapse = ""), 
+                         paste0(plot.site, "_temp", collapse = "")),
+           month(sampleDate) %in% 6:9)
+  yrs <- dat %>% distinct(year = year(sampleDate))
+  for(j in 1:nrow(yrs)) {
+    plot.year <- yrs %>% slice(j) %>% pull(year)
+    p <- dat %>% 
+      filter(year(sampleDate) == plot.year) %>% 
+      mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S")) %>% 
+      ggplot(aes(x = dt, y = Temperature, color = SiteID)) +
+      geom_line(aes(linetype = SiteID)) +
+      labs(title = paste(plot.site, plot.year))
+    print(p)
+  }
+}
+dev.off()
+
+```
+
 
 
 # Final data file and summary
@@ -571,4 +769,12 @@ nps.daily <- temp_msmt_freq(nps.data.streams) %>% daily_screen(.)
 
 save_daily_files(nps.daily, "nps_kb")
 ```
+
+Save lake data for separate rmarkdown report where those data are combined.
+
+```{r}
+saveRDS(left_join(lake_sites, nps.data), file = "data_preparation/formatted_data/nps_lakes.rds")
+```
+
+
 

@@ -1,0 +1,109 @@
+---
+title: "data_UW_Iliamna"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+# load packages
+library(googledrive)
+library(lubridate)
+library(readr)
+library(readxl)
+library(hms)
+library(plotly)
+library(DT)
+library(gridExtra)
+library(tidyverse)
+```
+
+# Iliamna Lake region datasets
+
+Jackie provided one file with temperatures from the Iliamna lake area by email and noted that this is all the data she has in her database for this region and it only goes through 2014. There is a data worksheet and a data summary worksheet, but no metadata. But, Jackie did enter a lot of sites from this area into [AKOATS](https://accs.uaa.alaska.edu/aquatic-ecology/akoats/).
+
+```{r}
+
+#read in temps as text because some have degrees C on them.
+ili_dat <- read_excel("S:/Stream Temperature Data/Jackie Carter UW/Iliamna Data/Iliamna Lake Continuous HOBO Temperature Master Through 2014.xlsx", sheet = "All Data", col_types = c("text","text","skip", "skip", "skip", "date", "date", "numeric", "text", "numeric", "text"))
+
+#check format before converting to numeric
+# ili_dat %>% 
+#   filter(grepl("C", Temp)) %>% 
+#   distinct(Temp)
+
+ili_dat <- ili_dat %>% 
+  rename(SiteID = Location,
+         loggerType = `Logger Type`,
+         absPressure = `Abs Pres, mbar`,
+         voltage = Voltage, 
+         notes = Notes) %>% 
+  mutate(sampleDate = as.Date(Date),
+         sampleTime = format(Time, "%H:%M"),
+         Temperature = case_when(grepl("C", Temp) ~ as.numeric(substr(Temp, 1, 3)),
+                                 TRUE ~ as.numeric(Temp)),
+         DT = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M"))
+
+ili_dat %>% distinct(SiteID)
+
+```
+
+Plot of raw data, looks like just two sites have a lot of data, others are more sporadic.
+
+```{r plot of raw data}
+ili_dat %>% 
+  ggplot() +
+  geom_line(aes(x = DT, y = Temperature)) +
+  facet_wrap(~SiteID)
+```
+
+Table showing count of days by site and year.
+
+```{r count of days by site and year}
+ili_dat %>% 
+  mutate(year = year(sampleDate)) %>% 
+  distinct(SiteID, year, sampleDate) %>% 
+  count(SiteID, year) %>% 
+  arrange(year) %>% 
+  pivot_wider(names_from = year, values_from = n)
+```
+
+Filter on sites and years with complete summers of data (70% of days from June to September). The two long-term sites have several complete summers, but also note that this is mostly pre-2010, which doesn't really match the other datasets.
+
+```{r}
+ili_dat %>% 
+  filter(month(sampleDate) %in% 6:9) %>% 
+  mutate(year = year(sampleDate)) %>% 
+  distinct(SiteID, year, sampleDate) %>% 
+  count(SiteID, year) %>%
+  filter(n > .7*122) %>% 
+  ggplot() +
+  geom_tile(aes(x = year, y = SiteID, fill = n))
+```
+
+AKOATS metadata, Jackie may have entered some of these sites here.
+
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
+  filter(Sample_interval == "continuous") %>% 
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  mutate(seq_id = as.numeric(seq_id),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+  # rename(AKOATS_ID = seq_id,
+  #        SiteID = Agency_ID)  
+
+akoats.meta %>% filter(Contact_person == "Jackie Carter") %>% arrange(Agency_ID)
+```

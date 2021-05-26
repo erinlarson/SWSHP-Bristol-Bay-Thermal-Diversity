@@ -1,0 +1,64 @@
+---
+title: "data_lakes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+
+library(readxl)
+library(tidyverse)
+```
+
+# UW lake data
+
+Read in UW data frame.
+
+```{r}
+uw_lak <- read_excel("S:\\Stream Temperature Data\\Jackie Carter UW\\Lake Data\\Lake_Temps_for Becky.xlsx")
+
+uw_lak %>% 
+  distinct(Lake, YearSampled, DateSampled) %>% 
+  group_by(Lake, YearSampled) %>%
+  summarize(count = n(),
+            startDate = min(DateSampled),
+            endDate = max(DateSampled))
+
+uw_lak %>% 
+  group_by(Lake) %>% 
+  summarize(startYear = min(YearSampled),
+            endYear = max(YearSampled)) %>% 
+  write_csv("output/uw_lakes.csv")
+
+uw_lak %>% 
+  group_by(Lake) %>% 
+  summarize(min(Depth),
+            max(Depth))
+
+uw_lak %>% distinct(Notes)
+uw_lak %>% summary(Depth)  
+```
+
+```{r}
+uw_lak %>% 
+  filter(Lake == "Aleknagik") %>% 
+  ggplot(aes(x = DateSampled, y = Depth, color = Temperature, group = DateSampled)) +
+  geom_point() +
+  facet_wrap(~StationName)
+```
+
+
+
+# NPS lake data
+
+
+```{r}
+readRDS(file = "data_preparation/formatted_data/nps_lakes.rds")
+```
+
+
+# FWS lake data
+
+Meg provided lake data from the Togiak Refuge and also from some lakes on the east side of Bristol Bay.

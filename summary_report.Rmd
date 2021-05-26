@@ -48,6 +48,9 @@ library(tmaptools)
 daily.dat <- readRDS("output/daily.dat.rds")
 md_sf <- readRDS("output/md_sf.rds")
 
+md_sf %>% 
+  select(SiteID:Waterbody_type) %>% 
+  st_write(., dsn = "output/bb_temp_sites.shp", append = FALSE)
 ```
 
 Suggested filter for analyses would be using sites and years with 70% of days in the June - September period.
@@ -131,6 +134,8 @@ daily.summ %>%
   theme_bw() +
   theme(axis.title.x = element_blank()) +
   labs(y = "Number of Sites")
+
+# ggsave("output/streams site count by year.jpeg", width = 10, height = 8, units = "in")
 ```
 
 
@@ -191,6 +196,30 @@ daily.dat2 %>%
   labs(title = "Stream Temperatures for Bristol Bay Watersheds",
        subtitle = "127 sites with one to 17 years of data from 2001-2020 \n2019 data in red",
        y = "Mean Daily Temperature (°C)")
+```
+```{r eval = FALSE}
+daily.dat2 %>% 
+  # filter(Name %in% hucs9) %>% 
+  mutate(year = year(sampleDate),
+         mo_day = format(sampleDate, "%m-%d"),
+         site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0)) %>%
+  filter(month(sampleDate) %in% 6:9) %>% 
+  ggplot() +
+  geom_line(data = . %>% filter(is_19 == 0), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
+  geom_line(data = . %>% filter(is_19 == 1), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = "red")) +
+  geom_abline(aes(intercept = 20, slope = 0), linetype = 2) +
+  facet_wrap(~Name, ncol = 4) +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.x = element_blank()) +
+  labs(title = "Stream Temperatures for Bristol Bay Watersheds",
+       subtitle = "127 sites with one to 17 years of data from 2001-2020 \n2019 data in red",
+       y = "Mean Daily Temperature (°C)")
+
+ggsave("output/stream temperatures by watershed.jpeg", width = 10, height = 8, units = "in")
 ```
 
 
