@@ -293,6 +293,8 @@ Add in new time series downloaded in 2021.
 ```{r}
 nps.files.2021 <- list.files("S:\\Stream Temperature Data\\NPS Krista Bartz\\May21 Data", full.names = TRUE) 
 
+keep <- c("SiteID", "sampleDate", "sampleTime", "Temperature", "file_name")
+
 chull <- read_csv(nps.files.2021[grepl("chull", nps.files.2021)], skip = 2, col_types = cols(.default = "c"), col_names = F) %>%
            mutate(file_name = gsub(".csv","",basename(nps.files.2021[grepl("chull", nps.files.2021)])),
                   sampleDate = as.Date(parse_date_time(X2, orders = "mdY")),
@@ -738,18 +740,20 @@ Combine site names for co-located loggers at lake outlet sites in the nps.data d
 
 ```{r}
 nps.data <- nps.data %>% 
-  mutate(SiteID2 = case_when(grepl("KATM_lbrooo", SiteID) ~ "KATM_lbrooo",
-                            grepl("LACL_lclaro", SiteID) ~ "LACL_lclaro",
-                            grepl("LACL_kijilo", SiteID) ~ "LACL_kijilo",
-                            grepl("KATM_naknlo", SiteID) ~ "KATM_naknlo",
-                            TRUE ~ SiteID)) 
+  rename(AgencyID = SiteID) %>% 
+  mutate(SiteID = case_when(grepl("KATM_lbrooo", orig_SiteID) ~ "KATM_lbrooo",
+                            grepl("LACL_lclaro", orig_SiteID) ~ "LACL_lclaro",
+                            grepl("LACL_kijilo", orig_SiteID) ~ "LACL_kijilo",
+                            grepl("KATM_naknlo", orig_SiteID) ~ "KATM_naknlo",
+                            TRUE ~ orig_SiteID)) 
 
 nps.metadata <- nps.metadata %>% 
-  mutate(SiteID2 = case_when(grepl("KATM_lbrooo", SiteID) ~ "KATM_lbrooo",
-                            grepl("LACL_lclaro", SiteID) ~ "LACL_lclaro",
-                            grepl("LACL_kijilo", SiteID) ~ "LACL_kijilo",
-                            grepl("KATM_naknlo", SiteID) ~ "KATM_naknlo",
-                            TRUE ~ SiteID)) 
+  rename(AgencyID = SiteID) %>% 
+  mutate(SiteID = case_when(grepl("KATM_lbrooo", orig_SiteID) ~ "KATM_lbrooo",
+                            grepl("LACL_lclaro", orig_SiteID) ~ "LACL_lclaro",
+                            grepl("LACL_kijilo", orig_SiteID) ~ "LACL_kijilo",
+                            grepl("KATM_naknlo", orig_SiteID) ~ "KATM_naknlo",
+                            TRUE ~ orig_SiteID)) 
 
 
 ```
@@ -758,11 +762,11 @@ Check time series for the co-located sites.
 
 ```{r}
 nps.data %>% 
-  filter(SiteID2 %in% c("KATM_naknlo", "KATM_lbrooo", "LACL_lclaro", "LACL_kijilo"), UseData == 1) %>% 
+  filter(SiteID %in% c("KATM_naknlo", "KATM_lbrooo", "LACL_lclaro", "LACL_kijilo"), UseData == 1) %>% 
   mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S")) %>% 
-  ggplot(aes(x = dt, y = Temperature, color = SiteID)) +
+  ggplot(aes(x = dt, y = Temperature, color = orig_SiteID)) +
   geom_line() +
-  facet_wrap(~SiteID2)
+  facet_wrap(~SiteID)
 
 ```
 
