@@ -37,7 +37,7 @@ library(dataRetrieval)
 library(googledrive)
 ```
 
-Sue used stream names for her site IDs in Bristol Bay. Add "CIK_" as a prefix to each in both the data and the metadata so we don't have duplicates later (e.g. Bear Creek x n).
+Sue used stream names for her site IDs in Bristol Bay. Add "cik_" as a prefix to each in both the data and the metadata so we don't have duplicates later (e.g. Bear Creek x n).
 
 # Metadata
 
@@ -46,12 +46,10 @@ AKOATS metadata
 ```{r}
 akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
   filter(Sample_interval == "continuous") %>% 
-  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name) %>%
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name,Waterbody_type) %>%
   mutate(seq_id = as.numeric(seq_id),
          Latitude = as.numeric(Latitude),
          Longitude = as.numeric(Longitude))
-  # rename(AKOATS_ID = seq_id,
-  #        SiteID = Agency_ID)  
 
 akoats.meta
 ```
@@ -64,7 +62,7 @@ Sue didn't provide lat/longs in her metadata file so need to try and match names
 
 cik.meta <- akoats.meta %>%
   filter(SourceName == "CIK") %>% 
-  select(seq_id, Agency_ID, SourceName, Contact_person, Waterbody_name, Latitude, Longitude)
+  select(seq_id, Agency_ID, SourceName, Contact_person, Waterbody_name, Waterbody_type, Latitude, Longitude)
 
 #remove sites in cook inlet.
 cik.meta <- cik.meta[!grepl("CIK", cik.meta$Agency_ID),]
@@ -75,7 +73,8 @@ cik.meta <- bind_rows(cik.meta,
                                  Contact_person = "Sue Mauger",
                                  Latitude = 59.272417,
                                  Longitude = -156.357567,
-                                 Waterbody_name = "Ben Courtney Creek"))
+                                 Waterbody_name = "Ben Courtney Creek",
+                                 Waterbody_type = "S"))
 
 cik.meta <- bind_rows(cik.meta,
                       data.frame(Agency_ID = "Roadhouse Creek",
@@ -83,7 +82,8 @@ cik.meta <- bind_rows(cik.meta,
                                  Contact_person = "Sue Mauger",
                                  Latitude = 59.7573,
                                  Longitude = -154.8499,
-                                 Waterbody_name = "Roadhouse Creek"))
+                                 Waterbody_name = "Roadhouse Creek",
+                                 Waterbody_type = "S"))
 
 cik.meta <- cik.meta %>% 
   mutate(Agency_ID = case_when(grepl("Gibraltar", Agency_ID) ~ "Gibraltar River",
@@ -97,7 +97,7 @@ Add SiteIDs to match with data that have CIK_ prefix.
 ```{r}
 
 cik.meta <- cik.meta %>% 
-  mutate(SiteID = paste0("CIK_", Agency_ID))
+  mutate(SiteID = paste0("cik_", Agency_ID))
 
 
 saveRDS(cik.meta, "output/cik_metadata.rds")
@@ -129,15 +129,15 @@ cik.data <- cik.data %>%
   mutate(sampleDate = as.Date(`...1`),
          sampleTime = as_hms(`...2`),
          Temperature = `...3`,
-         SiteID = sub("\\_.*", "", file_name)) %>%  
+         Agency_ID = sub("\\_.*", "", file_name)) %>%  
   select(-`...1`, -`...2`, -`...3`, -`...4`, -`...5`) 
 
 #fix site names. 
 cik.data <- cik.data %>% 
-  mutate(SiteID = case_when(grepl("Naknek", file_name) ~ "Big Creek_Naknek",
+  mutate(Agency_ID = case_when(grepl("Naknek", file_name) ~ "Big Creek_Naknek",
                             grepl("Roadhouse", file_name) ~ "Roadhouse Creek",
                             grepl("Panar", file_name) ~ "Panaruqak Creek",
-                            TRUE ~ SiteID))
+                            TRUE ~ Agency_ID))
 
 
 ```
@@ -146,10 +146,10 @@ Add SiteIDs to match with data that have CIK_ prefix.
 
 ```{r}
 cik.data <- cik.data %>% 
-  mutate(SiteID = paste0("CIK_", SiteID))
+  mutate(SiteID = paste0("cik_", Agency_ID))
 
 cik.data %>% 
-  distinct(SiteID) %>% 
+  distinct(Agency_ID, SiteID) %>% 
   left_join(cik.meta)
 ```
 

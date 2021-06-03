@@ -20,6 +20,8 @@ Document last updated `r Sys.time()` by Benjamin Meyer (benjamin.meyer.ak@gmail.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+
 
 
 # load packages
@@ -207,7 +209,7 @@ First filter from AK down to AKSSF, then separate split for Bristol Bay only.
 
 Read in all sites with daily values for AK and temperature. Convert to an SF object.
 
-```{r metadata}
+```{r usgs temp sites for AK}
 usgs_temp <- whatNWISdata(stateCd = "AK", service = "dv", 
                              parameterCd = c("00010"))
 
@@ -222,7 +224,7 @@ ggplot() +
 ```
 
 
-```{r}
+```{r metadata for usgs sites in akssf study area}
 #old filter on Bristol Bay and Cook Inlet only.
 # usgs_sa <- st_intersection(usgs_temp_sf, huc8_sa)
 
@@ -234,19 +236,56 @@ usgs_sa_wgs84 <- st_transform(usgs_sa, crs = "wgs84")
 usgs_md <- bind_cols(usgs_sa_wgs84, as.data.frame(st_coordinates(usgs_sa_wgs84))) %>% 
   st_drop_geometry() %>% 
   rename(SourceName = agency_cd,
-         SiteID = site_no,
+         Agency_ID = site_no,
          Waterbody_name = station_nm,
          Latitude = Y,
          Longitude = X) %>% 
-  select(SourceName, SiteID, Waterbody_name, Latitude, Longitude)
+  mutate(SiteID = paste0("usgs_", Agency_ID)) %>% 
+  select(SourceName, SiteID, Agency_ID, Waterbody_name, Latitude, Longitude)
 
 usgs_md %>% 
-  arrange(SiteID)
+  arrange(Agency_ID, SiteID)
+```
+
+AKOATS metadata
+
+```{r}
+akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "AKOATS_COMPLETE", col_types = "text") %>%
+  filter(Sample_interval == "continuous") %>% 
+  select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,Sensor_accuracy,Waterbody_name,Waterbody_type,Sensor_Placement) %>%
+  mutate(seq_id = as.numeric(seq_id),
+         Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude))
+
+akoats.meta
 ```
 
 
-```{r daily data}
+
+```{r get akoats ids}
+akoats.usgs <- akoats.meta %>% 
+  filter(SourceName == "USGS")
+
+akoats.usgs %>% arrange(Waterbody_name)
+
+left_join(usgs_md, akoats.usgs %>% select(Agency_ID, seq_id)) %>% count(is.na(seq_id)) #17 are missing in akoats, 6 have duplicate entries 55 to 61.
+
+#remove older ids.
+usgs_md <- left_join(usgs_md, akoats.usgs %>% select(Agency_ID, seq_id, Contact_person, Waterbody_type, Sensor_Placement, Sensor_accuracy)) %>% 
+  filter(!(seq_id %in% c(1074, 1066, 1070, 1082, 1051, 1785)))
+
+
+#older entries have unknown sensor accuracy
+akoats.usgs %>% filter(seq_id %in% c(1074, 1075, 1066, 1067, 1070, 1071, 1082, 1083, 1051, 1670))
+```
+
+
+
+```{r usgs daily data}
 usgs_dat <- readNWISdv(siteNumbers = usgs_sa$site_no, parameterCd = "00010", statCd = c("00001", "00002", "00003"))
+
+#no data for Gakona River.
+readNWISdv(siteNumbers = 15200000, parameterCd = "00010", statCd = c("00001", "00002", "00003"))
 
 usgs_dat %>% 
   count(X_00010_00001_cd)
@@ -278,18 +317,26 @@ usgs_dat %>%
 usgs_daily <- usgs_dat %>% 
   # filter(X_00010_00003_cd %in% A_codes) %>% 
   rename(SourceName = agency_cd,
-         SiteID = site_no,
+         Agency_ID = site_no,
          sampleDate = Date,
          maxDT = X_00010_00001,
          minDT = X_00010_00002, 
          meanDT = X_00010_00003) %>% 
-  select(-X_00010_00001_cd, -X_00010_00002_cd, -X_00010_00003_cd)
+  mutate(SiteID = paste0("usgs_", Agency_ID)) %>% 
+  select(SourceName, Agency_ID, sampleDate, minDT, maxDT, meanDT, SiteID)
+
+#calculate mean from min and max when not provided and delete rows with no data.
+usgs_daily <- usgs_daily %>% 
+  mutate(meanDT = case_when(is.na(meanDT) & !is.na(maxDT) & !is.na(minDT) ~ (maxDT + minDT)/2,
+                            TRUE ~ meanDT)) %>% 
+  filter(!(is.na(meanDT) & is.na(minDT) & is.na(maxDT)))
+
 
 usgs_daily %>% 
-  group_by(SiteID) %>% 
+  group_by(Agency_ID) %>% 
   summarize(minyr = min(year(sampleDate)),
             maxyr = max(year(sampleDate))) %>% 
-  left_join(usgs_temp %>% distinct(site_no, station_nm), by = c("SiteID" = "site_no"))
+  left_join(usgs_temp %>% distinct(site_no, station_nm), by = c("Agency_ID" = "site_no"))
 
 usgs_daily %>% 
   ggplot(aes(x = sampleDate, y = meanDT)) +
@@ -299,15 +346,22 @@ usgs_daily %>%
 ```
   
   
-Save daily data and metadata for AKSSF.
+Save daily data and metadata for AKSSF. Note that these are all sites and should be filtered to bb only when combining data for that project.
 
 
 ```{r save raw data}
 source("W:/Github/AKSSF/helper_functions.R")
 
+summary(usgs_daily)
 usgs_daily %>% 
   distinct(SiteID) %>%
   left_join(usgs_md)
+
+#gakona river missing
+left_join(usgs_md, usgs_daily %>% group_by(SiteID) %>% summarize(meanT = mean(meanDT, na.rm = TRUE)))
+
+usgs_md <- usgs_md %>% 
+  filter(!Agency_ID == "15200000")
 
 save_metadata_files(usgs_md, "usgs")
 

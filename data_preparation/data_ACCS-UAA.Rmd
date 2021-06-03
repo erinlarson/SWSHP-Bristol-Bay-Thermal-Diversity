@@ -46,11 +46,11 @@ Copied over Dustin's md table from the Bristol Bay Temperature repo. Create this
 # Create akoats metadata table using new site ids - Big Creek:ilbig01,
 
 accs.md <- tibble(
-  AKOATS_ID = as.numeric(c("1660", "1661", "1662", "1663",
+  seq_id = as.numeric(c("1660", "1661", "1662", "1663",
                 "1664", "1665", "1666", "1667",
                 "1668", "760", "761", "762", 
                 "763", "764", "1784")),
-  SiteID = c("AKBB-020", "AKBB-028", "AKBB-029", 
+  Agency_ID = c("AKBB-020", "AKBB-028", "AKBB-029", 
              "AKBB-040", "mubon10", "musfk01",
              "mustu17", "iltaz02", "AKBB-011",
              "mussm15", "mutsk09", "mutsk02", 
@@ -68,7 +68,7 @@ accs.md <- tibble(
 )
 
 accs.md%>% 
-  arrange(desc(SiteID))
+  arrange(desc(Agency_ID))
 
 ```
 
@@ -113,14 +113,14 @@ akoats.md <- read_excel( "data/AKOATS_DATA_2020_Working.xlsx",
   mutate(seq_id = as.numeric( seq_id),
          Latitude = as.numeric( Latitude),
          Longitude = as.numeric( Longitude))
-  # rename(AKOATS_ID = seq_id,
-  #        SiteID = Agency_ID)  
 
 intersect(names( accs.md), names( akoats.md))
 
 #Site IDs changed so just join on akoats id.
-accs.md <- left_join( accs.md, akoats.md %>% select( -Waterbody_name),
-                      by = c("AKOATS_ID" = "seq_id"))
+accs.md <- left_join(accs.md, akoats.md %>% select(-Waterbody_name, -Agency_ID))
+
+accs.md <- accs.md %>% 
+  mutate(SiteID = paste0("accs_", Agency_ID))
 
 saveRDS(accs.md, "output/accs_metadata.rds")
 ```
@@ -145,7 +145,7 @@ For visualization and data QA/QC, we want waterbody name associated with each da
 
 ```{r Join Waterbody name to Temp Data}
 
-accs.data <- left_join(accs.data, accs.md %>% select(SiteID, Waterbody_name), by = "SiteID")
+accs.data <- left_join(accs.data, accs.md %>% select(Agency_ID, Waterbody_name), by = c("SiteID" = "Agency_ID"))
 
 accs.data %>% distinct(Waterbody_name, SiteID)
 
@@ -165,9 +165,13 @@ accs.data %>%
 ```
 
 
-Save a copy of the data for a summary table and figure.
+Save a copy of the data for a summary table and figure. Add a siteid first with our acronym as prefix.
 
 ```{r Save Summary}
+accs.data <- accs.data %>% 
+  rename(Agency_ID = SiteID) %>% 
+  mutate(SiteID = paste0("accs_", Agency_ID))
+
 saveRDS(accs.data, "output/accs_data.rds")
 ```
 
@@ -189,7 +193,7 @@ accs.data %>%
 
 # Save daily data and metadata
 
-Save raw data for AKTEMP, which includes date and time. Save metadata file. Save daily data after screening for days with less than 90% of measurements.
+Save metadata file. Save daily data after screening for days with less than 90% of measurements.
 
 ```{r save raw data}
 source("W:/Github/AKSSF/helper_functions.R")
@@ -198,13 +202,9 @@ accs.md
 
 save_metadata_files(accs.md, "accs_bb")
 
-accs.data
-
 accs.data %>% 
   distinct(SiteID) %>% 
   left_join(accs.md)
-
-save_aktemp_files(accs.data %>% mutate(UseData = 1), "accs_bb")
 
 accs.daily <- temp_msmt_freq(accs.data %>% mutate(UseData = 1)) %>% daily_screen(.)
 
