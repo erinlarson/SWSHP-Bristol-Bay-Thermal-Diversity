@@ -254,6 +254,8 @@ for(i in nps.lake.files){
 
 
 nps.lakes
+
+
 ```
 
 Assign Agency_ID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
@@ -264,6 +266,11 @@ nps.lakes <- left_join(nps.lakes, nps.metadata %>% select(SiteID, `File for B_Sh
 
 
 nps.lakes %>% distinct(SiteID, Waterbody_name)
+
+nps.lakes %>% 
+  mutate(year = year(sampleDate)) %>% 
+  group_by(SiteID) %>% 
+  summarize(min(year), max(year))
 ```
 
 Merge datasets and add a UseData field. Note that in 2019 it looked like there were valid temps greater than 25 at Lake Brooks, set that cutoff higher so those data are not removed.

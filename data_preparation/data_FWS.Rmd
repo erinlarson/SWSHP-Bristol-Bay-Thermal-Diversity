@@ -53,16 +53,28 @@ osm_md <- read_excel("S:\\Stream Temperature Data\\USFWS Perdue - complete 2020\
 
 # combine metadata sheets
 fws.metadata <- bind_rows(togiak1_metadata, wrb_metadata) %>%
-  select(SourceName, Contact_person, AKOATS_ID, SiteID, Waterbody_name, Waterbody_type, Sensor_Placement, Latitude, Longitude)
+  select(SourceName, Contact_person, seq_id = AKOATS_ID, Agency_ID = SiteID, Waterbody_name, Waterbody_type, Sensor_Placement, Latitude, Longitude)
 
-fws.metadata <- bind_rows(osm_md %>% select(SourceName, Contact_person, AKOATS_ID, SiteID = Agency_ID, Waterbody_name, Waterbody_type, Sensor_Placement, Latitude, Longitude), fws.metadata)
+fws.metadata <- bind_rows(osm_md %>% select(SourceName, Contact_person, seq_id = AKOATS_ID, Agency_ID, Waterbody_name, Waterbody_type, Sensor_Placement, Latitude, Longitude), fws.metadata)
 
 fws.metadata <- fws.metadata %>% 
   mutate(Waterbody_type = case_when(grepl("Stream", Waterbody_type) ~ "S",
-                                    TRUE ~ Waterbody_type))
+                                    TRUE ~ Waterbody_type),
+          SiteID = paste0("fws_", Agency_ID))
 
-saveRDS(fws.metadata, "output/fws_metadata.rds")
+fws.metadata
 
+```
+
+Lake metadata - using lat/longs from site registration forms provided by William Smith on S drive.
+
+```{r}
+apb_md <- data.frame(SourceName = rep("fwsakAKPBNWR", 3), Contact_person = rep("William Smith", 3), seq_id = rep(NA, 3), Agency_ID = c("Mother Goose Lake", "Needle Lake", "Ugashik Lake"),
+                     Waterbody_name = c("Mother Goose Lake", "Needle Lake", "Ugashik Lake"), Waterbody_type = rep("L", 3), Sensor_Placement = rep("Lake (limnetic zone)", 3),
+                     Latitude = as.numeric(c(57.18825, 57.15181, 57.60939)), Longitude = as.numeric(c(-157.326, -157.17226, -156.81706))) %>% 
+  mutate(SiteID = paste0("fws_", Agency_ID))
+
+fws.metadata <- bind_rows(fws.metadata, apb_md)
 ```
 
 
@@ -70,6 +82,7 @@ saveRDS(fws.metadata, "output/fws_metadata.rds")
 # Data Import
 
 
+## Streams
 
 Read in Excel files, one at a time.  Note: data is structured such that individual sites are separated by tabs, with one tab for metadata.
 
@@ -80,16 +93,16 @@ Read in "Togiak_Oct2020_Part1.xlsx"
 togiak1 <- "data/FWS/Togiak_Oct2020_Part1.xlsx"
 
 sheets <- excel_sheets(togiak1)
-sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
+sheets <- sheets[!grepl("metadata|Ongivinuk Lake", sheets)] # filtering to remove the metadata sheet
 tog1_dat <- tibble()
 for(i in sheets){
   dat <- read_excel(togiak1, sheet = i, skip = 1, col_types = c("date", "date", "numeric"), na = "---", 
                     col_names = c("sampleDate", "sampleTime", "Temperature")) %>%
-    mutate(SiteID = i)
+    mutate(Agency_ID = i)
   tog1_dat <- bind_rows(tog1_dat, dat)
 }
 
-tog1_dat
+tog1_dat %>% distinct(Agency_ID)
 ```
 
 
@@ -99,7 +112,7 @@ Read in "Togiak_Oct2020_Part2.xlsx"
 togiak2 <- "data/FWS/Togiak_Oct2020_Part2.xlsx"
 
 sheets <- excel_sheets(togiak2)
-sheets <- sheets[!grepl("metadata", sheets)] # filtering to remove the metadata sheet
+sheets <- sheets[!grepl("metadata|SNLAK", sheets)] # filtering to remove the metadata sheet
 tog2_dat <- tibble()
 for(i in sheets){
   dat <- read_excel(togiak2, 
@@ -107,11 +120,11 @@ for(i in sheets){
                     skip = 1, 
                     col_types = c("date", "date", "numeric"), na = "---",
                     col_names = c("sampleDate", "sampleTime", "Temperature")) %>%
-    mutate(SiteID = i)
+    mutate(Agency_ID = i)
   tog2_dat <- bind_rows(tog2_dat, dat)
 }
 
-tog2_dat
+tog2_dat %>% distinct(Agency_ID)
 ```
 
 
@@ -120,7 +133,7 @@ Read in Egegik data, "WRB_Oct2020.xlsx"
 ```{r}
 egegik <- read_excel("data/FWS/WRB_Oct2020.xlsx", sheet = "580223156504200", skip = 1, 
                     col_types = c("date", "date", "numeric"), na = "---", col_names = c("sampleDate", "sampleTime", "Temperature")) %>% 
-  mutate(SiteID = "580223156504200")
+  mutate(Agency_ID = "580223156504200")
 
 egegik
 ```
@@ -133,27 +146,29 @@ newhalen <- read_excel("S:\\Stream Temperature Data\\USFWS Perdue - complete 202
 
 newhalen <- newhalen %>% 
   select(sampleDate = Date, sampleTime = `Time (UTC -8:00)`, Temperature = `TW [°C]`) %>% 
-  mutate(SiteID = "Newhalen River") 
+  mutate(Agency_ID = "Newhalen River") 
 ```
 
-Combine the three data sources and format as specified in Project_notes.Rmd
+Combine the three data sources and format as specified in Project_notes.Rmd. Add a SiteID field with a fws prefix since they used river names for some of their IDs.
 
 ```{r}
 fws.data <- bind_rows(tog1_dat, tog2_dat, egegik, newhalen) %>%
   mutate(Temperature = as.numeric(Temperature),
          sampleTime = hms::as_hms(sampleTime),
-         sampleDate = as.Date(sampleDate)) %>%
+         sampleDate = as.Date(sampleDate), 
+         SiteID = paste0("fws_", Agency_ID),
+         UseData = 1) %>%
   filter(!is.na(Temperature))
 
 fws.data %>% 
-  distinct(SiteID)
+  distinct(Agency_ID, SiteID)
 
 ```
 
 Join metadata to data to get the waterbody name for each site for figures.
 
 ```{r}
-fws.data <- left_join(fws.data, fws.metadata %>% select(SiteID, Waterbody_name), by = "SiteID") 
+fws.data <- left_join(fws.data, fws.metadata %>% select(Agency_ID, Waterbody_name), by = "Agency_ID") 
 
 ```
 
@@ -164,12 +179,11 @@ fws.data %>%
   group_by(SiteID) %>% 
   summarize(min(year(sampleDate)), max(year(sampleDate)))
 
-fws.metadata
 ```
 
 Summary csv to add as attributes to leaflet map.
 
-```{r}
+```{r, eval = FALSE}
 fws.data %>% 
   group_by(SiteID, Waterbody_name) %>% 
   summarize(startYear = min(year(sampleDate)),
@@ -179,43 +193,98 @@ fws.data %>%
 
 ```
 
-Save data for summary table and figure.
+
+## Lakes 
+
+Meg provided data for six lakes:
+- Togial Lake, 10, 14.9, 17.9, 26.3, 32, 37.7, 43.4, 49.1 meters
+- Snake Lake, 3, 12.5, 20.5, 28, 36, 44, 52, 60, 67.5, 76.5, 83, 91 meters
+- Ongivinuk Lake, 2, 3.5, 7, 8.5, 10.5 meters
+- Mother Goose, surface, 5, 10, 20, 30, 40 meters
+- Needle, surface, 5, 10, 13.5 meters
+- Ugashik, surface, 5, 10, 20, 30, 40 meters
+
+Read in excel spreadsheets with lake temperature data.
 
 ```{r}
-saveRDS(fws.data, "output/fws_data.rds")
+read_excel_allsheets <- function(filename) {
+    sheets <- readxl::excel_sheets(filename)
+    dat <- map_df(sheets, function(X) readxl::read_excel(filename, sheet = X, na = "---") %>% 
+                    mutate(sheet_name = X))
+    return(dat)
+}
+
+fws_lake_folder <- "S:\\Stream Temperature Data\\USFWS Perdue - complete 2020\\Lakes"
+
+apb_5m <- read_excel_allsheets(paste0(fws_lake_folder, "\\APBLakeData_2011_2019.xlsx")) %>% 
+  mutate(Depth = parse_number(sheet_name))
+
+apb_surface <- read_excel_allsheets(paste0(fws_lake_folder, "\\APBLakeSurface.xlsx")) %>% 
+  mutate(Depth = 0)
+
+apb_deep <- read_excel_allsheets(paste0(fws_lake_folder, "\\BecharofLakes.xlsx")) %>% 
+  mutate(Depth = parse_number(sheet_name))
+
+tog_deep <- read_excel_allsheets(paste0(fws_lake_folder, "\\TogiakLakes.xlsx")) %>% 
+  mutate(Depth = parse_number(sheet_name))
+
+tog_surface <- read_excel_allsheets(paste0(fws_lake_folder, "\\TogiakNWRLakeSurface.xlsx")) %>% 
+  mutate(Depth = parse_number(sheet_name))
+
+fws_lakes <- bind_rows(apb_surface, apb_5m, apb_deep, tog_surface, tog_deep) %>% 
+  mutate(sampleDate = as.Date(Date),
+         sampleTime = as_hms(Time),
+         Agency_ID = case_when(grepl("Ongivinuk", sheet_name) ~ "Ongivinuk Lake",
+                               grepl("Togiak", sheet_name) ~ "Togiak Lake",
+                               grepl("Snake", sheet_name) ~ "SNLAK",
+                               grepl("Mother", sheet_name) ~ "Mother Goose Lake",
+                               grepl("Needle", sheet_name) ~ "Needle Lake",
+                               grepl("Ugashik", sheet_name) ~ "Ugashik Lake"),
+         SiteID = paste0("fws_", Agency_ID),
+         UseData = 1) %>%  
+  rename(Temperature = "TW [°C]") %>% 
+  select(-Date, -Time) %>% 
+  filter(!is.na(Temperature))
+
+fws_lakes %>% distinct(sheet_name, Agency_ID)
+
+fws_lakes %>% 
+  mutate(year = year(sampleDate)) %>% 
+  group_by(Agency_ID) %>% 
+  summarize(min(year), max(year))
+
 ```
+
 
 # Save daily data and metadata
 
-Save raw data for AKTEMP, which includes date and time. Save metadata file. Save daily data after screening for days with less than 90% of measurements.
+Save metadata file. Save daily data after screening for days with less than 90% of measurements.
 
-This is really for AKSSF so not using lake sites right now. 
+Save streams and lakes datasets separately since lakes won't be needed for AKSSF.
 
 ```{r save raw data}
 source("W:/Github/AKSSF/helper_functions.R")
 
 fws.metadata 
 
-save_metadata_files(fws.metadata %>% anti_join(lake_sites), "fws_bb")
+save_metadata_files(fws.metadata, "fws_bb")
 
-lake_sites <- fws.metadata %>% 
-  filter(Waterbody_type == "L") %>% 
-  distinct(SiteID)
-
-fws.data.streams <- fws.data %>% 
-  mutate(UseData = 1) %>% 
-  anti_join(lake_sites) 
-
-fws.data.streams %>% 
+fws.data %>% 
   distinct(SiteID) %>% # 23 sites
   left_join(fws.metadata) %>% # all 23 are in metadata - note that 3 sites not in akoats may not be distinct sites 
   filter(Waterbody_type == "S") # all are streams, which is correct.
 
-save_aktemp_files(fws.data.streams, "fws_bb")
+fws_lakes %>% 
+  distinct(SiteID) %>% # 6 sites
+  left_join(fws.metadata) # all 6 are in metadata - only 2 sites in akoats and all are lakes
 
-fws.daily <- temp_msmt_freq(fws.data.streams) %>% daily_screen(.)
+# save_aktemp_files(fws.data.streams, "fws_bb")
+
+fws.daily <- temp_msmt_freq(fws.data) %>% daily_screen(.)
+fws.lakes.daily <- temp_msmt_freq(fws_lakes) %>% daily_screen(.)
 
 save_daily_files(fws.daily, "fws_bb")
+save_daily_files(fws.lakes.daily, "fws_bb_lakes")
 ```
 
 

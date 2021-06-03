@@ -33,12 +33,12 @@ This will be used for just Bristol Bay data for collaboration with Erik and Sue.
 # Metadata
 
 Bring in the metadata for each set of data and combine so that I can also create some simple maps showing years of data.
-Get metadata files off of google drive for both Bristol Bay.
+Get metadata files off of google drive for Bristol Bay.
 
 edits to metadata for later
-- siteid should be filled in for all
+- siteid should be filled in for all, change original to agency id in each script and add siteid with agency prefix.
 - our agency id should be changed to the new names
-- some fWS site ids are waterbody names and should get fws in front.
+- some fWS site ids are waterbody names and should get fws in front. - done
 
 ```{r read in metadata}
 gd.akssf.files <- drive_ls(path = "https://drive.google.com/drive/u/0/folders/1_qtmORSAow1fIxvh116ZP7oKd_PC36L0")

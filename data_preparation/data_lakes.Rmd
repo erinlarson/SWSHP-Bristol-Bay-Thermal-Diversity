@@ -37,7 +37,7 @@ uw_lak %>%
   summarize(min(Depth),
             max(Depth))
 
-uw_lak %>% distinct(Notes)
+uw_lak %>% count(Notes)
 uw_lak %>% summary(Depth)  
 ```
 
@@ -52,6 +52,8 @@ uw_lak %>%
 
 
 # NPS lake data
+
+Note that depths in this file are not accurate - see Krista's report, arrays are anchored to lake bottom and level logger indicates the 5 m logger at Lake Clark actually varies from 0 m to > 20 m.
 
 
 ```{r}
