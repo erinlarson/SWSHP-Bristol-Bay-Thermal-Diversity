@@ -12,6 +12,8 @@ library(readxl)
 library(tidyverse)
 ```
 
+THESE HAVE BEEN READ IN AND SAVED SEPARATELY FOR NPS AND FWS. DO SAME FOR UW WHEN I GET THE COMPLETE TEMP PROFILES FROM JACKIE 6/3
+
 # UW lake data
 
 Read in UW data frame.
@@ -51,16 +53,3 @@ uw_lak %>%
 
 
 
-# NPS lake data
-
-Note that depths in this file are not accurate - see Krista's report, arrays are anchored to lake bottom and level logger indicates the 5 m logger at Lake Clark actually varies from 0 m to > 20 m.
-
-
-```{r}
-readRDS(file = "data_preparation/formatted_data/nps_lakes.rds")
-```
-
-
-# FWS lake data
-
-Meg provided lake data from the Togiak Refuge and also from some lakes on the east side of Bristol Bay.

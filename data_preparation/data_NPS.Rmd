@@ -50,7 +50,7 @@ FYI: the two Tlikila sites are 36m apart and are basically duplicates. Looking a
 nps.metadata  <- read_excel("data/NPS Bartz/Site_Info_RSS.xlsx", skip = 4) %>% 
   mutate(SourceName = "npsSWAN", 
          Contact_person = "Krista Bartz") %>% 
-  select(SiteID = Agency_ID, Waterbody_name = Waterbody_Name, Latitude = Lat, Longitude = Long, 
+  select(Agency_ID, Waterbody_name = Waterbody_Name, Latitude = Lat, Longitude = Long, 
          SourceName, Contact_person, `File for B_Shaftel`, site_name)
 
 nps.metadata 
@@ -75,8 +75,6 @@ nps.metadata %>%
 akoats.meta <- read_excel("data/AKOATS_DATA_2020_Working.xlsx", sheet = "CONTINUOUS_DATA") %>%
   select(seq_id,Agency_ID,Contact_person,SourceName,Contact_email,Contact_telephone,Latitude,Longitude,
          Sensor_accuracy,Waterbody_name, Waterbody_type) %>%
-  # rename(AKOATS_ID = seq_id,
-  #        SiteID = Agency_ID) %>% 
   mutate(seq_id = as.numeric(seq_id),
          Latitude = as.numeric(Latitude),
          Longitude = as.numeric(Longitude))
@@ -90,34 +88,24 @@ Looks like Telaquana Lake array is not in AKOATS, but that lake is outside Brist
 
 ```{r}
 intersect(names(nps.metadata), names(akoats.meta))
-remove <- names(nps.metadata)
+add <- akoats.meta %>% dplyr::select(-one_of(names(nps.metadata))) %>% names()
 
-akoats.meta %>% dplyr::select(-one_of(remove))
-
-nps.metadata <- left_join(nps.metadata, akoats.meta %>% dplyr::select(-one_of(names(nps.metadata))),
-                          by = c("SiteID" = "Agency_ID")) 
+nps.metadata <- left_join(nps.metadata, akoats.meta %>% dplyr::select(Agency_ID, one_of(add))) 
 
 nps.metadata <- nps.metadata %>% 
-  filter(!(SiteID %in% c("TELAL_01_TEMP", "LACL_tlikr_stream_water_B"))) %>%
-  mutate(SiteID = case_when(site_name == "Tlikakila_Water_A" ~ "LACL_tlikr_stream_water",
-                             TRUE ~ SiteID),
+  filter(!(Agency_ID %in% c("TELAL_01_TEMP", "LACL_tlikr_stream_water_B"))) %>%
+  mutate(Agency_ID = case_when(site_name == "Tlikakila_Water_A" ~ "LACL_tlikr_stream_water",
+                             TRUE ~ Agency_ID),
          seq_id = case_when(site_name == "Tlikakila_Water_A" ~ 1893,
                                TRUE ~ seq_id),
          Waterbody_type = case_when(is.na(Waterbody_type) ~ "S",
                                     TRUE ~ Waterbody_type))
           
-
-#extra fields are for linking to data table, don't keep those for combined metadata.
-nps.metadata %>% 
-  saveRDS("output/nps_metadata.rds")
-
 nps.metadata %>% 
   filter(Waterbody_type == "S")
 
 #26 total, 17 are streams
 ```
-
-
 
 
 # Data 
@@ -181,10 +169,10 @@ nps.data.1 %>% distinct(Approval)
 nps.data.1 %>% distinct(Grade)
 nps.data.1 %>% distinct(Qualifiers)
 
-nps.data.1 <- left_join(nps.data.1, nps.metadata %>% select(SiteID, `File for B_Shaftel`, Waterbody_name), 
+nps.data.1 <- left_join(nps.data.1, nps.metadata %>% select(Agency_ID, `File for B_Shaftel`, Waterbody_name), 
           by = c("file_name" = "File for B_Shaftel"))
 
-nps.data.1 %>% distinct(SiteID)
+nps.data.1 %>% distinct(Agency_ID)
 
 nps.data.1 %>% filter(SiteID == "LACL_lclaro_lvl", sampleDate == "2015-06-06")
 ```
@@ -206,9 +194,9 @@ nps.data.2 %>% distinct(site_name)
 Site names in data file don't match waterbody names or agency ids and unfortunately neither are unique - same agency id for two datasets on tlikikila river and two sites on lake clark. Edited the site info file so that Tlikakila sites are unique (A and B) and also added the site_names in this pilot file so that the data can be correctly linked to the agency IDs provided by Krista and Paul.
 
 ```{r pilot sites join}
-nps.data.2 <- left_join(nps.data.2, nps.metadata %>% select(site_name, SiteID, Waterbody_name))
+nps.data.2 <- left_join(nps.data.2, nps.metadata %>% select(site_name, Agency_ID, Waterbody_name))
 
-nps.data.2 %>% distinct(site_name, SiteID, Waterbody_name)
+nps.data.2 %>% distinct(site_name, Agency_ID, Waterbody_name)
 ```
 
 Check on differences between two Tlikakila river sites, these are basically the same site and can be combined. Site B doesn't look very good, lots of missing data and strange values in early 2018. Just use Site A and assign it to the AKOATS ID provided by Krista.
@@ -230,6 +218,10 @@ ggplotly(p)
 nps.data.2 <- nps.data.2 %>% 
   filter(!(site_name == "Tlikakila_Water_B"))
 ```
+
+Merge streams and lakeshore datasets that don't need a depth field.
+
+
 
 
 Lake data: buoys @ lake centers with temperatures from different depths.
@@ -261,22 +253,22 @@ nps.lakes
 Assign Agency_ID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
 
 ```{r lake arrays join}
-nps.lakes <- left_join(nps.lakes, nps.metadata %>% select(SiteID, `File for B_Shaftel`, Waterbody_name), 
+nps.lakes <- left_join(nps.lakes, nps.metadata %>% select(Agency_ID, `File for B_Shaftel`, Waterbody_name), 
           by = c("file_name" = "File for B_Shaftel"))
 
 
-nps.lakes %>% distinct(SiteID, Waterbody_name)
+nps.lakes %>% distinct(Agency_ID, Waterbody_name)
 
 nps.lakes %>% 
   mutate(year = year(sampleDate)) %>% 
-  group_by(SiteID) %>% 
+  group_by(Agency_ID) %>% 
   summarize(min(year), max(year))
 ```
 
 Merge datasets and add a UseData field. Note that in 2019 it looked like there were valid temps greater than 25 at Lake Brooks, set that cutoff higher so those data are not removed.
 
 ```{r combined nps data}
-keep <- c("SiteID", "sampleDate", "sampleTime", "Temperature", "Waterbody_name", "Depth")
+keep <- c("Agency_ID", "sampleDate", "sampleTime", "Temperature", "Waterbody_name", "Depth")
 
 nps.data <- bind_rows(nps.data.1 %>% select(one_of(keep)),
                       nps.data.2 %>% select(one_of(keep)),
@@ -285,7 +277,7 @@ nps.data <- bind_rows(nps.data.1 %>% select(one_of(keep)),
                              Temperature > 30 ~ 0,
                              TRUE ~ 1))
 
-nps.lakes %>% distinct(SiteID, Waterbody_name)
+nps.lakes %>% distinct(Agency_ID, Waterbody_name)
 
 #see data review below - some additional flags on lake data before saving.
 # saveRDS(nps.data, "output/nps_data.rds")
@@ -300,7 +292,7 @@ Add in new time series downloaded in 2021.
 ```{r}
 nps.files.2021 <- list.files("S:\\Stream Temperature Data\\NPS Krista Bartz\\May21 Data", full.names = TRUE) 
 
-keep <- c("SiteID", "sampleDate", "sampleTime", "Temperature", "file_name")
+keep <- c("sampleDate", "sampleTime", "Temperature", "file_name")
 
 chull <- read_csv(nps.files.2021[grepl("chull", nps.files.2021)], skip = 2, col_types = cols(.default = "c"), col_names = F) %>%
            mutate(file_name = gsub(".csv","",basename(nps.files.2021[grepl("chull", nps.files.2021)])),
@@ -333,13 +325,13 @@ lclarot <- read_csv(nps.files.2021[grepl("lclaro_temp", nps.files.2021)], skip =
 nps.2021 <- bind_rows(chull, porta, lclaro, lclarot)
 
 nps.2021 <- nps.2021 %>% 
-  mutate(SiteID = sub("_2021.*", "", file_name),
+  mutate(Agency_ID = sub("_2021.*", "", file_name),
          UseData = case_when(Temperature < -1 ~ 0,
                              Temperature > 30 ~ 0,
                              TRUE ~ 1)) %>% 
-  left_join(nps.metadata %>% select(SiteID, Waterbody_name))
+  left_join(nps.metadata %>% select(Agency_ID, Waterbody_name))
 
-nps.2021 %>% distinct(file_name, SiteID, Waterbody_name)
+nps.2021 %>% distinct(file_name, Agency_ID, Waterbody_name)
 
 nps.2021 %>% count(UseData) #interesting, a lot of bad data in this new dataset.
 nps.2021 %>% 
@@ -709,7 +701,7 @@ remove_sites <- nps_flags %>%
   pull(SiteID)
 
 nps.data <- nps.data %>% 
-  mutate(UseData = case_when(SiteID %in% remove_sites ~ 0,
+  mutate(UseData = case_when(Agency_ID %in% remove_sites ~ 0,
                              TRUE ~ UseData))
 ```
 
@@ -726,12 +718,13 @@ nps_flag_dates <- nps_flags %>%
 nps.data %>% 
   count(UseData) #182687/7020543
 
-nps.data <- left_join(nps.data, nps_flag_dates, by = c("SiteID" = "SiteID", "sampleDate" = "flagDate")) %>% 
+nps.data <- left_join(nps.data, nps_flag_dates, by = c("Agency_ID" = "SiteID", "sampleDate" = "flagDate")) %>% 
   mutate(UseData = case_when(!is.na(FlagReason) ~ 0,
                              TRUE ~ UseData)) %>% 
   select(-FlagReason)
+  
 
-nps.data %>% filter(SiteID == "LACL_lclaro_temp", year(sampleDate) == 2018)
+nps.data %>% filter(Agency_ID == "LACL_lclaro_temp", year(sampleDate) == 2018)
 ```
 
 Finally, flag data not in the June-September window where the data review was performed.
@@ -747,31 +740,32 @@ Combine site names for co-located loggers at lake outlet sites in the nps.data d
 
 ```{r}
 nps.data <- nps.data %>% 
-  rename(AgencyID = SiteID) %>% 
-  mutate(SiteID = case_when(grepl("KATM_lbrooo", orig_SiteID) ~ "KATM_lbrooo",
-                            grepl("LACL_lclaro", orig_SiteID) ~ "LACL_lclaro",
-                            grepl("LACL_kijilo", orig_SiteID) ~ "LACL_kijilo",
-                            grepl("KATM_naknlo", orig_SiteID) ~ "KATM_naknlo",
-                            TRUE ~ orig_SiteID)) 
+  mutate(SiteID = case_when(grepl("KATM_lbrooo", Agency_ID) ~ "KATM_lbrooo",
+                            grepl("LACL_lclaro", Agency_ID) ~ "LACL_lclaro",
+                            grepl("LACL_kijilo", Agency_ID) ~ "LACL_kijilo",
+                            grepl("KATM_naknlo", Agency_ID) ~ "KATM_naknlo",
+                            TRUE ~ Agency_ID),
+         SiteID = paste0("nps_", SiteID)) 
 
 nps.metadata <- nps.metadata %>% 
-  rename(AgencyID = SiteID) %>% 
-  mutate(SiteID = case_when(grepl("KATM_lbrooo", orig_SiteID) ~ "KATM_lbrooo",
-                            grepl("LACL_lclaro", orig_SiteID) ~ "LACL_lclaro",
-                            grepl("LACL_kijilo", orig_SiteID) ~ "LACL_kijilo",
-                            grepl("KATM_naknlo", orig_SiteID) ~ "KATM_naknlo",
-                            TRUE ~ orig_SiteID)) 
+  mutate(SiteID = case_when(grepl("KATM_lbrooo", Agency_ID) ~ "KATM_lbrooo",
+                            grepl("LACL_lclaro", Agency_ID) ~ "LACL_lclaro",
+                            grepl("LACL_kijilo", Agency_ID) ~ "LACL_kijilo",
+                            grepl("KATM_naknlo", Agency_ID) ~ "KATM_naknlo",
+                            TRUE ~ Agency_ID),
+         SiteID = paste0("nps_", SiteID)) 
 
-
+nps.metadata %>% distinct(Agency_ID, SiteID)
+nps.data %>% distinct(Agency_ID, SiteID)
 ```
 
-Check time series for the co-located sites.
+Check time series for the co-located sites - all looks good.
 
 ```{r}
 nps.data %>% 
-  filter(SiteID %in% c("KATM_naknlo", "KATM_lbrooo", "LACL_lclaro", "LACL_kijilo"), UseData == 1) %>% 
+  filter(SiteID %in% c("nps_KATM_naknlo", "nps_KATM_lbrooo", "nps_LACL_lclaro", "nps_LACL_kijilo"), UseData == 1) %>% 
   mutate(dt = as.POSIXct(paste(sampleDate, sampleTime), format = "%Y-%m-%d %H:%M:%S")) %>% 
-  ggplot(aes(x = dt, y = Temperature, color = orig_SiteID)) +
+  ggplot(aes(x = dt, y = Temperature, color = Agency_ID)) +
   geom_line() +
   facet_wrap(~SiteID)
 
@@ -779,7 +773,7 @@ nps.data %>%
 
 # Final data file and summary
 
-Everything looks better in original plot above after adding additional flags. Save final dataset.
+Everything looks better in original plot above after adding additional flags. Save final dataset, this will include all of the flagged data.
 
 ```{r}
 saveRDS(nps.data, "data_preparation/formatted_data/nps_data.rds")
@@ -803,8 +797,6 @@ nps.data %>%
 
 Save metadata file. Save daily data after screening for days with less than 90% of measurements. No longer saving AKTEMP file, we'll have to revisit our QA with each provider since it is incomplete and let them review and upload for sites.
 
-Lake sites save separately as an .rds to read into lake data script. Note that no real QA done on this dataset since Krista had already done it for summer months.
-
 Also three lakeshore sites that could be included in the thermal regime analysis, but not needed for akssf.
 
 ```{r save raw data}
@@ -812,18 +804,25 @@ source("W:/Github/AKSSF/helper_functions.R")
 
 nps.metadata
 
-#17 stream or river sites for akssf
-save_metadata_files(nps.metadata %>% anti_join(lake_sites) %>% filter(!grepl("beach", SiteID)), "nps_kb")
+save_metadata_files(nps.metadata, "nps_kb")
 
-nps.data.streams <- nps.data %>% 
-  anti_join(lake_sites) %>%
-  filter(!grepl("beach", SiteID))
 
-# save_aktemp_files(nps.data.streams, "nps_kb")
+nps.streams <- nps.data %>% 
+  left_join(nps.metadata) %>%
+  filter(!Waterbody_type == "L")
 
-nps.daily <- temp_msmt_freq(nps.data.streams) %>% daily_screen(.)
+nps.lakes <- nps.data %>% 
+  left_join(nps.metadata) %>%
+  filter(Waterbody_type == "L")
+
+nps.streams %>% distinct(SiteID)
+nps.lakes %>% distinct(SiteID)
+
+nps.daily <- temp_msmt_freq(nps.streams) %>% daily_screen(.)
+nps.lakes.daily <- temp_msmt_freq(nps.lakes) %>% daily_screen(.)
 
 save_daily_files(nps.daily, "nps_kb")
+save_daily_files(nps.lakes.daily, "nps_kb_lakes")
 ```
 
 Save lake data for separate rmarkdown report where those data are combined.
