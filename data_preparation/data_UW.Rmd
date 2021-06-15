@@ -609,6 +609,8 @@ uw.data2 %>%
   filter(SiteID %in% uw.5sites) %>% 
   distinct(SiteID, mode_diff)
 
+
+uw.post16 %>% distinct(SiteID, TC_SiteID)
 ```
 
 
@@ -688,15 +690,41 @@ saveRDS(uw.5sites.forQA, "data_preparation/formatted_data/uw.5sites.rds")
 
 tc.dat2 <- tc.dat2 %>% 
   mutate(SiteID = paste0("UW_", SiteID))
-tc.dat2
+tc.dat2 %>% distinct(SiteID) %>% arrange(SiteID)
 
 save_daily_files(tc.dat2, "UW_tc")
 
 uw.meta <- uw.meta %>% 
   mutate(SiteID = paste0("UW_", SiteID))
 
+
+#before saving metadata, remove any sites that we are not using.
+all.sites <- bind_rows(data.frame(SiteID = paste0("UW_", c(uw.5sites, 
+                                                           uw.post16.tcsites %>% distinct(SiteID) %>% pull(SiteID)))),
+                       tc.dat2 %>% distinct(SiteID)) %>% 
+  distinct(SiteID)
+
+#all 50 sites have locations in metadata
+left_join(all.sites, uw.meta)
+
+#10 sites that we are not using, double-check that they have limited use.
+left_join(uw.meta, all.sites %>% mutate(keep = 1)) %>% filter(is.na(keep))
+
+remove_sites <- left_join(uw.meta, all.sites %>% mutate(keep = 1)) %>% filter(is.na(keep)) %>% arrange(SiteID) %>%  pull(SiteID)
+
+#all have only 1 or two years of data.
+uw.data2 %>% 
+  ungroup() %>% 
+  mutate(SiteID = paste0("UW_", SiteID)) %>% 
+  filter(SiteID %in% remove_sites, month(sampleDate) %in% 6:8) %>% 
+  distinct(SiteID, sampleDate, year) %>% 
+  count(SiteID, year) %>% 
+  filter(n > 64) %>% #70% of days in JJA
+  count(SiteID) 
+
+
 uw.meta %>% 
-  # filter(SiteID %in% sites) %>% 
+  filter(!SiteID %in% remove_sites) %>% 
   save_metadata_files(., "UW")
 
 ```
