@@ -174,7 +174,6 @@ nps.data.1 <- left_join(nps.data.1, nps.metadata %>% select(Agency_ID, `File for
 
 nps.data.1 %>% distinct(Agency_ID)
 
-nps.data.1 %>% filter(SiteID == "LACL_lclaro_lvl", sampleDate == "2015-06-06")
 ```
 
 
@@ -343,6 +342,8 @@ Merge 2021 data (received in May for Lake Clark) with rest of data before perfor
 
 ```{r}
 nps.data <- bind_rows(nps.data, nps.2021 %>% select(-file_name))
+
+nps.data %>% distinct(Agency_ID)
 ```
 
 
@@ -798,11 +799,13 @@ nps.data %>%
 Save metadata file. Save daily data after screening for days with less than 90% of measurements. No longer saving AKTEMP file, we'll have to revisit our QA with each provider since it is incomplete and let them review and upload for sites.
 
 Also three lakeshore sites that could be included in the thermal regime analysis, but not needed for akssf.
+Remove little kijik river site that Krista recommended dropping because it is below a cold water input and has a level logger on opposite bank.
 
 ```{r save raw data}
 source("W:/Github/AKSSF/helper_functions.R")
 
-nps.metadata
+nps.metadata <- nps.metadata %>% 
+  filter(!SiteID == "nps_LACL_lkijr_stream_water")
 
 save_metadata_files(nps.metadata, "nps_kb")
 
