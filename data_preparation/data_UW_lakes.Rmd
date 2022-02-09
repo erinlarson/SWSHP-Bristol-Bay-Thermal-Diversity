@@ -1,0 +1,235 @@
+---
+title: "data_lakes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+
+library(readxl)
+library(tidyverse)
+# library(dygraphs)
+# library(rgl)
+library(lubridate)
+library(gridExtra)
+```
+
+Note that NPS and FWS lake data are included in their respective scripts. This is a separate script for UW lake data.
+
+# UW lake data
+
+Read in UW data frame - this is the original file with depths only to 5 m.
+
+```{r read in file with data to 5m}
+uw_lak <- read_excel("S:\\Stream Temperature Data\\Jackie Carter UW\\Lake Data\\Lake_Temps_for Becky.xlsx")
+
+uw_lak %>% 
+  distinct(Lake, YearSampled, DateSampled) %>% 
+  group_by(Lake, YearSampled) %>%
+  summarize(count = n(),
+            startDate = min(DateSampled),
+            endDate = max(DateSampled))
+
+uw_lak %>% 
+  group_by(Lake) %>% 
+  summarize(startYear = min(YearSampled),
+            endYear = max(YearSampled)) %>% 
+  write_csv("output/uw_lakes.csv")
+
+uw_lak %>% 
+  group_by(Lake) %>% 
+  summarize(min(Depth),
+            max(Depth))
+
+uw_lak %>% count(Notes)
+uw_lak %>% summary(Depth)  
+```
+
+```{r plot of data to 5m}
+uw_lak %>% 
+  filter(Lake == "Aleknagik") %>% 
+  ggplot(aes(x = DateSampled, y = Depth, color = Temperature, group = DateSampled)) +
+  geom_point() +
+  facet_wrap(~StationName)
+```
+
+New lake data files from Jackie that include the entire depth profiles. Series of 5 files that all start "forRS".
+
+```{r read in complete depth arrays}
+
+uw_lake_files <- list.files("S:\\Stream Temperature Data\\Jackie Carter UW\\Lake Data\\", full.names = TRUE)
+uw_lake_files <- uw_lake_files[grepl("forRS", uw_lake_files)]
+
+uw_lkdat <- map_df(uw_lake_files, function(x) read_excel(x))
+```
+
+Clean up Lake capitalization and flag strange temperatures at Aleknagik Bear Bay Pt in 2006 - very warm.
+
+```{r}
+
+uw_lkdat %>% distinct(Lake)
+uw_lkdat %>% filter(Temperature > 22)
+
+uw_lkdat <- uw_lkdat %>% 
+  mutate(Lake = case_when(Lake == "aleknagik" ~ "Aleknagik", 
+                          TRUE ~ Lake),
+         UseData = case_when(Temperature > 22 & StationName == "Aleknagik Bear Bay Pt" ~ 0, 
+                             TRUE ~ 1),
+         DateSampled = as.Date(DateSampled))
+
+
+```
+
+What are the frequencies of these depth profiles? It looks like some lakes may be weekly over the summer, whereas others may just have one profile.
+
+```{r profile counts by site and year}
+uw_lkdat %>% 
+  distinct(Lake, StationName, DateSampled) %>% 
+  mutate(year = year(DateSampled)) %>% 
+  count(Lake, StationName, year) %>% 
+  ggplot(aes(x = year, y = StationName, size = n, color = Lake)) +
+  facet_wrap(~Lake, scales = "free_y") +
+  geom_point() +
+  theme_bw()
+
+```
+
+Rolling pdf of lake plots.
+
+```{r eval = FALSE}
+uw_lake_sites <- uw_lkdat %>% distinct(StationName) %>% pull(StationName)
+
+pdf("output/UW Lake Plots.pdf")
+for(i in uw_lake_sites) {
+  dat <- uw_lkdat %>% 
+    filter(StationName == i) %>% 
+    mutate(year = year(DateSampled)) 
+
+  p <- ggplot(data = dat, aes(x = DateSampled, y = Depth, color = Temperature)) +
+    geom_point() +
+    scale_color_gradient2(limits = c(0, 25), midpoint = 10, high = scales::muted("red"),
+                          low = scales::muted("blue")) +
+    scale_y_reverse() +
+    facet_wrap(~year, scales = "free_x") +
+    theme_bw() +
+    labs(title = dat[1, "Lake"], subtitle = dat[1, "StationName"])
+  print(p)
+}
+dev.off()
+```
+
+Interpolate temperatures by depth and date for each site and year to create heatmaps.
+Follow guidance on this [website for depth-time heatmaps] (https://fishandwhistle.net/post/2019/depth-time-heatmaps/).
+
+```{r heatmap of full depth profiles}
+
+#first step is interpolating depths, but the depth data are mostly continuous
+estimate_temp_by_date <- function(target_date, target_depth) {
+  data_for_date <- uw_lkdat %>% 
+    filter(DateSampled == target_date) %>%
+    arrange(Depth)
+  
+  # approx() is one way to do a linear interpolation
+  approx(data_for_date$Depth, data_for_date$Temperature, xout = target_depth)$y
+}
+
+temp_interp_depth <- crossing(
+  # the same dates as sonde_tbl_1993
+  tibble(date = unique(sonde_tbl_1993$date)),
+  # depths can now be any value
+  tibble(depth = seq(1, 20, length.out = 100))
+) %>%
+  group_by(date) %>%
+  mutate(temp = estimate_temp_by_date(date[1], depth))
+
+# create a function that will, given a depth, estimate the temp on any given day
+estimate_temp_by_depth <- function(target_depth, target_date) {
+  data_for_depth <- temp_interp_depth %>% 
+    filter(Depth == target_depth) %>%
+    arrange(DateSampled)
+  approx(data_for_depth$DateSampled, data_for_depth$Temperature, xout = target_date)$y
+}
+
+temp_raster <- crossing(
+  # dates can now be any value
+  tibble(date = seq(ymd("1993-05-13"), ymd("1993-10-06"), by = 1)),
+  # depths must be the same as in temp_interp_depth
+  tibble(depth = unique(temp_interp_depth$depth))
+) %>%
+  group_by(depth) %>%
+  mutate(temp = estimate_temp_by_depth(depth[1], date))
+```
+
+Try the interpolation function for dates on one lake station and year.
+
+```{r}
+alekbearpt_2015 <- uw_lkdat %>% 
+  filter(StationName == "Aleknagik Bear Bay Pt", year(DateSampled) == 2015)
+
+estimate_temp_by_date <- function(target_date, target_depth) {
+  data_for_date <- alekbearpt_2015 %>% 
+    filter(DateSampled == target_date) %>%
+    arrange(Depth)
+  
+  # approx() is one way to do a linear interpolation
+  approx(data_for_date$Depth, data_for_date$Temperature, xout = target_depth)$y
+}
+
+temp_interp_depth <- crossing(
+  # the same dates as sonde_tbl_1993
+  tibble(DateSampled = unique(alekbearpt_2015$DateSampled)),
+  # depths can now be any value
+  tibble(Depth = seq(1, 45, length.out = 100))
+) %>%
+  group_by(DateSampled) %>%
+  mutate(Temperature = estimate_temp_by_date(DateSampled[1], Depth))
+
+
+p1 <- ggplot(data = temp_interp_depth, aes(x = DateSampled, y = Depth, color = Temperature)) +
+    geom_point() +
+    scale_color_gradient2(limits = c(0, 25), midpoint = 10, high = scales::muted("red"),
+                          low = scales::muted("blue")) +
+    scale_y_reverse() +
+    theme_bw()
+
+estimate_temp_by_depth <- function(target_depth, target_date) {
+  data_for_depth <- temp_interp_depth %>% 
+    filter(Depth == target_depth) %>%
+    arrange(DateSampled)
+  approx(data_for_depth$DateSampled, data_for_depth$Temperature, xout = target_date)$y
+}
+
+
+temp_raster <- crossing(
+  # dates can now be any value
+  tibble(DateSampled = seq(ymd("2015-06-05"), ymd("2015-09-10"), by = 1)),
+  # depths must be the same as in temp_interp_depth
+  tibble(Depth = unique(temp_interp_depth$Depth))
+) %>%
+  group_by(Depth) %>%
+  mutate(Temperature = estimate_temp_by_depth(Depth[1], DateSampled))
+
+p2 <- ggplot(temp_raster, aes(DateSampled, Depth, fill = Temperature)) +
+  geom_raster() +
+  scale_y_reverse() +
+  scale_fill_gradient2(
+    midpoint = 10, 
+    high = scales::muted("red"), 
+    low = scales::muted("blue")
+  ) +
+  coord_cartesian(expand = FALSE)
+
+grid.arrange(p1, p2, ncol = 2)
+
+```
+
+
+
+```{r}
+with(uw_lkdat %>% filter(StationName == "Aleknagik Agulowak"), plot3d(DateSampled, Depth, Temperature, type = "l", col = as.numeric(Temperature)))
+```
+
+
+

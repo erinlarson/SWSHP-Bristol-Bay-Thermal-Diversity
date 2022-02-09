@@ -347,6 +347,8 @@ saveRDS(uw.data2, "output/uw_data.rds")
 
 
 
+
+
 # Tim Cline's data from Zotero
 
 Six files each for a separate year of data. Sites are different columns in the dataset.
@@ -419,8 +421,9 @@ tc.dat %>% distinct(SiteID)
 summary(tc.dat)
 ```
 
+This was saved and then edited outside R with Daniel's help, fixed site names in following code chunks.
 
-```{r merge TC and UW site names}
+```{r merge TC and UW site names, eval = FALSE}
 
 tc.sites <- tc.dat %>% distinct(SiteID) %>% pull(SiteID) 
 uw.sites <- uw.data2 %>% ungroup() %>% distinct(SiteID) %>% arrange(SiteID) %>% pull(SiteID)
@@ -728,6 +731,321 @@ uw.meta %>%
   save_metadata_files(., "UW")
 
 ```
+
+
+# TC sites in UW database for max, min, and mean
+
+For the most part, we moved forward with Tim Cline's sites and data from zenodo. We added in a few other sites with longer time series.
+
+```{r read in final data frame}
+temp_dat <- readRDS("W:/Github/AKSSF/data_preparation/final_data/summer_data_wair2021-11-23.rds")
+temp_md <- readRDS("W:/Github/AKSSF/data_preparation/final_data/md.rds")
+
+# temp_md %>% distinct(SourceName)
+
+uw_dat <- left_join(temp_dat, temp_md %>% distinct(SiteID, SourceName)) %>% 
+  filter(SourceName == "uwASP")
+
+uw_dat %>% 
+  filter(is.na(minDT))
+
+uw_dat %>% 
+  mutate(Year = year(sampleDate)) %>% 
+  filter(is.na(maxDT)) %>% 
+  distinct(SiteID, Year) %>% 
+  group_by(SiteID) %>% 
+  summarize(years = paste(Year, collapse = ", "))
+```
+
+
+```{r Tim Cline data}
+tc.files <- list.files("S:\\Stream Temperature Data\\Tim Cline UW", full.names = TRUE)
+tc.files <- tc.files[!grepl("Climate", tc.files)]
+
+tc.11 <- read_csv(tc.files[1]) %>%
+  mutate(Date = parse_date_time(Date, orders = c('m/d/y', 'm/d/Y'))) %>% 
+  select(-DOY, -AirTemp, -SolRad) %>% 
+  pivot_longer(names_to = "SiteID", values_to = "Temperature", -Date) %>% 
+  select(SiteID, Date, Temperature) %>% 
+  arrange(SiteID, Date)
+
+tc.12 <- read_csv(tc.files[2]) %>%
+  mutate(Date = parse_date_time(Day, orders = c('m/d/y', 'm/d/Y'))) %>% 
+  select(-DOY, -AirTempDill, -SolRad, -Day) %>% 
+  pivot_longer(names_to = "SiteID", values_to = "Temperature", -Date) %>% 
+  select(SiteID, Date, Temperature) %>% 
+  arrange(SiteID, Date)
+
+tc.13 <- read_csv(tc.files[3]) %>%
+  mutate(Date = parse_date_time(Date, orders = c('m/d/y', 'm/d/Y'))) %>% 
+  select(-DOY, -AirTempDill, -SolRad) %>% 
+  pivot_longer(names_to = "SiteID", values_to = "Temperature", -Date) %>% 
+  select(SiteID, Date, Temperature) %>% 
+  arrange(SiteID, Date)
+
+tc.14 <- read_csv(tc.files[4]) %>%
+  mutate(Date = parse_date_time(Date, orders = c('m/d/y', 'm/d/Y'))) %>% 
+  select(-DOY, -AirTemp, -SolRad) %>% 
+  pivot_longer(names_to = "SiteID", values_to = "Temperature", -Date) %>% 
+  select(SiteID, Date, Temperature) %>% 
+  arrange(SiteID, Date)
+
+tc.15 <- read_csv(tc.files[5]) %>%
+  mutate(Date = parse_date_time(Date, orders = c('m/d/y', 'm/d/Y'))) %>% 
+  select(-DOY, -AirTemp, -SolRad) %>% 
+  pivot_longer(names_to = "SiteID", values_to = "Temperature", -Date) %>% 
+  select(SiteID, Date, Temperature) %>% 
+  arrange(SiteID, Date)
+
+tc.16 <- read_csv(tc.files[6]) %>%
+  mutate(Date = parse_date_time(Date, orders = c('m/d/y', 'm/d/Y'))) %>% 
+  select(-DOY, -AirTemp, -SolRad) %>% 
+  pivot_longer(names_to = "SiteID", values_to = "Temperature", -Date) %>% 
+  select(SiteID, Date, Temperature) %>% 
+  arrange(SiteID, Date)
+
+tc.dat <- bind_rows(tc.11, tc.12, tc.13, tc.14, tc.15, tc.16) 
+tc.dat %>% 
+  distinct(SiteID)
+
+```
+
+Send Jackie a new data request with Tim's site and years so I can get daily min mean and max.
+
+```{r sites and years for jackie, eval = FALSE}
+siteMerge2 <- read_csv("W:/Github/SWSHP-Bristol-Bay-Thermal-Diversity/output/UW_site_merge_rs.csv")
+
+uw_daily <- uw.data2 %>% 
+  group_by(SiteID, sampleDate) %>% 
+  summarize(meanDT = mean(Temperature, na.rm = TRUE),
+            maxDT = max(Temperature, na.rm = TRUE),
+            minDT = min(Temperature, na.rm = TRUE))
+
+left_join(tc.dat, siteMerge2, by = c("SiteID" = "tc")) %>%
+  mutate(sampleDate = as.Date(Date)) %>% 
+  left_join(uw_daily, by = c("uw" = "SiteID", "sampleDate" = "sampleDate")) %>% 
+  filter(is.na(meanDT) & !is.na(Temperature)) %>% #TC has data, UW db does not 
+  count(SiteID, uw, year(sampleDate))
+
+#save complete set of sites and years with uw site name to send to jackie.
+
+left_join(tc.dat, siteMerge2, by = c("SiteID" = "tc")) %>%
+  mutate(Year = year(Date)) %>% 
+  distinct(SiteID, Year, uw) %>% 
+  write.csv("output/TC_siteyears.csv")
+
+```
+
+
+Add in new data from Jackie for Tim Cline's sites. These were originally received as only daily means, but now we have daily min and max as well. There may still be some UW sites that we don't have min and max for, which means we won't be able to intersect the TS with thermal regimes.
+
+Note: there were some duplicate entries for Rainbow creek with very different temps. Jackie fixed the sampleType to indicate which to use -- some were really high so probably air temps from a level logger or stream gage. Still duplicates for this site in 2011, but just filter to include the series with colder temps.
+
+
+```{r read in data and fix rainbow dups}
+uw_daily <- read_excel("S:\\Stream Temperature Data\\Jackie Carter UW\\Request for dailies from TC sites\\forRS_WRStreamTemps_Cline_RainbowFix.xlsx")
+
+#duplicates
+dups <- uw_daily %>% count(SampleType, Nerka, StationName, `TimCline Name`, YearSampled, Date) %>% filter(n > 1)
+
+#totally different, keep mins
+left_join(dups, uw_daily)
+
+rainbow_2011_fix <- left_join(dups, uw_daily) %>% 
+  group_by(SampleType, Nerka, StationName, `TimCline Name`, YearSampled, Date) %>% 
+  summarize(MinOfTemperature = min(MinOfTemperature),
+            MaxOfTemperature = min(MaxOfTemperature),
+            AvgOfTemperature = min(AvgOfTemperature))
+
+uw_daily2 <- anti_join(uw_daily, dups) %>% 
+  bind_rows(rainbow_2011_fix)
+
+#checks
+(nrow(uw_daily) - nrow(uw_daily2)) == (nrow(dups))
+#lots of duplicate sample types, Jackie said to keep ibuttons/temperature if I can
+uw_daily2 %>% count(Nerka, StationName, `TimCline Name`, YearSampled, Date) %>% filter(n > 1)
+```
+
+Fix the sample type field because there will still be duplicates here that should be removed.
+
+```{r uw new fields}
+uw_daily2 <- uw_daily2 %>% 
+  mutate(SiteID = paste0("UW_", StationName),
+         sampleDate = as.Date(Date),
+         file_name = "forRS_WRStreamTemps_Cline.xlsx",
+         sampleType = case_when(SampleType %in% c("Level Logger", "LevelLogger", "Level logger") ~ "Level_Logger",
+                                SampleType %in% c("Stage Gauge") ~ "Stage_Gauge",
+                                SampleType %in% c("iButtons", "ibuttons") ~ "iButton",
+                                SampleType %in% c("Temperature") ~ "Tidbit",
+                                TRUE ~ SampleType)) %>% 
+  select(sampleType, SiteID, StationName, sampleDate, meanDT = AvgOfTemperature, minDT = MinOfTemperature, maxDT = MaxOfTemperature) %>% 
+  filter(month(sampleDate) %in% 6:9)
+```
+
+
+Finally remove all the data from level loggers or stage gauges when other data exist. We'll still need to rely on these loggers for some dates and sites. Last set of dups was from a tidbit for one month at little togiak creek, just keep the ibutton data since that lasts for much longer and looks the same.
+
+```{r get rid of sample type dups}
+type_dups <- uw_daily2 %>% 
+  count(SiteID, sampleDate) %>% 
+  filter(n > 1)
+
+left_join(type_dups, uw_daily2) %>% 
+  ggplot(aes(x = sampleDate, y = meanDT, color = sampleType)) +
+  geom_line() +
+  facet_wrap(~SiteID, scales = "free")
+
+
+#22010 - 1328 = 20682
+
+uw_daily3 <- uw_daily2 %>% 
+  group_by(SiteID, sampleDate) %>% 
+  mutate(dups = n()) %>% 
+  ungroup() %>% 
+  filter(!(dups == 2 & sampleType %in% c("Level_Logger", "Stage_Gauge")),
+         !(SiteID == "UW_Little Togiak C Creek" & year(sampleDate) == 2013 & sampleType == "Tidbit")) %>% 
+  select(-dups)
+
+
+```
+
+Still trying to reconcile daily data from jackie with uw data used for akssf project. some maxes are really high so these are obviously days that should be removed bc most likely air temperatures. Also, 277 (but out of 16K) where means are off by more than 1 degree. Probably should just drop all the sampleDates with high maxes and large differences in mean values so I'm sticking with the means that we used to calculate ts, but dropping some dates/sites/years from the thermal regime analysis. Once I'm done, save a new daily uw dataset with all sites merged to the final data folder and also google drive.
+
+
+Look for obvious air temperatures in this dataset. Filter to just includes the sites and dates that we included in the original DFA analysis. There are ~500 dates that aren't in Jackie's dataset, just drop those. 
+
+```{r pdf of sites and years}
+uw_daily4 <- left_join(uw_dat %>% filter(is.na(minDT)) %>% select(SiteID, sampleDate),
+                       uw_daily3) %>% 
+  filter(!is.na(meanDT))
+
+summary(uw_daily4)
+
+sites <- uw_daily4 %>% distinct(SiteID)
+
+pdf("UW Dailies 3Feb22.pdf")
+
+for(i in 1:nrow(sites)) {
+  p1 <- sites %>% slice(i) %>% left_join(uw_daily4) %>% 
+    mutate(Day = format(sampleDate, "%m-%d"),
+           Year = year(sampleDate)) %>% 
+    ggplot() +
+    geom_line(aes(x = as.Date(Day, format = "%m-%d"), y = meanDT), color = "blue") +
+    geom_line(aes(x = as.Date(Day, format = "%m-%d"), y = minDT)) +
+    geom_line(aes(x = as.Date(Day, format = "%m-%d"), y = maxDT), color = "red") +
+    facet_wrap(~Year) +
+    labs(title = sites %>% slice(i) %>% pull(SiteID), x = "Date", y = "Temperature")
+  print(p1)  
+}
+
+dev.off()
+
+```
+
+Interactive plot so I can ID dates and sites to flag/remove. First take on data to remove is from the pdf plot created above:
+
+* 9: 2015 at Aleknagik Eagle Creek from June til early August
+* 12: 2015 at hansen creek in June
+* 13: happy creek drop 2012 and 2016, they must have been buried.
+* 16: 2016 spike at end of september for nerka joe creek
+* 21: 2016 mission creek got buried starting in August
+* 27: 2016 seventh creek got buried
+* 28: 2014 silver salmon creek has air spike on first day of data in June
+* 30: 2012 for stovall creek looks buried.....maybe a rainy summer, leave in.
+* 31: teal creek may also have been buried in 2011 and 2012, but hard to tell without notes, leave in.
+* 31: nerka teal creek had an air temp spike in June 2015.
+* 33; big whitefish may have had some burials as well - 2012 and 2013, partially buried in 2016? Since this is a pattern for 2012, leave in. Can't confirm without notes that the logger was buried on retrieval.
+* 40: grant river likely has air temperatures in 2016 in July to early August.
+* 45: youth creek has air temp spike on last day of data in september
+
+```{r interactive plotting for dates}
+nrow(sites) #45
+i = 13
+
+p1 <-  sites %>% slice(i) %>% left_join(uw_daily4) %>% 
+    mutate(Day = format(sampleDate, "%m-%d"),
+           Year = year(sampleDate)) %>% 
+    ggplot() +
+    geom_line(aes(x = as.Date(Day, format = "%m-%d"), y = meanDT), color = "blue") +
+    geom_line(aes(x = as.Date(Day, format = "%m-%d"), y = minDT)) +
+    geom_line(aes(x = as.Date(Day, format = "%m-%d"), y = maxDT), color = "red") +
+    facet_wrap(~Year) +
+    labs(title = sites %>% slice(i) %>% pull(SiteID), x = "Date", y = "Temperature")
+
+ggplotly(p1)
+```
+
+Remove bad data - air temps and burials.
+
+```{r remove air and burials}
+uw_qa <- read_excel("data_preparation/uw_dailies_qa.xlsx")
+
+#expand so sample dates are flagged for removal
+uw_qa <- uw_qa %>% 
+  rowwise() %>%
+  transmute(SiteID,
+            sampleDate = list(seq(startDate, endDate, by = "day"))) %>%
+  unnest(sampleDate) %>% 
+  mutate(remove = 1)
+
+uw_daily5 <- left_join(uw_daily4, uw_qa) %>% 
+  filter(is.na(remove)) %>% 
+  select(-remove)
+
+summary(uw_daily5)
+```
+
+
+Finally compare the data to the means for sites in the original saved dataset that are missing min and max.
+
+```{r remove days with large diffs in mean temps}
+
+remove_temp_diffs <- left_join(temp_dat %>% filter(is.na(minDT)) %>% select(SiteID, sampleDate, temp = meanDT), uw_daily5) %>% 
+  mutate(temp_diff = abs(meanDT - temp)) %>% 
+  filter(temp_diff > 2) %>% 
+  select(SiteID, sampleDate) %>% 
+  mutate(remove = 1)
+
+
+uw_daily6 <- left_join(uw_daily5, remove_temp_diffs) %>% 
+  filter(is.na(remove)) %>% 
+  select(-remove)
+
+summary(uw_daily6)
+```
+
+Merge the new UW data back to the original file of dailies and save this -- JUST FOR THERMAL REGIME ANALYSIS. Don't overwrite or confuse with the original daily file that Tim is using for DFA.
+
+```{r save file for thermal regime analysis}
+#missing 16,845
+uw_dat %>% 
+  count(is.na(minDT))
+
+#15731, pretty good.
+uw_daily6
+
+tr_dat <- left_join(temp_dat, temp_md %>% distinct(SiteID, SourceName)) %>% #237,898
+  filter(!SourceName == "uwASP") %>% #205,430
+  bind_rows(uw_daily6 %>% select(SiteID, sampleDate, meanDT, minDT, maxDT) %>% mutate(SourceName = "uwASP")) %>%  #221,711
+  select(-file_name, -airDT)
+
+summary(tr_dat)
+
+#still some missing data for USGS sites
+tr_dat %>% 
+  filter(is.na(minDT)) %>% 
+  distinct(SiteID, year(sampleDate)) %>% 
+  arrange(SiteID)
+
+tr_dat2 <- tr_dat %>% 
+  filter(!(is.na(minDT)|is.na(maxDT)))
+
+nrow(tr_dat) - nrow(tr_dat2)
+summary(tr_dat2)
+
+saveRDS(tr_dat2, paste0("W:/Github/AKSSF/data_preparation/final_data/daily_dat_forTR_", Sys.Date(), ".rds"))
+```
+
 
 
 

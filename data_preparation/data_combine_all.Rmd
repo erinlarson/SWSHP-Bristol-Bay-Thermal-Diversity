@@ -53,7 +53,7 @@ for (i in seq_along(gd.metadata.files$name)) {
                  overwrite = TRUE)
 }
 
-local.md.files <- list.files(folder, full.names = TRUE)
+local.md.files <- list.files(folder, full.names = TRUE) 
 
 md <- map_df(local.md.files, function(x) read_csv(x, col_types = "ccccccccccccccc") %>%
                       mutate(file_name = basename(x))) %>% 
@@ -64,7 +64,8 @@ md <- md %>%
   mutate(SiteID = case_when(is.na(SiteID) ~ Agency_ID,
                             TRUE ~ SiteID))
 
-md %>% distinct(SourceName)
+md %>% count(SourceName)
+md %>% count(Waterbody_type)
 ```
 
 
@@ -181,14 +182,16 @@ daily.sum <- daily.dat %>%
   filter(month(sampleDate) %in% 6:8) %>% 
   mutate(summer_ct = n()) %>% 
   filter(summer_ct > 0.8 * 92) %>% 
-  left_join(md %>% select(SiteID, Waterbody_name)) %>% 
+  left_join(md %>% select(SiteID, Waterbody_name, Waterbody_type)) %>% 
   ungroup()
 
 nrow(daily.dat %>% distinct(SiteID, Year = year(sampleDate)))
 nrow(daily.sum %>% distinct(SiteID, Year = year(sampleDate)))
 
+daily.sum %>% distinct(SiteID, Waterbody_type) %>% count(Waterbody_type)
+
 #165 site years lost because incomplete.
-868-703
+916-703
 ```
 
 Calculate thermal regime metrics for summer data only - June through August.
@@ -261,7 +264,6 @@ mets <- mets %>%
 
 saveRDS(daily.dat, "output/daily.dat.rds")
 
-
 saveRDS(md_sf, "output/md_sf.rds")
 
 names(md_sf)
@@ -273,3 +275,57 @@ md_sf %>%
 
 ```
 
+Read in saved data.
+
+```{r}
+daily.dat <- readRDS(file = "output/daily.dat.rds")
+md_sf <- readRDS(file ="output/md_sf.rds")
+md <- st_drop_geometry(md_sf)
+
+```
+
+
+
+```{r md saved as csv with site summary}
+left_join(md %>% 
+            mutate(SiteID2 = case_when(is.na(Agency_ID) ~ SiteID,
+                                       TRUE ~ Agency_ID)),
+          daily.dat %>% 
+            mutate(SiteID2 = case_when(grepl("CIK_", SiteID) ~ substr(SiteID, 5, 30),
+                                       grepl("NPS_", SiteID) ~ substr(SiteID, 5, 30),
+                                       TRUE ~ SiteID)) %>% 
+            distinct(SiteID2, year = year(sampleDate)) %>% 
+            count(SiteID2, name = "yearCt") %>% 
+            mutate(stream = 1)) %>% 
+  write.csv(., file = paste("output/bb_md_site_summary_", Sys.Date(), ".csv", sep = ""))
+
+```
+# Lake data
+
+Note that on the drive are FWS and NPS lake datasets, but not UW. We now have the complete depth profiles from UW, but they are in that script and not completely reviewed and posted to drive.
+
+These saved lake files might not be helpful, they are just surface temperatures!
+
+```{r read in lake data}
+gd.lake.files <- gd.akssf.files %>% 
+  filter(grepl("Daily_Data", name) & grepl(".csv", name) & grepl("lakes", name))
+
+folder <- "data_preparation/final_data/Daily_Data/"
+
+for (i in seq_along(gd.lake.files$name)) {
+  drive_download(as_id(gd.lake.files$id[i]),
+                 path = str_c(folder, gd.lake.files$name[i]),
+                 overwrite = TRUE)
+}
+
+local.lake.files <- list.files(folder, pattern = "lakes", full.names = TRUE)
+
+lake.dat <- map_df(local.lake.files, function(x) read_csv(x, col_types = "cDnnn") %>%
+                      mutate(file_name = basename(x)))
+
+summary(lake.dat)
+
+read_csv(local.lake.files[1])
+
+
+```

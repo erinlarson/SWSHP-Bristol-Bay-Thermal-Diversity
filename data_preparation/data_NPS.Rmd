@@ -249,6 +249,17 @@ nps.lakes
 
 ```
 
+save copy for Jeff Walker to use with AKTEMP that includes lat/long.
+
+```{r}
+left_join(nps.lakes, nps.metadata %>% select(Agency_ID, `File for B_Shaftel`, Waterbody_name, Latitude, Longitude), 
+          by = c("file_name" = "File for B_Shaftel")) %>% 
+  write_csv("output/lake_data_for_JeffW.csv")
+
+```
+
+
+
 Assign Agency_ID and waterbody name, and create standard column names as described in "Project_notes.Rmd"
 
 ```{r lake arrays join}
