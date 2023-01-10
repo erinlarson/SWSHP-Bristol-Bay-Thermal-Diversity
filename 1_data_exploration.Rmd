@@ -1,0 +1,121 @@
+---
+title: "1_data_exploration"
+output:
+  html_document: 
+    df_print: paged
+    fig_width: 10
+    fig_height: 10
+    fig_caption: yes
+    code_folding: hide
+    toc: true
+    number_sections: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: inline
+date: "2023-01-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(sf)
+library(lubridate)
+```
+
+# Read in data from AKSSF repo
+
+All data were combined in the AKSSF repository. Read from that project drive and filter on data from Bristol Bay.
+
+
+```{r}
+temp <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/dailyTemps.csv")
+
+mets <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/tempMetrics.csv")
+
+md <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/tempSitesMetadata.csv")
+
+names(md)
+```
+
+Map of sites for each HUC8 in Bristol Bay.
+
+```{r intersect sites with huc8}
+
+md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
+
+huc8 <- st_read(dsn = "S:/Leslie/GIS/NHD Harmonized/WBD_19_GDB.gdb", layer = "WBDHU8")
+# st_crs(huc8)
+huc8_wgs84 <- st_transform(huc8, crs = "WGS84")
+
+# st_crs(md_sf) == st_crs(huc8_wgs84)
+
+md_sf <- st_join(md_sf, huc8_wgs84)
+bb_huc8_names <- md_sf %>% filter(Region == "Bristol Bay") %>% st_drop_geometry() %>% distinct(Name) %>% pull(Name)
+
+
+ggplot() +
+  geom_sf(data = huc8_wgs84 %>% filter(Name %in% bb_huc8_names), aes(fill = Name)) +
+  geom_sf(data = md_sf %>% filter(Region == "Bristol Bay")) +
+  theme_bw() +
+  labs(fill = "HUC8 Name", title = "Bristol Bay Sampling Sites")
+
+```
+
+Plots of daily temps by HUC8 and with 18C threshold for thermal stress to adults and juveniles.
+
+```{r}
+
+# pdf("output/Daily summer temperatures by HUC8.pdf")
+
+for(i in bb_huc8_names) {
+  dat <- left_join(temp, md_sf %>% st_drop_geometry %>% select(SiteID, Region, Name)) %>% 
+    filter(Region == "Bristol Bay", Name == i) %>%
+    complete(SiteID, sampleDate) %>% 
+    mutate(doy = format(sampleDate, "%j"),
+           year = year(sampleDate))
+  p1 <- dat %>% 
+    ggplot() +
+    geom_line(aes(x = as.Date(doy, format = "%j"), y = maxDT, group = SiteID), color = "dark gray", size = 0.5) +
+    facet_wrap(~year) +
+    geom_hline(aes(yintercept = 18), color = "red") + 
+    theme_bw() +
+    labs(x = "", title = i)
+  print(p1)  
+}
+# dev.off()
+
+```
+
+Map of thermal regime classes within Bristol Bay and by year. Note that thermal regimes are ordered from coldest to warmest 6 < 1 < 2 < 3 < 4 < 5. Class 1 has latest timing of warm temps (e.g high snow inputs), and class 6 has very low variance (e.g. groundwater inputs).
+
+* 2012 and 2013 were high snow years, but 2013 generally had quite warm summer temperatures so it must have been a very warm summer.
+* 2015 and 2016 were low snow years
+* 2019 was hot
+
+```{r map of TR classes for specific years, fig.width = 8}
+# TR saved for Dean in AKSSF repo
+tr_grps <- read_csv(file = "W:/Github/AKSSF/output/Thermal_regimes_May22.csv")
+
+# left_join(temp %>% mutate(Year = year(sampleDate)), tr_grps) #%>% 
+
+tr_sf <- left_join(md_sf, tr_grps)  
+
+# tr_sf %>% 
+#   st_drop_geometry() %>% 
+#   count(Year, grp_6) %>% 
+#   pivot_wider(names_from = grp_6, values_from = n, names_sort = TRUE)
+
+ggplot() +
+  geom_sf(data = huc8_wgs84 %>% filter(Name %in% bb_huc8_names)) +
+  geom_sf(data = tr_sf %>% filter(Region == "Bristol Bay", Year %in% c(2012, 2013, 2015, 2016, 2019)), 
+          aes(color = as.factor(grp_6))) +
+  facet_wrap(~Year, ncol = 2) +
+  theme_bw() +
+  labs(color = "Thermal Regime", Title = "Thermal Regimes by Year Across Sites in Bristol Bay")
+```
+
+
