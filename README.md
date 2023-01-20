@@ -1,6 +1,6 @@
 # SWSHP-Bristol-Bay-Thermal-Diversity
 
-Project funded by Southwest Alaska Salmon Habitat Partnership. Collaboration between R. Shaftel (ACCS-UAA), E. Schoen (IAB-UAF), and Sue Mauger (Cook Inletkeeper).
+Project funded by Southwest Alaska Salmon Habitat Partnership. Collaboration between R. Shaftel (ACCS-UAA), E. Schoen (IARC-UAF), and Sue Mauger (Cook Inletkeeper).
 
 Other contributors include Dustin Merrigan (ACCS) and Ben Meyer (KWF).
 
