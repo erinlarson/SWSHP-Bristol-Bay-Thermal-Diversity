@@ -30,8 +30,9 @@ library(lubridate)
 
 All data were combined in the AKSSF repository. Read from that project drive and filter on data from Bristol Bay.
 
+NOTE: Data from Zenodo are incomplete and are missing the UW data from 2017 on.
 
-```{r}
+```{r zenodo data, eval = FALSE}
 temp <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/dailyTemps.csv")
 
 mets <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/tempMetrics.csv")
@@ -41,20 +42,83 @@ md <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/tempS
 names(md)
 ```
 
-Map of sites for each HUC8 in Bristol Bay.
+Try a different dataset that Tim used for the DFA -- all years are there!
 
-```{r intersect sites with huc8}
+```{r DFA input data}
+
+temp <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\summer_data_wair_dayl2022-03-17.csv")
+md <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\md_2022-02-08.csv")
+```
+
+
+
+```{r BB data summary}
+left_join(temp, md %>% select(SiteID = Site, SourceName, Region)) %>% 
+  filter(Region == "Bristol Bay", grepl("UW", SiteID)) %>% 
+  distinct(SiteID, year = year(sampleDate)) %>% 
+  group_by(SiteID) %>% 
+  summarize(years = toString(year))
+
+```
+
+Summary of sites that Daniel has coho salmon size data for.
+
+Whitefish
+Yako
+Bear
+Silver Salmon
+Fifer
+Lynx (main stream and below lake trib, which are two different temperature sites).
+Hidden (maybe not enough fish...)
+
+
+```{r plot of ST for sites with coho data}
+temp %>% 
+  filter(grepl("UW", SiteID)) %>% 
+  distinct(SiteID) %>% 
+  filter(grepl("Lynx", SiteID))
+
+coho_sites <- c("UW_Aleknagik Pfifer Creek", "UW_Aleknagik Silver Salmon Creek", "UW_Aleknagik Yako Creek",
+                "UW_Aleknagik Big Whitefish Creek", "UW_Nerka Bear Creek", "UW_Nerka Hidden Lake Creek",
+                "UW_Nerka Lynx Creek", "UW_Nerka Lynx Creek Cold Tributary", "UW_Nerka Lynx Lake Tributary",
+                "UW_Aleknagik Bear Creek")
+
+temp %>% 
+  filter(SiteID %in% coho_sites) %>%
+  complete(SiteID, sampleDate) %>% 
+  mutate(doy = format(sampleDate, "%j"),
+         year = year(sampleDate)) %>%  
+  ggplot() +
+  geom_line(aes(x = as.Date(doy, format = "%j"), y = meanDT, color = SiteID), size = 0.5) +
+  facet_wrap(~year) +
+  geom_hline(aes(yintercept = 18), color = "red") + 
+  theme_bw() +
+  labs(x = "", y = "Mean Daily Temperature (C)") +
+  theme(legend.position = "bottom") +
+  guides(color=guide_legend(nrow=5,byrow=TRUE))
+
+ggsave("output/coho_sites_daily_temps.jpeg")
+```
+
+Map of sites for each HUC8 in Bristol Bay. (Looks like the metadata I created already has HUC8 on there.)
+
+```{r sites by huc8}
 
 md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
 
-huc8 <- st_read(dsn = "S:/Leslie/GIS/NHD Harmonized/WBD_19_GDB.gdb", layer = "WBDHU8")
-# st_crs(huc8)
-huc8_wgs84 <- st_transform(huc8, crs = "WGS84")
+# huc8 <- st_read(dsn = "S:/Leslie/GIS/NHD Harmonized/WBD_19_GDB.gdb", layer = "WBDHU8")
+# # st_crs(huc8)
+# huc8_wgs84 <- st_transform(huc8, crs = "WGS84")
+# 
+# # st_crs(md_sf) == st_crs(huc8_wgs84)
+# 
+# md_sf <- st_join(md_sf, huc8_wgs84)
 
-# st_crs(md_sf) == st_crs(huc8_wgs84)
 
-md_sf <- st_join(md_sf, huc8_wgs84)
-bb_huc8_names <- md_sf %>% filter(Region == "Bristol Bay") %>% st_drop_geometry() %>% distinct(Name) %>% pull(Name)
+bb_huc8_names <- md_sf %>% 
+  filter(Region == "Bristol Bay") %>% 
+  st_drop_geometry() %>% 
+  distinct(Name) %>% pull(Name)
 
 
 ggplot() +
@@ -72,14 +136,14 @@ Plots of daily temps by HUC8 and with 18C threshold for thermal stress to adults
 # pdf("output/Daily summer temperatures by HUC8.pdf")
 
 for(i in bb_huc8_names) {
-  dat <- left_join(temp, md_sf %>% st_drop_geometry %>% select(SiteID, Region, Name)) %>% 
+  dat <- left_join(temp, md %>% select(Site, Region, Name), by = c("SiteID" = "Site")) %>% 
     filter(Region == "Bristol Bay", Name == i) %>%
     complete(SiteID, sampleDate) %>% 
     mutate(doy = format(sampleDate, "%j"),
            year = year(sampleDate))
   p1 <- dat %>% 
     ggplot() +
-    geom_line(aes(x = as.Date(doy, format = "%j"), y = maxDT, group = SiteID), color = "dark gray", size = 0.5) +
+    geom_line(aes(x = as.Date(doy, format = "%j"), y = meanDT, group = SiteID), color = "dark gray", size = 0.5) +
     facet_wrap(~year) +
     geom_hline(aes(yintercept = 18), color = "red") + 
     theme_bw() +
@@ -87,6 +151,7 @@ for(i in bb_huc8_names) {
   print(p1)  
 }
 # dev.off()
+
 
 ```
 
@@ -116,6 +181,35 @@ ggplot() +
   facet_wrap(~Year, ncol = 2) +
   theme_bw() +
   labs(color = "Thermal Regime", Title = "Thermal Regimes by Year Across Sites in Bristol Bay")
+```
+
+Summary of watershed attributes related to UW sites in the Wood River watershed.
+
+```{r}
+mod_dat <- readRDS("W:/Github/AKSSF/data_preparation/final_data/model_data2022-05-09.rds")
+
+mod_dat
+
+#note that Tim had me populate all airtemps for this data frame, can remove dates without
+# meandt
+bb_temp <- left_join(temp, md %>% select(Site, Region, Name), by = c("SiteID" = "Site")) %>% 
+    filter(Region == "Bristol Bay", !is.na(meanDT)) 
+
+anti_join(bb_temp %>% distinct(SiteID), mod_dat %>% distinct(Site), by = c("SiteID" = "Site"))
+
+names(bb_temp)
+names(mod_dat)
+mod_dat %>% select(Site, str_ord:wtd_area_sqKM) %>% distinct()
+
+bb_temp <- left_join(bb_temp, mod_dat %>% 
+            select(Site, str_ord:wtd_area_sqKM) %>% 
+            distinct(), 
+          by = c("SiteID" = "Site")) 
+
+bb_temp %>% 
+  distinct(SiteID, str_ord) %>% 
+  # filter(is.na(str_ord))
+  count(str_ord)
 ```
 
 

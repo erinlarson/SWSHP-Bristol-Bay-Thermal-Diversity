@@ -1,0 +1,91 @@
+---
+title: "2_fish_data"
+output: html_document
+date: "2023-02-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(lubridate)
+```
+
+
+
+
+Whitefish
+Yako
+Bear
+Silver Salmon
+Fifer
+Lynx (main stream and below lake trib, which are two different temperature sites).
+Hidden (maybe not enough fish...)
+
+
+```{r read in coho data}
+fish <- read_excel("data/fish/WR_coho.xlsx") %>% 
+  mutate(StationName = case_when(grepl("Amou", StationName) ~ "Amou Creek",
+                                 TRUE ~ StationName))
+
+summary(fish)
+fish %>% arrange(desc(Length))
+fish %>% distinct(Species)
+
+fish_tally <- fish %>% 
+  filter(!is.na(Length)) %>% 
+  count(StationName, YearSampled, name = "Coho_count")
+
+fish %>% 
+  filter(!is.na(Length)) %>% 
+  count(StationName, YearSampled) %>%
+  pivot_wider(names_from = YearSampled, values_from = n, names_sort = TRUE)
+  ggplot(aes(x = YearSampled, y = n, color = StationName)) +
+  geom_point()
+
+
+fish %>% 
+  filter(!is.na(Length), Length < 300) %>% 
+  ggplot(aes(x = Length, color = StationName)) +
+  geom_freqpoly()
+```
+
+
+Crosswalk with temperature data.
+
+```{r merge fish counts with temp data}
+
+uw_temp <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\summer_data_wair_dayl2022-03-17.csv") %>% 
+  filter(grepl("UW", SiteID), !is.na(meanDT))
+
+uw_temp <- uw_temp %>% 
+  mutate(StationName = case_when(grepl("Silver Salmon", SiteID) ~ "Silver Salmon Creek",
+                                 grepl("Big Whitefish", SiteID) ~ "Big Whitefish Creek",
+                                 grepl("Bear", SiteID) ~ "Bear Creek",
+                                 grepl("Ice", SiteID) ~ "Ice Creek",
+                                 grepl("Pfifer", SiteID) ~ "Pfifer Creek",
+                                 grepl("Yako", SiteID) ~ "Yako Creek",
+                                 grepl("Squaw", SiteID) ~ "Amou Creek",
+                                 grepl("Little Whitefish", SiteID) ~ "Little Whitefish Creek",
+                                 grepl("Lynx", SiteID) ~ "Lynx Creek",
+                                 grepl("Hidden Lake", SiteID) ~ "Hidden Lake Creek",
+                                 grepl("Teal", SiteID) ~ "Teal Creek",
+                                 grepl("Fenno", SiteID) ~ "Fenno Creek",
+                                 grepl("Stovall", SiteID) ~ "Stovall Creek")) %>% 
+  group_by(SiteID, year) %>% 
+  mutate(Temp_count = n())
+
+uw_dat <- full_join(uw_temp, fish_tally, by = c("year" = "YearSampled", 
+                                                "StationName" = "StationName")) 
+
+#save a csv showing the matching and missing data
+uw_dat  %>% 
+  filter(!is.na(StationName)) %>% 
+  distinct(SiteID, StationName, year, Coho_count, Temp_count) %>% 
+  arrange(StationName, year) %>% 
+  arrange(desc(Coho_count))
+
+
+```
+

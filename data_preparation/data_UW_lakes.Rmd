@@ -25,6 +25,8 @@ Read in UW data frame - this is the original file with depths only to 5 m.
 ```{r read in file with data to 5m}
 uw_lak <- read_excel("S:\\Stream Temperature Data\\Jackie Carter UW\\Lake Data\\Lake_Temps_for Becky.xlsx")
 
+summary(uw_lak)
+
 uw_lak %>% 
   distinct(Lake, YearSampled, DateSampled) %>% 
   group_by(Lake, YearSampled) %>%

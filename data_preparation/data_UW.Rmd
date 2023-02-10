@@ -344,11 +344,6 @@ saveRDS(uw.data2, "output/uw_data.rds")
 ```
 
 
-
-
-
-
-
 # Tim Cline's data from Zotero
 
 Six files each for a separate year of data. Sites are different columns in the dataset.
@@ -581,6 +576,7 @@ uw.daily %>% summary()
 uw.meta %>% 
   arrange(SiteID)
 ```
+
 Save formatted data from UW database for review by Priscilla.
 
 ```{r}
