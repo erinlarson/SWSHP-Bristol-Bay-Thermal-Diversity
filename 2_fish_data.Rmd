@@ -25,7 +25,7 @@ Hidden (maybe not enough fish...)
 
 
 ```{r read in coho data}
-fish <- read_excel("data/fish/WR_coho.xlsx") %>% 
+fish <- read_excel("fish_data/WR_coho.xlsx") %>% 
   mutate(StationName = case_when(grepl("Amou", StationName) ~ "Amou Creek",
                                  TRUE ~ StationName))
 
