@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
 library(lubridate)
+library(hms)
 ```
 
 
@@ -62,7 +63,7 @@ uw_temp <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\summer_dat
 uw_temp <- uw_temp %>% 
   mutate(StationName = case_when(grepl("Silver Salmon", SiteID) ~ "Silver Salmon Creek",
                                  grepl("Big Whitefish", SiteID) ~ "Big Whitefish Creek",
-                                 grepl("Bear", SiteID) ~ "Bear Creek",
+                                 grepl("Aleknagik Bear", SiteID) ~ "Bear Creek",
                                  grepl("Ice", SiteID) ~ "Ice Creek",
                                  grepl("Pfifer", SiteID) ~ "Pfifer Creek",
                                  grepl("Yako", SiteID) ~ "Yako Creek",
@@ -76,16 +77,89 @@ uw_temp <- uw_temp %>%
   group_by(SiteID, year) %>% 
   mutate(Temp_count = n())
 
-uw_dat <- full_join(uw_temp, fish_tally, by = c("year" = "YearSampled", 
-                                                "StationName" = "StationName")) 
+uw_dat <- left_join(fish_tally %>% filter(Coho_count > 29), uw_temp, by = c("YearSampled" = "year", 
+                                                "StationName" = "StationName")) %>% 
+  filter(!is.na(meanDT))
 
-#save a csv showing the matching and missing data
-uw_dat  %>% 
-  filter(!is.na(StationName)) %>% 
-  distinct(SiteID, StationName, year, Coho_count, Temp_count) %>% 
-  arrange(StationName, year) %>% 
-  arrange(desc(Coho_count))
+uw_dat %>% 
+  # filter(StationName == "Lynx Creek") %>% 
+  count(SiteID, YearSampled)
 
+saveRDS(uw_dat, file = "fish_data/temp_data_13Feb23.rds")
+
+missing_data <- uw_dat  %>% 
+  distinct(SiteID, StationName, YearSampled, Coho_count, Temp_count) %>% 
+  filter(Coho_count > 29) %>% 
+  arrange(StationName, YearSampled) %>% 
+  filter(is.na(SiteID))
+
+
+```
+
+Checked for any additional ST data that I might have received from Jackie, but didn't make it into the AKSSF project.
+Missing temperature data. This list will get sent to Daniel to see if some of these can get filled in. I had historic data files for everything but Teal Creek so it may be that the only data we can fill in here are for 2021/22 and Teal Creek. We may need to develop site-specific models to interpolate these missing years. Note also looks like some sites below may have been dewatered.
+
+- Amou/squaw creek 2013
+- Bear creek 2021, 2022
+- Big Whitefish 2007-2010 and 2021 (have Aug/Sept 2007 only)
+- Lynx 2008 - 2010, 2021, 2022
+- Pfifer 2010, 2021
+- Silver Salmon 2008, 2010, 2013
+- Teal 2017
+- Yako 2007-2009, 2013, 2014, 2021
+
+
+Data that has been found and should be added in. For five sites, found some years that were missing, bind them together here.
+
+```{r missing data}
+
+bear <- read_excel("S:\\Stream Temperature Data\\Jackie Carter UW\\Jackie Carter - 2020 data request\\froRSS_AleknagikBearTemps_2008-2017.xlsx") %>%
+  mutate(Date = as.Date(Date),
+         Time = as_hms(Time))
+
+ice <- read_csv("S:\\Stream Temperature Data\\Jackie Carter UW\\Jackie Carter - 2017 data request\\UW_FRI_WR_Ice_temps.csv") %>% 
+  mutate(Date = as.Date(Date, format = "%m/%d/%y"))
+
+pfifer <- read_csv("S:\\Stream Temperature Data\\Jackie Carter UW\\Jackie Carter - 2017 data request\\UW_FRI_WR_PfiferTemps.csv") %>% 
+  mutate(Date = as.Date(Date, format = "%m/%d/%y"))
+
+silver <- read_csv("S:\\Stream Temperature Data\\Jackie Carter UW\\Jackie Carter - 2017 data request\\UW_FRI_WR_SilverSalmon_Temps.csv") %>% 
+  mutate(Date = as.Date(Date, format = "%m/%d/%y"))
+
+yako <- read_csv("S:\\Stream Temperature Data\\Jackie Carter UW\\Jackie Carter - 2017 data request\\UW-FRI_YakoTemps.csv") %>% 
+  mutate(Date = as.Date(Date, format = "%m/%d/%y"))
+
+uw_temp2 <- bind_rows(bear, ice, pfifer, silver, yako)
+```
+
+Filter on the data so it only includes the years we are missing data for. This dataset will need some cleaning, looks like a fair bit of air temperatures.
+
+```{r save data file with missing temp data}
+
+uw_temp2 %>% 
+  count(StationName, YearSampled)
+
+uw_temp_missing <- uw_temp2 %>% 
+  rowwise() %>% 
+  mutate(StationName = stringr::word(StationName, 2, -1)) %>% 
+  right_join(missing_data) %>% 
+  group_by(StationName, Date, YearSampled) %>% 
+  summarize(minDT = min(Temperature),
+            maxDT = max(Temperature),
+            meanDT = mean(Temperature)) %>% 
+  ungroup()
+
+uw_temp_missing %>% 
+  count(StationName, YearSampled)
+
+uw_temp_missing %>% 
+  filter(!is.na(meanDT)) %>%
+  ggplot() +
+  geom_line(aes(x = Date, y = meanDT)) +
+  geom_line(aes(x = Date, y = minDT), color = "blue") +
+  geom_line(aes(x = Date, y = maxDT), color = "red") +
+  facet_wrap(~StationName, scales = "free") +
+  scale_x_date(date_labels = "%m/%y")
 
 ```
 
