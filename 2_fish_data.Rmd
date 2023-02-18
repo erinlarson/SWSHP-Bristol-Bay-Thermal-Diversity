@@ -14,7 +14,7 @@ library(hms)
 ```
 
 
-
+Site list from email from Daniel:
 
 Whitefish
 Yako
@@ -60,16 +60,21 @@ Crosswalk with temperature data.
 uw_temp <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\summer_data_wair_dayl2022-03-17.csv") %>% 
   filter(grepl("UW", SiteID), !is.na(meanDT))
 
+uw_temp %>% ungroup() %>% distinct(SiteID) #49 sites
+
+uw_temp %>% filter(grepl("Lynx", SiteID)) %>% distinct(SiteID)
+
 uw_temp <- uw_temp %>% 
   mutate(StationName = case_when(grepl("Silver Salmon", SiteID) ~ "Silver Salmon Creek",
                                  grepl("Big Whitefish", SiteID) ~ "Big Whitefish Creek",
-                                 grepl("Aleknagik Bear", SiteID) ~ "Bear Creek",
+                                 grepl("Aleknagik Bear", SiteID) ~ "Bear Creek", #1:1 for Bear creek
                                  grepl("Ice", SiteID) ~ "Ice Creek",
                                  grepl("Pfifer", SiteID) ~ "Pfifer Creek",
                                  grepl("Yako", SiteID) ~ "Yako Creek",
                                  grepl("Squaw", SiteID) ~ "Amou Creek",
                                  grepl("Little Whitefish", SiteID) ~ "Little Whitefish Creek",
-                                 grepl("Lynx", SiteID) ~ "Lynx Creek",
+                                 SiteID %in% c("UW_Nerka Lynx Creek", 
+                                               "UW_Nerka Lynx Lake Tributary") ~ "Lynx Creek", #2:1 sites that can be matched to Lynx fish data
                                  grepl("Hidden Lake", SiteID) ~ "Hidden Lake Creek",
                                  grepl("Teal", SiteID) ~ "Teal Creek",
                                  grepl("Fenno", SiteID) ~ "Fenno Creek",
@@ -77,27 +82,33 @@ uw_temp <- uw_temp %>%
   group_by(SiteID, year) %>% 
   mutate(Temp_count = n())
 
+fish_tally %>% filter(Coho_count > 29) #71 site-years of fish data
+
+#keep missing data in there so can tally missing site-years
 uw_dat <- left_join(fish_tally %>% filter(Coho_count > 29), uw_temp, by = c("YearSampled" = "year", 
-                                                "StationName" = "StationName")) %>% 
-  filter(!is.na(meanDT))
+                                                "StationName" = "StationName")) 
 
+#38 site-years with temp data (I was double-counting the Lynx data before)
 uw_dat %>% 
-  # filter(StationName == "Lynx Creek") %>% 
-  count(SiteID, YearSampled)
+  filter(!is.na(meanDT)) %>% 
+  count(StationName, YearSampled) 
 
-saveRDS(uw_dat, file = "fish_data/temp_data_13Feb23.rds")
+#saved for Erik
+saveRDS(uw_dat %>% filter(!is.na(meanDT)), file = paste0("fish_data/temp_data_", Sys.Date(), ".rds"))
+
 
 missing_data <- uw_dat  %>% 
   distinct(SiteID, StationName, YearSampled, Coho_count, Temp_count) %>% 
-  filter(Coho_count > 29) %>% 
   arrange(StationName, YearSampled) %>% 
-  filter(is.na(SiteID))
+  filter(is.na(SiteID)) #identifies sites and years without temp data
 
 
 ```
 
-Checked for any additional ST data that I might have received from Jackie, but didn't make it into the AKSSF project.
-Missing temperature data. This list will get sent to Daniel to see if some of these can get filled in. I had historic data files for everything but Teal Creek so it may be that the only data we can fill in here are for 2021/22 and Teal Creek. We may need to develop site-specific models to interpolate these missing years. Note also looks like some sites below may have been dewatered.
+Checked for any additional ST data that I received from Jackie, but didn't make it into the AKSSF project. 
+The remaining site-years will get sent to Daniel to see if some of these can get filled in. I had historic data files for everything but Teal Creek so it may be that the only data we can fill in here are for 2021/22 and Teal Creek. We may need to develop site-specific models to interpolate these missing years. Note also looks like some sites below may have been dewatered.
+
+Final list of missing data:
 
 - Amou/squaw creek 2013
 - Bear creek 2021, 2022
@@ -161,5 +172,19 @@ uw_temp_missing %>%
   facet_wrap(~StationName, scales = "free") +
   scale_x_date(date_labels = "%m/%y")
 
+```
+
+Final list of sites and years to send to Daniel.
+
+```{r}
+
+uw_found_dat_summary <- uw_temp_missing %>% 
+  count(StationName, YearSampled, name = "Temp_count") %>% 
+  filter(Temp_count > 1)
+
+left_join(missing_data %>% select(-c(SiteID, Temp_count)), uw_found_dat_summary) %>% 
+  filter(is.na(Temp_count)) %>% 
+  # filter(YearSampled > 2020) %>% 7 are for 2021-22
+  write_csv("output/fishXtemp_missing_data.csv")
 ```
 
