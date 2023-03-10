@@ -2,6 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
-data
-output
 .html
+temperature/output/lake_data_for_JeffW.csv

@@ -1,0 +1,2323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1" xmlns:stmml="http://www.xml-cml.org/schema/stmml-1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" packageId="doi:10.5063/F1028PR9" system="https://arcticdata.io" xsi:schemaLocation="eml://ecoinformatics.org/eml-2.1.1 eml.xsd">
+  <dataset>
+    <title>In-situ stream temperature monitoring, Southwest Alaska, 2013-2017.</title>
+    <creator>
+      <organizationName>Alaska Center for Conservation Science, University of Alaska Anchorage</organizationName>
+      <electronicMailAddress>uaa.aknp@alaska.edu</electronicMailAddress>
+    </creator>
+    <pubDate>2018</pubDate>
+    <abstract>This dataset includes data on stream temperature collected in 15-minute intervals over multiple years for multiple sites across Southwest Alaska. Some stream temperature monitoring sites are ongoing. Sampling occurred either between 2013 and 2017 or between 2015 and 2017, depending on the location. The data is part of a larger project to collect a comprehensive statewide inventory of current and historic continuous monitoring locations for stream and lake temperatures. The data was provided by the UAA Alaska Center for Conservation Science for archival as part of an effort between the State of Alaska's Salmon and People Project (SASAP, https://alaskasalmonandpeople.org/) and the Alaska Center for Conservation Science's Alaska Online Aquatic Temperature Site (AKOATS, http://accs.uaa.alaska.edu/aquatic-ecology/akoats/) to make stream temperature data more readily available for researchers.</abstract>
+    <keywordSet>
+      <keyword>stream</keyword>
+      <keyword>temperature</keyword>
+      <keyword>Alaska</keyword>
+    </keywordSet>
+    <intellectualRights>This work is dedicated to the public domain under the Creative Commons Universal 1.0 Public Domain Dedication. To view a copy of this dedication, visit https://creativecommons.org/publicdomain/zero/1.0/.</intellectualRights>
+    <coverage>
+      <geographicCoverage>
+        <geographicDescription>Koktuli River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-155.51123</westBoundingCoordinate>
+          <eastBoundingCoordinate>-155.51123</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.79815</northBoundingCoordinate>
+          <southBoundingCoordinate>59.79815</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Tributary above Koktuli River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-155.61197</westBoundingCoordinate>
+          <eastBoundingCoordinate>-155.61197</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.81045</northBoundingCoordinate>
+          <southBoundingCoordinate>59.81045</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Tributary above Koktuli River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-155.76492</westBoundingCoordinate>
+          <eastBoundingCoordinate>-155.76492</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.817</northBoundingCoordinate>
+          <southBoundingCoordinate>59.817</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Tributary above Koktuli River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-155.3571</westBoundingCoordinate>
+          <eastBoundingCoordinate>-155.3571</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.82543</northBoundingCoordinate>
+          <southBoundingCoordinate>59.82543</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Tributary above Newhalen River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-154.89095</westBoundingCoordinate>
+          <eastBoundingCoordinate>-154.89095</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.90227</northBoundingCoordinate>
+          <southBoundingCoordinate>59.90227</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Little Mulchatna River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-154.38715</westBoundingCoordinate>
+          <eastBoundingCoordinate>-154.38715</eastBoundingCoordinate>
+          <northBoundingCoordinate>60.49564</northBoundingCoordinate>
+          <southBoundingCoordinate>60.49564</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Tributary above Koksetna River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-155.14171</westBoundingCoordinate>
+          <eastBoundingCoordinate>-155.14171</eastBoundingCoordinate>
+          <northBoundingCoordinate>60.26358</northBoundingCoordinate>
+          <southBoundingCoordinate>60.26358</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Kaskanak Creek, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-155.74731</westBoundingCoordinate>
+          <eastBoundingCoordinate>-155.74731</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.69252</northBoundingCoordinate>
+          <southBoundingCoordinate>59.69252</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Chilchitna River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-155.20805</westBoundingCoordinate>
+          <eastBoundingCoordinate>-155.20805</eastBoundingCoordinate>
+          <northBoundingCoordinate>60.44236</northBoundingCoordinate>
+          <southBoundingCoordinate>60.44236</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Bonanza Creek, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-154.86514</westBoundingCoordinate>
+          <eastBoundingCoordinate>-154.86514</eastBoundingCoordinate>
+          <northBoundingCoordinate>60.69262</northBoundingCoordinate>
+          <southBoundingCoordinate>60.69262</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>South Fork Koktuli River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-155.77438</westBoundingCoordinate>
+          <eastBoundingCoordinate>-155.77438</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.82923</northBoundingCoordinate>
+          <southBoundingCoordinate>59.82923</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Stuyahok River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-156.30147</westBoundingCoordinate>
+          <eastBoundingCoordinate>-156.30147</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.70342</northBoundingCoordinate>
+          <southBoundingCoordinate>59.70342</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Tazimina River, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-154.81134</westBoundingCoordinate>
+          <eastBoundingCoordinate>-154.81134</eastBoundingCoordinate>
+          <northBoundingCoordinate>59.93596</northBoundingCoordinate>
+          <southBoundingCoordinate>59.93596</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <geographicCoverage>
+        <geographicDescription>Victoria Creek, Southwest Alaska</geographicDescription>
+        <boundingCoordinates>
+          <westBoundingCoordinate>-154.86369</westBoundingCoordinate>
+          <eastBoundingCoordinate>-154.86369</eastBoundingCoordinate>
+          <northBoundingCoordinate>60.6895</northBoundingCoordinate>
+          <southBoundingCoordinate>60.6895</southBoundingCoordinate>
+        </boundingCoordinates>
+      </geographicCoverage>
+      <temporalCoverage>
+        <rangeOfDates>
+          <beginDate>
+            <calendarDate>2013</calendarDate>
+          </beginDate>
+          <endDate>
+            <calendarDate>2017</calendarDate>
+          </endDate>
+        </rangeOfDates>
+      </temporalCoverage>
+    </coverage>
+    <contact>
+      <individualName>
+        <givenName>Dan</givenName>
+        <surName>Bogan</surName>
+      </individualName>
+      <organizationName>Alaska Center for Conservation Science, University of Alaska Anchorage</organizationName>
+      <positionName>Aquatic Ecologist</positionName>
+      <electronicMailAddress>dlbogan@alaska.edu</electronicMailAddress>
+    </contact>
+    <methods>
+      <methodStep>
+        <description>Stream temperature (°C) was sampled every 15 minutes at 14 sites throughout Southwest Alaska. Censors were located in the main channel of the waterbody, installed either by duckbill cable or cable and rebar.</description>
+      </methodStep>
+      <sampling>
+        <studyExtent>
+          <description>The sampling area includes 14 different streams throughout Southwest Alaska. The sampling interval was 15 minutes in order to accurately capture daily maximum, minimum, and mean temperatures. Year-round samples were collected. Sampling occurred from 2013 to 2017 for some sites and from 2015 to 2017 for other sites.</description>
+        </studyExtent>
+        <samplingDescription>Based on regional, multi–agency discussions on temperature monitoring data collection standards there is a minimum accuracy standard of +/- 0.25°C and a temperature measurement range of -4°C to 37°C (year round).</samplingDescription>
+      </sampling>
+    </methods>
+    <project>
+      <title>State of Alaska’s Salmon and People</title>
+      <personnel>
+        <individualName>
+          <givenName>Matt</givenName>
+          <surName>Jones</surName>
+        </individualName>
+        <organizationName>NCEAS/UCSB</organizationName>
+        <role>principalInvestigator</role>
+      </personnel>
+      <personnel>
+        <individualName>
+          <givenName>Ian</givenName>
+          <surName>Dutton</surName>
+        </individualName>
+        <organizationName>Nautilus Impact Investing</organizationName>
+        <role>principalInvestigator</role>
+      </personnel>
+      <personnel>
+        <individualName>
+          <givenName>Frank</givenName>
+          <surName>Davis</surName>
+        </individualName>
+        <organizationName>NCEAS/UCSB</organizationName>
+        <role>principalInvestigator</role>
+      </personnel>
+      <personnel>
+        <individualName>
+          <givenName>Jeanette</givenName>
+          <surName>Clark</surName>
+        </individualName>
+        <organizationName>NCEAS/UCSB</organizationName>
+        <role>dataCoordinator</role>
+      </personnel>
+      <personnel>
+        <individualName>
+          <givenName>Jared</givenName>
+          <surName>Kibele</surName>
+        </individualName>
+        <organizationName>NCEAS/UCSB</organizationName>
+        <role>programmer</role>
+      </personnel>
+      <abstract>
+        <para>State of Alaska’s Salmon and People (SASAP) and SASAP Data Task Force are both funded by the Gordon and Betty Moore Foundation. SASAP is a synthesis science project aimed to create an equitable decision-making platform for all stakeholders by addressing data gaps in Alaska’s salmon system through information synthesis, collaboration and stakeholder engagement. The SASAP Data Task Force assists the synthesis research effort through data collection, homogenization, management, and sustainability, under the direction of the synthesis project leads. The result of the efforts of these two projects is an Alaskan Salmon data catalog, containing all of the original and derived data products resulting from the synthesis research.</para>
+      </abstract>
+      <funding>
+        <para>State of Alaska’s Salmon and People (Gordon and Betty Moore Foundation Award 5124)</para>
+        <para>Data Task Forces for Better Synthesis Studies (Gordon and Betty Moore Foundation Award 5451)</para>
+      </funding>
+    </project>
+    <dataTable id="urn:uuid:591aeb28-0eb2-4c62-8845-526d55db5d30" scope="document">
+      <entityName>SiteLevelMetadata_Bogan.csv</entityName>
+      <entityDescription>AKOATS site-level metadata</entityDescription>
+      <physical scope="document">
+        <objectName>SiteLevelMetadata_Bogan.csv</objectName>
+        <size unit="bytes">4974</size>
+        <authentication method="SHA1">8f4cbeda857c1ab28824c1e56ce434771bc38a13</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:591aeb28-0eb2-4c62-8845-526d55db5d30</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeLabel>AKOATS ID</attributeLabel>
+          <attributeDefinition>Unique identifier assigned by UAA Alaska Center for Conservation Science</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Unique identifier assigned by UAA Alaska Center for Conservation Science</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>SiteID</attributeName>
+          <attributeLabel>Site ID</attributeLabel>
+          <attributeDefinition>Identifier from data source agency/organization - unique identification distinguishing each monitoring site</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Identifier from data source agency/organization - unique identification distinguishing each monitoring site</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>SourceName</attributeName>
+          <attributeLabel>Source name</attributeLabel>
+          <attributeDefinition>Data Source agency or organization managing monitoring site</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Data Source agency or organization managing monitoring site</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Contact_person</attributeName>
+          <attributeLabel>Contact person</attributeLabel>
+          <attributeDefinition>Name of key contact person for data source agency</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Name of key contact person for data source agency</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Contact_email</attributeName>
+          <attributeLabel>Contact email</attributeLabel>
+          <attributeDefinition>Email for key contact person at data source agency</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Email for key contact person at data source agency</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Contact_telephone</attributeName>
+          <attributeLabel>Contact telephone</attributeLabel>
+          <attributeDefinition>Telephone number for key contact person at data source agency</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Telephone number for key contact person at data source agency</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Latitude</attributeName>
+          <attributeLabel>Latitude</attributeLabel>
+          <attributeDefinition>Latitude of monitoring station , decimal degrees</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>degree</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>real</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Longitude</attributeName>
+          <attributeLabel>Longitude</attributeLabel>
+          <attributeDefinition>Longitude of monitoring station , decimal degrees</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>degree</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>real</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Coordinate_Datum</attributeName>
+          <attributeLabel>Coordinate Datum</attributeLabel>
+          <attributeDefinition>to which Horizontal Datum are the coordinates referenced (NAD83, WGS84)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>to which Horizontal Datum are the coordinates referenced (NAD83, WGS84)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Location_Method</attributeName>
+          <attributeLabel>Location Method</attributeLabel>
+          <attributeDefinition>GPS, google earth, interpolated from a map</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>GPS, google earth, interpolated from a map, </definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Sensor_Placement</attributeName>
+          <attributeLabel>Sensor Placement</attributeLabel>
+          <attributeDefinition>Main channel, side channel, slough, streambed (hyporheic zone)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Main channel, side channel, slough, streambed (hyporheic zone),</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Location_Description</attributeName>
+          <attributeLabel>Location Description</attributeLabel>
+          <attributeDefinition>text to describe relative sensor location, details regarding sensors position (e.g. "on downstream side of large boulder","on gaging standpipe", or "cabled to tree with placard")</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>text to describe relative sensor location, details regarding sensors position (e.g. "on downstream side of large boulder","on gaging standpipe", or "cabled to tree with placard")</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Waterbody_name</attributeName>
+          <attributeLabel>Waterbody name</attributeLabel>
+          <attributeDefinition>Name of stream, river, or lake being monitored; use the Geographic Names Information System (GNIS), from USGS</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Name of stream, river, or lake being monitored; use the Geographic Names Information System (GNIS), from USGS</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Waterbody_type</attributeName>
+          <attributeLabel>Waterbody type</attributeLabel>
+          <attributeDefinition>Waterbody type being monitored: stream or river; pond  or lake (S, L)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Waterbody type being monitored: stream or river; pond  or lake (S, L)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temp_unit</attributeName>
+          <attributeLabel>Temp unit</attributeLabel>
+          <attributeDefinition>Fahrenheit or Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Fahrenheit or Celsius</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Other_Parameters</attributeName>
+          <attributeLabel>Other Parameters</attributeLabel>
+          <attributeDefinition>Any other parameters monitored at this site? (water chemistry, physical water quality, flow, depth, fish counts, etc).  (1= YES, 0=NO)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Any other parameters monitored at this site? (water chemistry, physical water quality, flow, depth, fish counts, etc).  (1= YES, 0=NO)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Other_Air</attributeName>
+          <attributeLabel>Other Air</attributeLabel>
+          <attributeDefinition>Other Parameters monitored at or near the sensor site: Air Temperature (1= YES, 0=NO)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Other Parameters monitored at or near the sensor site: Air Temperature (1= YES, 0=NO)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Other_Bio</attributeName>
+          <attributeLabel>Other Bio</attributeLabel>
+          <attributeDefinition>Other Parameters monitored at or near the sensor site: Biological data: fish, aquatic ecology, plants (1= YES, 0=NO)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Other Parameters monitored at or near the sensor site: Biological data: fish, aquatic ecology, plants (1= YES, 0=NO)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Other_Flow</attributeName>
+          <attributeLabel>Other Flow</attributeLabel>
+          <attributeDefinition>Other Parameters monitored at or near the sensor site: Flow and or gage height or lake level (1= YES, 0=NO)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Other Parameters monitored at or near the sensor site: Flow and or gage height or lake level (1= YES, 0=NO)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Other_WQC</attributeName>
+          <attributeLabel>Other WQC</attributeLabel>
+          <attributeDefinition>Other Parameters monitored at or near the sensor site: Water Quality - Chemical parameters (1= YES, 0=NO)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Other Parameters monitored at or near the sensor site: Water Quality - Chemical parameters (1= YES, 0=NO)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Other_WQP</attributeName>
+          <attributeLabel>Other WQP</attributeLabel>
+          <attributeDefinition>Other Parameters monitored at or near the sensor site: Water Quality Physical parameters: pH, conductivity, dissolved oxygen (1= YES, 0=NO)</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Other Parameters monitored at or near the sensor site: Water Quality Physical parameters: pH, conductivity, dissolved oxygen (1= YES, 0=NO)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Other_text</attributeName>
+          <attributeLabel>Other text</attributeLabel>
+          <attributeDefinition>Other Parameters monitored at or near the sensor site: other data</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Other Parameters monitored at or near the sensor site: other data</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>start_date</attributeName>
+          <attributeLabel>start date</attributeLabel>
+          <attributeDefinition>starting year of data collection</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>End_date</attributeName>
+          <attributeLabel>End date</attributeLabel>
+          <attributeDefinition>final year of data collection</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Active</attributeName>
+          <attributeLabel>Active</attributeLabel>
+          <attributeDefinition>1=yes,  0=no</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>1=yes,  0=no</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Status</attributeName>
+          <attributeLabel>Status</attributeLabel>
+          <attributeDefinition>Sensor operational status: cancelled, completed, on-going, underdevelopment,</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Sensor operational status: cancelled, completed, on-going, underdevelopment,</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Sample_frequency</attributeName>
+          <attributeLabel>Sample frequency</attributeLabel>
+          <attributeDefinition>Time (minutes) between temperature recordings, units are in minutes</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Time (minutes) between temperature recordings, units are in minutes</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Sample_interval</attributeName>
+          <attributeLabel>Sample interval</attributeLabel>
+          <attributeDefinition>Continuous (automated every xx minutes) or discrete (one-time recordings) </attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Continuous (automated every xx minutes) or discrete (one-time recordings)</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Sample_season</attributeName>
+          <attributeLabel>Sample season</attributeLabel>
+          <attributeDefinition>Is stream temperature monitored "year round" or during "open water" season</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Is stream temperature monitored "year round" or during "open water" season</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Sensor_accuracy</attributeName>
+          <attributeLabel>Sensor accuracy</attributeLabel>
+          <attributeDefinition>Sensor type grouped by accuracy; (+/- 0.2 deg C Hobo Pro v2, Tidbit, etc.) or (+/- 0.5 deg C) or unknown</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Sensor type grouped by accuracy; (+/- 0.2 deg C Hobo Pro v2, Tidbit, etc.) or (+/- 0.5 deg C) or unknown</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Sensor_QAQC</attributeName>
+          <attributeLabel>Sensor QAQC</attributeLabel>
+          <attributeDefinition>tiered levels of QA/QC: 1) no QA/QC, 2) have a documented SOP, 3) instrument tested pre and post deployment, 4) instrument tested onsite: in stream or in lake, 5) cross sectional stream testing</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>tiered levels of QA/QC: 1) no QA/QC, 2) have a documented SOP, 3) instrument tested pre and post deployment, 4) instrument tested onsite: in stream or in lake, 5) cross sectional stream testing</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Sensor_access</attributeName>
+          <attributeLabel>Sensor access</attributeLabel>
+          <attributeDefinition>road, boat, helicopter, plane</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>road, boat, helicopter, plane</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeLabel>Duplicate Sensor</attributeLabel>
+          <attributeDefinition>Is there a redundant sensor at the site? in case of sensor loss/failure?</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Is there a redundant sensor at the site? in case of sensor loss/failure?</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Install_type</attributeName>
+          <attributeLabel>Install type</attributeLabel>
+          <attributeDefinition>Rock epoxy, cable and rebar, gage attachment, buoy</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Rock epoxy, cable and rebar, gage attachment, buoy</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>NOTES</attributeName>
+          <attributeLabel>Notes</attributeLabel>
+          <attributeDefinition>additional information to describe site, conditions, part of a larger project</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>additional information to describe site, conditions, part of a larger project</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Link</attributeName>
+          <attributeLabel>Link</attributeLabel>
+          <attributeDefinition>hyperlink to data source agency website with additional site or project information</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>hyperlink to data source agency website with additional site or project information</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>No information provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>years</attributeName>
+          <attributeLabel>Years</attributeLabel>
+          <attributeDefinition>The number of years of data collected</attributeDefinition>
+          <measurementScale>
+            <ratio>
+              <unit>
+                <standardUnit>dimensionless</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>whole</numberType>
+              </numericDomain>
+            </ratio>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Agency</attributeName>
+          <attributeLabel>Agency</attributeLabel>
+          <attributeDefinition>The Agency conducting the sampling</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>The Agency conducting the sampling</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:57747376-c832-40a9-8457-e28bfe23dba9" scope="document">
+      <entityName>LittleMulchatnaRiver_1660_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for Little Mulchatna River (AKOATS ID = 1660)</entityDescription>
+      <physical scope="document">
+        <objectName>LittleMulchatnaRiver_1660_2015_2017.csv</objectName>
+        <size unit="bytes">4789921</size>
+        <authentication method="SHA1">47fe9ab9718e85c3e2523874c8df44bcb7d8f125</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:57747376-c832-40a9-8457-e28bfe23dba9</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:e22f59a7-d9de-4101-bd63-f1d01b22d129" scope="document">
+      <entityName>TributaryKoksetnaRiver_1661_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for tributary of Koksetna River (AKOATS ID = 1661)</entityDescription>
+      <physical scope="document">
+        <objectName>TributaryKoksetnaRiver_1661_2015_2017.csv</objectName>
+        <size unit="bytes">6101432</size>
+        <authentication method="SHA1">ca807d657a844d84448243a678aab58f0ca8c1bb</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:e22f59a7-d9de-4101-bd63-f1d01b22d129</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Location_Description</attributeName>
+          <attributeDefinition>Location of the sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Location of the sensor</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:dddad262-7190-429f-b8c7-1b304d4c03cf" scope="document">
+      <entityName>KaskanakCreek_1662_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for Kaskanak Creek (AKOATS ID = 1662)</entityDescription>
+      <physical scope="document">
+        <objectName>KaskanakCreek_1662_2015_2017.csv</objectName>
+        <size unit="bytes">4872324</size>
+        <authentication method="SHA1">9dc1d02f0de8b4ff671f58e4b7823be0cd7048c7</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:dddad262-7190-429f-b8c7-1b304d4c03cf</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:93762bf2-fe36-41a1-b752-0faed580c5b0" scope="document">
+      <entityName>ChilchitnaRiver_1663_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for Chilchitna River (AKOATS ID = 1663)</entityDescription>
+      <physical scope="document">
+        <objectName>ChilchitnaRiver_1663_2015_2017.csv</objectName>
+        <size unit="bytes">5928098</size>
+        <authentication method="SHA1">2998789e60a7c583f2e42dc78ef8cbd755ff9098</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:93762bf2-fe36-41a1-b752-0faed580c5b0</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Location_Description</attributeName>
+          <attributeDefinition>Location of the sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Location of the sensor</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:c3acf655-f169-4894-9b55-9f3f322572d4" scope="document">
+      <entityName>BonanzaCreek_1664_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for Bonanza Creek (AKOATS ID = 1664)</entityDescription>
+      <physical scope="document">
+        <objectName>BonanzaCreek_1664_2015_2017.csv</objectName>
+        <size unit="bytes">3630122</size>
+        <authentication method="SHA1">ecdd412d6b5bc3b8049b501d613cb3ffaecd096e</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:c3acf655-f169-4894-9b55-9f3f322572d4</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:b19ac4bb-9462-424e-adbe-ed44ea0460be" scope="document">
+      <entityName>TributaryNewhalenRiver_764_2013_2017.csv</entityName>
+      <entityDescription>Stream temperature data for tributary of Newhalen River (AKOATS ID = 764)</entityDescription>
+      <physical scope="document">
+        <objectName>TributaryNewhalenRiver_764_2013_2017.csv</objectName>
+        <size unit="bytes">8140350</size>
+        <authentication method="SHA1">960212c6cfde773820e7efbb523edebe539043ef</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:b19ac4bb-9462-424e-adbe-ed44ea0460be</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:f6d7822c-734e-4cc6-83cc-40fb9ae47622" scope="document">
+      <entityName>TributaryKoktuliRiver_763_2013_2017.csv</entityName>
+      <entityDescription>Stream temperature data for tributary of Koktuli River (AKOATS ID = 763)</entityDescription>
+      <physical scope="document">
+        <objectName>TributaryKoktuliRiver_763_2013_2017.csv</objectName>
+        <size unit="bytes">6999466</size>
+        <authentication method="SHA1">a59f8a214b9ab6a35ed265aec57dd25aebe7bab4</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:f6d7822c-734e-4cc6-83cc-40fb9ae47622</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:6f11bfaf-95c5-42c9-98c8-bd2d581f1fb1" scope="document">
+      <entityName>KoktuliRiver_760_2013_2017.csv</entityName>
+      <entityDescription>Stream temperature data for Koktuli River (AKOATS ID = 760)</entityDescription>
+      <physical scope="document">
+        <objectName>KoktuliRiver_760_2013_2017.csv</objectName>
+        <size unit="bytes">5853422</size>
+        <authentication method="SHA1">9b003b7e06097c639c0afd41d1ee354e265f22e6</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:6f11bfaf-95c5-42c9-98c8-bd2d581f1fb1</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:e5015b84-0ace-4085-94b3-16ddcf48eb73" scope="document">
+      <entityName>TributaryKoktuliRiver_762_2013_2017.csv</entityName>
+      <entityDescription>Stream temperature data for tributary of Koktuli River (AKOATS ID = 762)</entityDescription>
+      <physical scope="document">
+        <objectName>TributaryKoktuliRiver_762_2013_2017.csv</objectName>
+        <size unit="bytes">8125012</size>
+        <authentication method="SHA1">ebb58ff9f09100744df122b280a6a7b7c4037cd7</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:e5015b84-0ace-4085-94b3-16ddcf48eb73</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Location_Description</attributeName>
+          <attributeDefinition>Location of the sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Location of the sensor</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:5bb411af-8677-4ff0-bbe8-819becdd9b5c" scope="document">
+      <entityName>TributaryKoktuliRiver_761_2013_2017.csv</entityName>
+      <entityDescription>Stream temperature data for tributary of Koktuli River (AKOATS ID = 761)</entityDescription>
+      <physical scope="document">
+        <objectName>TributaryKoktuliRiver_761_2013_2017.csv</objectName>
+        <size unit="bytes">5823968</size>
+        <authentication method="SHA1">74a56ac17757fedf5efb8bf0c8e54984970cf2ac</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:5bb411af-8677-4ff0-bbe8-819becdd9b5c</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:49ca2bd3-7b93-4d8f-b8c3-d68cdb6f8c72" scope="document">
+      <entityName>SouthForkKoktuliRiver_1665_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for South Fork Koktuli River (AKOATS ID = 1665)</entityDescription>
+      <physical scope="document">
+        <objectName>SouthForkKoktuliRiver_1665_2015_2017.csv</objectName>
+        <size unit="bytes">5880247</size>
+        <authentication method="SHA1">91bc64673eba34ec60cadc48004f5d91898d0a0b</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:49ca2bd3-7b93-4d8f-b8c3-d68cdb6f8c72</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Location_Description</attributeName>
+          <attributeDefinition>Location of the sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Location of the sensor</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:da7a2a8e-5f31-4df2-8d17-deca1f7caba1" scope="document">
+      <entityName>StuyahokRiver_1666_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for Stuyahok River (AKOATS ID = 1666)</entityDescription>
+      <physical scope="document">
+        <objectName>StuyahokRiver_1666_2015_2017.csv</objectName>
+        <size unit="bytes">4576823</size>
+        <authentication method="SHA1">a7e8f3f5a764cc4b136d10a57ca59ebf4fc07485</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:da7a2a8e-5f31-4df2-8d17-deca1f7caba1</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Location_Description</attributeName>
+          <attributeDefinition>Location of the sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Location of the sensor</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:4d50bb7d-c4c1-486e-83f3-6734a190f9e3" scope="document">
+      <entityName>TaziminaRiver_1667_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for Tazimina River (AKOATS ID = 1667)</entityDescription>
+      <physical scope="document">
+        <objectName>TaziminaRiver_1667_2015_2017.csv</objectName>
+        <size unit="bytes">4730908</size>
+        <authentication method="SHA1">a1c4afd9982b5b659ef08dac8760fdc764429802</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:4d50bb7d-c4c1-486e-83f3-6734a190f9e3</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+    <dataTable id="urn:uuid:7489ab98-a53d-4bc7-97ff-d2c9721df381" scope="document">
+      <entityName>VictoriaCreek_1668_2015_2017.csv</entityName>
+      <entityDescription>Stream temperature data for Victoria Creek (AKOATS ID = 1668)</entityDescription>
+      <physical scope="document">
+        <objectName>VictoriaCreek_1668_2015_2017.csv</objectName>
+        <size unit="bytes">4770714</size>
+        <authentication method="SHA1">05850a116bd99978f80b29e8dee9f02ff008e263</authentication>
+        <dataFormat>
+          <externallyDefinedFormat>
+            <formatName>text/csv</formatName>
+          </externallyDefinedFormat>
+        </dataFormat>
+        <distribution scope="document">
+          <online>
+            <url function="download">https://cn.dataone.org/cn/v2/resolve/urn:uuid:7489ab98-a53d-4bc7-97ff-d2c9721df381</url>
+          </online>
+        </distribution>
+      </physical>
+      <attributeList>
+        <attribute>
+          <attributeName>AKOATS_ID</attributeName>
+          <attributeDefinition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <textDomain>
+                  <definition>Alaska Online Aquatic Temperature Site (AKOATS) is a statewide stream temperature metadata inventory. Each sampling location has a unique AKOATS_ID</definition>
+                </textDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleDate</attributeName>
+          <attributeDefinition>Date sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>YYYY-MM-DD</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>sampleTime</attributeName>
+          <attributeDefinition>Time sample was taken</attributeDefinition>
+          <measurementScale>
+            <dateTime>
+              <formatString>HH:MM:SS</formatString>
+            </dateTime>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>Temperature</attributeName>
+          <attributeDefinition>Stream temperature, measured in degrees C</attributeDefinition>
+          <measurementScale>
+            <interval>
+              <unit>
+                <standardUnit>celsius</standardUnit>
+              </unit>
+              <numericDomain>
+                <numberType>natural</numberType>
+              </numericDomain>
+            </interval>
+          </measurementScale>
+          <missingValueCode>
+            <code>NA</code>
+            <codeExplanation>data not provided</codeExplanation>
+          </missingValueCode>
+        </attribute>
+        <attribute>
+          <attributeName>Duplicate_Sensor</attributeName>
+          <attributeDefinition>'0' = main sensor, '1' = backup sensor</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>main sensor</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>backup sensor</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+        <attribute>
+          <attributeName>UseData</attributeName>
+          <attributeDefinition>'0' = do not use data, '1' = use data. '0' is a flag for temperatures &lt; 1 degree Celsius or &gt; 30 degrees Celsius</attributeDefinition>
+          <measurementScale>
+            <nominal>
+              <nonNumericDomain>
+                <enumeratedDomain>
+                  <codeDefinition>
+                    <code>0</code>
+                    <definition>no, temperature is &lt; 1 degree Celsius or &gt; 30 degrees Celsius</definition>
+                  </codeDefinition>
+                  <codeDefinition>
+                    <code>1</code>
+                    <definition>yes, temperature is in expected range</definition>
+                  </codeDefinition>
+                </enumeratedDomain>
+              </nonNumericDomain>
+            </nominal>
+          </measurementScale>
+        </attribute>
+      </attributeList>
+    </dataTable>
+  </dataset>
+</eml:eml>
