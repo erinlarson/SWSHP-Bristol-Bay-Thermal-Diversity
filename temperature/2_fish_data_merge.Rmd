@@ -26,7 +26,7 @@ Hidden (maybe not enough fish...)
 
 
 ```{r read in coho data}
-fish <- read_excel("fish_data/WR_coho.xlsx") %>% 
+fish <- read_excel("fish/data/WR_coho.xlsx") %>% 
   mutate(StationName = case_when(grepl("Amou", StationName) ~ "Amou Creek",
                                  TRUE ~ StationName))
 
@@ -41,7 +41,7 @@ fish_tally <- fish %>%
 fish %>% 
   filter(!is.na(Length)) %>% 
   count(StationName, YearSampled) %>%
-  pivot_wider(names_from = YearSampled, values_from = n, names_sort = TRUE)
+  # pivot_wider(names_from = YearSampled, values_from = n, names_sort = TRUE) %>% 
   ggplot(aes(x = YearSampled, y = n, color = StationName)) +
   geom_point()
 
@@ -81,6 +81,43 @@ uw_temp <- uw_temp %>%
                                  grepl("Stovall", SiteID) ~ "Stovall Creek")) %>% 
   group_by(SiteID, year) %>% 
   mutate(Temp_count = n())
+```
+
+Comparison of two lynx Creek sites indicates that Lynx Creek is not a good replacement for Lynx Creek tributary, which is much warmer. Shared plot with Erik and agreed to fill data gaps for this site and possibly others with a ST model. Removed Lynx Creek from dataset, which gets rid of duplicates for three years.
+
+```{r lynx creek sites}
+
+uw_temp %>% 
+  filter(StationName == "Lynx Creek") %>%
+  mutate(day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(day, format = "%m-%d"), y = meanDT, color = SiteID)) +
+  geom_line() +
+  facet_wrap(~year) +
+  theme_bw() +
+  theme(legend.position = "bottom", axis.title.x = element_blank())
+
+#on average, 3C warmer in trib
+uw_temp %>% 
+  filter(StationName == "Lynx Creek") %>%
+  select(SiteID, sampleDate, meanDT) %>% 
+  pivot_wider(names_from = SiteID, values_from = meanDT) %>% 
+  mutate(diff = `UW_Nerka Lynx Lake Tributary` - `UW_Nerka Lynx Creek`) %>% 
+  filter(!is.na(diff)) %>% 
+  summarize(mean(diff), median(diff), sd(diff))
+
+ggsave("temperature/output/UW_fish_sites/Lynx Creek and Lake Trib Temps.jpeg")
+```
+
+
+```{r save ST data frame for Erik}
+
+uw_temp <- uw_temp %>% 
+  filter(!SiteID == "UW_Nerka Lynx Creek")
+
+#dups removed
+uw_temp %>% 
+  count(StationName, sampleDate) %>% 
+  filter(n > 1)
 
 fish_tally %>% filter(Coho_count > 29) #71 site-years of fish data
 
@@ -88,13 +125,13 @@ fish_tally %>% filter(Coho_count > 29) #71 site-years of fish data
 uw_dat <- left_join(fish_tally %>% filter(Coho_count > 29), uw_temp, by = c("YearSampled" = "year", 
                                                 "StationName" = "StationName")) 
 
-#38 site-years with temp data (I was double-counting the Lynx data before)
+#31 site-years with temp data (I was double-counting the Lynx data before)
 uw_dat %>% 
   filter(!is.na(meanDT)) %>% 
   count(StationName, YearSampled) 
 
 #saved for Erik
-saveRDS(uw_dat %>% filter(!is.na(meanDT)), file = paste0("fish_data/temp_data_", Sys.Date(), ".rds"))
+saveRDS(uw_dat %>% filter(!is.na(meanDT)), file = paste0("fish/data/temp_data_", Sys.Date(), ".rds"))
 
 
 missing_data <- uw_dat  %>% 

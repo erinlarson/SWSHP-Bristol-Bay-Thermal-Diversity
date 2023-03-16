@@ -1,0 +1,127 @@
+---
+title: "3_fish_temps"
+output: 
+  html_document:
+    code_folding: hide
+date: "2023-03-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(knitr)
+library(zoo)
+library(lubridate)
+```
+
+This file is for exploring ST at the sites where UW has been monitoring coho salmon sizes over time. Figures are shown in this markdown and saved to the temperature/output folder for use in presentations. Currently planning an update at the 2023 SWIM meeting.
+
+```{r read in temps}
+temp <- read_rds("fish/data/temp_data_2023-03-16.rds")
+
+temp %>% 
+  count(StationName, YearSampled) %>% 
+  pivot_wider(names_from = YearSampled, values_from = n, names_sort = TRUE) %>% 
+  kable()
+```
+
+```{r plot of ST at different sites and years}
+
+temp %>% 
+  mutate(day = format(sampleDate, "%m-%d")) %>% 
+  ggplot(aes(x = as.Date(day, format = "%m-%d"), y = meanDT)) + 
+  geom_line(aes(color = as.factor(YearSampled))) +
+  facet_wrap(~StationName) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(), text = element_text(size = 16)) +
+  labs(color = "Year", y = "Mean Daily Temperature (°C)",
+       title = "Stream Temperatures at UW Monitoring Sites")
+
+
+ggsave("temperature/output/UW_fish_sites/Daily temps for 8 sites.jpeg")
+```
+
+Calculating annual stream temperature metrics for Erik:
+
+* CDD for all days in June-August
+* CDD for June 21st (julian day 172) through end of August so sum is across a consistent set of days with data for all sites
+* mean summer temperature - common metric used by UW to compare stream thermal regimes
+* MWAT - maximum weekly average temperature. Maximum of 7-day rolling average of mean daily temperatures 
+
+```{r calculation of annual temperature metrics}
+
+# one site-year that started on jd 172.
+temp %>% 
+  mutate(jd = format(sampleDate, "%j") %>% as.numeric()) %>% 
+  group_by(StationName, YearSampled) %>% 
+  summarize(minjd = min(jd))
+
+
+temp_mets <- temp %>% 
+  filter(month(sampleDate) %in% 6:8) %>%
+  group_by(StationName, YearSampled) %>% 
+  mutate(jd = format(sampleDate, "%j") %>% as.numeric(),
+         meanDT_172 = case_when(jd < 172 ~ 0,
+                                TRUE ~ meanDT),
+         cumtemp = cumsum(meanDT),
+         cumtemp_172 = cumsum(meanDT_172),
+         mn_7day = rollapply(meanDT, 7, mean, fill = NA)) %>% 
+  summarize(CDD = max(cumtemp),
+            CDD_172 = max(cumtemp_172),
+            MWAT = max(mn_7day, na.rm = TRUE),
+            mn_summer = mean(meanDT),
+            count = n())
+  
+summary(temp_mets)
+
+saveRDS(temp_mets, paste0("fish/data/temp_metrics_", Sys.Date(), ".rds"))
+```
+
+
+Figures show the mean and range for each metric. Once we have models or data to fill in all years at all sites, we could do a bootstrapped confidence interval on the mean (mean_cl_boot to stat_summary). 
+
+```{r CDD figure}
+
+temp_mets %>% 
+  group_by(StationName) %>% 
+  mutate(yr_ct = n(),
+         site_lab = paste0(gsub(" Creek", "", StationName), " (", yr_ct, ")")) %>% 
+  ggplot(aes(y = fct_reorder(site_lab, CDD_172), x = CDD_172)) +
+  stat_summary(fun = mean, fun.min = min, fun.max = max, color = "black") +
+  # geom_point(color = "gray") +
+  theme_bw() +
+  theme(axis.title.y = element_blank(), text = element_text(size = 16)) +
+  labs(color = "Year", x = "CDD (°C)",
+       title = "UW Monitoring Sites",
+       subtitle = "Cumulative Degree Days from June 20 - August 31")
+
+ggsave("temperature/output/UW_fish_sites/CDD for 8 sites.jpeg")
+
+temp_mets %>% 
+  ggplot(aes(x = YearSampled, y = CDD_172, color = StationName)) +
+  geom_line() +
+  geom_point()
+
+```
+
+
+```{r MWAT figure}
+
+temp_mets %>% 
+  group_by(StationName) %>% 
+  mutate(yr_ct = n(),
+         site_lab = paste0(gsub(" Creek", "", StationName), " (", yr_ct, ")")) %>% 
+  ggplot(aes(y = fct_reorder(site_lab, MWAT), x = MWAT)) +
+  stat_summary(fun = mean, fun.min = min, fun.max = max, color = "black") +
+  # geom_point(color = "gray") +
+  theme_bw() +
+  theme(axis.title.y = element_blank(), text = element_text(size = 16)) +
+  labs(color = "Year", x = "MWAT (°C)",
+       title = "UW Monitoring Sites",
+       subtitle = "Maximum Weekly Average Stream Temperature")
+
+ggsave("temperature/output/UW_fish_sites/MWAT for 8 sites.jpeg")
+
+
+```
