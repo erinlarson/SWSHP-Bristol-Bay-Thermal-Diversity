@@ -35,12 +35,17 @@ temp %>%
   facet_wrap(~StationName) +
   theme_bw() +
   theme(axis.title.x = element_blank(), text = element_text(size = 16)) +
-  labs(color = "Year", y = "Mean Daily Temperature (°C)",
-       title = "Stream Temperatures at UW Monitoring Sites")
+  labs(color = "Year", y = "Mean Daily Temperature (°C)")
 
 
-ggsave("temperature/output/UW_fish_sites/Daily temps for 8 sites.jpeg")
+ggsave("temperature/output/UW_fish_sites/Daily temps for 8 UW sites.jpeg")
 ```
+
+```{r}
+
+```
+
+
 
 Calculating annual stream temperature metrics for Erik:
 
