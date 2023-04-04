@@ -56,6 +56,7 @@ temp <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\summer_data_w
 md <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\md_2022-02-08.csv")
 
 md %>% count(Waterbody_type)
+md %>% filter(Region == "Bristol Bay") %>% distinct(SourceName, Contact_person)
 ```
 
 Adding watershed attributes created for the AKSSF project to these sites.
@@ -267,6 +268,20 @@ ggplot() +
   scale_x_discrete(breaks = c(2, 3, 4, 5, 6, 7, 8, 9))
 ```
 
+```{r large rivers}
+names(bb_temp)
+
+bb_temp %>% 
+  distinct(SiteID, Name, year, Waterbody_name, str_ord) %>%
+  group_by(SiteID, Name, Waterbody_name, str_ord) %>% 
+  summarize(years = toString(year)) %>% 
+  filter(str_ord > 6) %>% 
+  arrange(Waterbody_name) %>%
+  ungroup() %>% 
+  select(Waterbody_name, str_ord, years)
+```
+
+
 
 # Time series figures
 
@@ -297,6 +312,31 @@ for(i in bb_huc8_names) {
 ```
 
 
+Single point in September at kijilo causing line to connect.
+
+```{r}
+bb_temp %>% 
+  mutate(mo_day = format(sampleDate, "%m-%d"),
+         site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0)) %>% 
+  filter(month(sampleDate) %in% 6:9) %>%
+  filter(Name == "Lake Clark", year == 2019) %>% 
+  complete(SiteID, sampleDate) %>%
+  filter(grepl("kijilo", SiteID)) #%>% 
+  ggplot() +
+  geom_line(data = . %>% filter(is_19 == 0), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
+  geom_line(data = . %>% filter(is_19 == 1), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, color = site_year)) +
+  geom_abline(aes(intercept = 18, slope = 0), linetype = 2) +
+  facet_wrap(~Name) +
+  theme_minimal() +
+  theme(legend.position = "right", axis.title.x = element_blank(), text = element_text(size = 16)) +
+  labs(y = "Mean Daily Temperature (°C)")
+```
+
+
 ```{r time series by huc8}
 
 b1 <- bb_temp %>% 
@@ -304,7 +344,10 @@ b1 <- bb_temp %>%
          site_year = paste0(SiteID, year),
          is_19 = case_when(year == 2019 ~ 1,
                           TRUE ~ 0)) %>% 
-  filter(month(sampleDate) %in% 6:9) %>% 
+  filter(month(sampleDate) %in% 6:9) %>%
+  complete(SiteID, sampleDate) %>% 
+  filter(!(grepl("kijilo", SiteID) & sampleDate == as.Date("2019-09-19"))) %>%
+  filter(!is.na(Region)) %>% 
   ggplot() +
   geom_line(data = . %>% filter(is_19 == 0), 
             aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
@@ -483,6 +526,7 @@ bb_ltsites <- bb_temp %>%
 
 bb_ltdat <- left_join(bb_ltsites, bb_temp)
 
+bb_ltsites %>% distinct(SiteID)
 ```
 
 
@@ -582,5 +626,61 @@ bb_ltmets %>%
   guides(color = guide_legend(nrow = 2, byrow = TRUE))
 
 ggsave("output/SWIM_figures/temp trends.jpeg", width = 7, height = 4, units = "in")
+```
+
+Recreate above plot but show all temporal patterns with the significant trends highlighted.
+
+```{r all trends in gray}
+
+bb_ltmets %>%
+  left_join(md %>% select(Site, Waterbody_name), by = c("SiteID" = "Site")) %>%
+  mutate(wb_name = case_when(is.na(Waterbody_name) ~ "Aleknagik Bear Creak",
+                             Waterbody_name == "Lynx" ~ "Nerka Lynx Creek",
+                             TRUE ~ str_to_title(Waterbody_name))) %>% 
+  pivot_longer(cols = MWAT:MWAT_jd) %>% 
+  left_join(bb_mkres %>% filter(p.value < 0.05) %>% select(SiteID, name) %>% 
+               mutate(sig_trend = 1)) %>%
+  mutate(name_lab = factor(name, levels = c("Summer", "MWAT", "MWAT_jd"),
+                           labels = c("Mean Summer Temp.", "Max Weekly Temp.", "Timing of Max Weekly Temp."))) %>% 
+  ggplot() +
+  # geom_point(aes(x = year, y = value, group = SiteID), color = "gray") +
+  geom_line(aes(x = year, y = value, group = SiteID), color = "gray") +
+  facet_wrap(~name_lab, scales = "free") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom") +
+  labs(color = "", x = "Year", y = "Metric Value") +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+ggsave("output/SWIM_figures/all temp trends.jpeg", width = 9, height = 4, units = "in")
+```
+
+```{r all trends with sig trends highlighted}
+
+bb_ltmets %>%
+  left_join(md %>% select(Site, Waterbody_name), by = c("SiteID" = "Site")) %>%
+  mutate(wb_name = case_when(is.na(Waterbody_name) ~ "Aleknagik Bear Creak",
+                             Waterbody_name == "Lynx" ~ "Nerka Lynx Creek",
+                             TRUE ~ str_to_title(Waterbody_name))) %>% 
+  pivot_longer(cols = MWAT:MWAT_jd) %>% 
+  left_join(bb_mkres %>% filter(p.value < 0.05) %>% select(SiteID, name) %>% 
+               mutate(sig_trend = 1)) %>%
+  mutate(name_lab = factor(name, levels = c("Summer", "MWAT", "MWAT_jd"),
+                           labels = c("Mean Summer Temp.", "Max Weekly Temp.", "Timing of Max Weekly Temp."))) %>% 
+  ggplot() +
+  # geom_point(aes(x = year, y = value, group = SiteID), color = "gray") +
+  geom_line(aes(x = year, y = value, group = SiteID), color = "gray") +
+  geom_point(aes(x = year, y = value, color = wb_name),
+             data = . %>% filter(sig_trend == 1)) +
+  geom_line(aes(x = year, y = value, color = wb_name),
+             data = . %>% filter(sig_trend == 1)) +
+  geom_smooth(aes(x = year, y = value, color = wb_name), 
+              data = . %>% filter(sig_trend == 1), method = "lm") +
+  facet_wrap(~name_lab, scales = "free") +
+  theme_bw() +
+  theme(text = element_text(size = 16), legend.position = "bottom") +
+  labs(color = "", x = "Year", y = "Metric Value") +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+ggsave("output/SWIM_figures/temp trends.jpeg", width = 9, height = 4, units = "in")
 ```
 
