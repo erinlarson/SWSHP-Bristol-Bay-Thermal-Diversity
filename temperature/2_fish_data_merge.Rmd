@@ -11,6 +11,7 @@ library(tidyverse)
 library(readxl)
 library(lubridate)
 library(hms)
+library(gridExtra)
 ```
 
 
@@ -26,6 +27,7 @@ Hidden (maybe not enough fish...)
 
 
 ```{r read in coho data}
+
 fish <- read_excel("fish/data/WR_coho.xlsx") %>% 
   mutate(StationName = case_when(grepl("Amou", StationName) ~ "Amou Creek",
                                  TRUE ~ StationName))
@@ -50,6 +52,18 @@ fish %>%
   filter(!is.na(Length), Length < 300) %>% 
   ggplot(aes(x = Length, color = StationName)) +
   geom_freqpoly()
+
+
+```
+
+
+```{r fish data avail barplot}
+
+fish_tally %>% 
+  filter(Coho_count > 29) %>% 
+  ggplot() +
+  geom_raster(aes(x = YearSampled, y = StationName, fill = log(Coho_count)))
+
 ```
 
 
@@ -105,7 +119,7 @@ uw_temp %>%
   filter(!is.na(diff)) %>% 
   summarize(mean(diff), median(diff), sd(diff))
 
-ggsave("temperature/output/UW_fish_sites/Lynx Creek and Lake Trib Temps.jpeg")
+# ggsave("temperature/output/UW_fish_sites/Lynx Creek and Lake Trib Temps.jpeg")
 ```
 
 
@@ -223,5 +237,59 @@ left_join(missing_data %>% select(-c(SiteID, Temp_count)), uw_found_dat_summary)
   filter(is.na(Temp_count)) %>% 
   # filter(YearSampled > 2020) %>% 7 are for 2021-22
   write_csv("output/fishXtemp_missing_data.csv")
+```
+
+Combined ST data files and show them on a data availability figure. There may be some sites with many years of ST to develop a model to fill any missing years that have fish, but no ST. We want to use all years of ST data for data gap filling.
+
+NOTE - uw_temp2_daily still needs QA before using. This is for a data availability figure only.
+
+```{r combined ST data from UW for fish sites}
+
+uw_temp2_daily <- uw_temp2 %>% 
+  rowwise() %>% 
+  mutate(StationName = stringr::word(StationName, 2, -1)) %>% 
+  group_by(StationName, YearSampled, Date) %>% 
+  summarize(meanDT = mean(Temperature), 
+            minDT = min(Temperature, na.rm = TRUE),
+            maxDT = max(Temperature)) %>% 
+  ungroup()
+
+uw_temp_all <- bind_rows(uw_temp2_daily %>% 
+            select(-c(minDT, maxDT)),
+          uw_temp %>% 
+            ungroup() %>% 
+            filter(!is.na(StationName)) %>% #sites with fish data 
+            # count(is.na(minDT), StationName) #lots of missing min/max, not sure why
+            select(StationName, Date = sampleDate, YearSampled = year, meanDT)
+          ) 
+
+```
+
+Data availability for both fish and ST data.
+
+```{r}
+g1 <-   ggplot() +
+  geom_raster(aes(x = YearSampled, y = fct_rev(StationName), fill = log(Coho_count)),
+              data = fish_tally %>% 
+                filter(Coho_count > 29,
+                       !grepl("Amou|Ice|Fenno|Stovall|Teal", StationName))) +
+  geom_point(aes(x = YearSampled, y = fct_rev(StationName), color = "Temp. Data"),
+             data = uw_temp_all %>% 
+               filter(!grepl("Amou|Ice|Fenno|Stovall|Teal", StationName))) +
+  scale_color_manual(values = c("Temp. Data" = "red")) +
+  theme(legend.position = "bottom", axis.title.y = element_blank()) +
+  labs(x = "Year", fill = "Log Coho Count", color = "")
+              
+g2 <- fish_tally %>% 
+  filter(Coho_count > 29,
+         !grepl("Amou|Ice|Fenno|Stovall|Teal", StationName)) %>% 
+  ggplot(aes(x = YearSampled, y = Coho_count)) +
+  geom_col() +
+  facet_wrap(~StationName, scales = "free_y", ncol = 2) +
+  labs(y = "Coho Count", x = "Year")
+
+g3 <- grid.arrange(g1, g2, nrow = 1)
+ggsave(plot = g3, filename = "temperature/output/data availability figure.jpeg", units = "in", width = 10, height = 6)
+
 ```
 
