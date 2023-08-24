@@ -41,10 +41,6 @@ temp %>%
 ggsave("temperature/output/UW_fish_sites/Daily temps for 8 UW sites.jpeg")
 ```
 
-```{r}
-
-```
-
 
 
 Calculating annual stream temperature metrics for Erik:
