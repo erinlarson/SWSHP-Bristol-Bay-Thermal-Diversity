@@ -11,7 +11,6 @@ set.seed(1)
 
 
 rm(list=ls(all=TRUE)) # clear the working environment
-setwd("~/Development/SWSHP-Bristol-Bay-Thermal-Diversity")
 
 #See old data, not postprocessed in "Coho size.R" for more details
 
@@ -56,10 +55,65 @@ This is the number of fish observed at each site #$ Length_n     : int  283 283 
 
 
 
+if (any(is.na(fishClean))) {
+  stop("Missing values found in the dataset. Please clean the data.")
+}
+
+# Check for infinite values
+if (any(is.infinite(fishClean))) {
+  stop("Infinite values found in the dataset. Please clean the data.")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Identify year classes using Sethi et al. 2017 code ----------------------
 
-#Start by doing it with all the fish in the dataset:
+
+
+
+
+#Goal: run this code for each site year that we have data for (22 site years)
+#First write the code and get it to work on a single cold vs warm site (Big Whitefish and Bear Creek)
+#Then iterate through all site years using a for loop
+
+
+
+
+
+
+
+
+
+
+#Old trials VV
+
+
+install.packages("dtaa.table")
+library(data.table)
+
+
+Length_all <- data.table(fishClean$Length)
+
+
+
+
 
 opt.threshold.sim <- function(mod,n.draw=100000,grid.lo=10,grid.hi=210)
 {
@@ -85,20 +139,21 @@ str(fishClean)
 
 hist(fishClean$Length,breaks=100)
 # Define nonparametric bootstrap routine parameters
-boots <- 500 # number of boostrap datasets
-draws <- 100000# number of draws within the opt.threshold.sim() function
+boots <- 5 # number of boostrap datasets
+draws <- 100# number of draws within the opt.threshold.sim() function
 grid. <- c(30,155) # search grid for opt.threshold.sim()
 # Define Type I error level for bootstrap confidence intervals (alpha level)
 alpha <- 0.05      
 # Observed data
 # Fit an mclust mixture model, forcing to a 2-component mixture, allow mclust to pick BIC best variance structure (default option)
-mix.mod <- Mclust(data=fishClean,modelNames=NULL,G=2) #note package is mclust but function is Mclust      
+mix.mod <- Mclust(data=Length_all,modelNames=NULL,G=2) #note package is mclust but function is Mclust      
 # Find the optimal age-discriminating fork length threshold
 mix.mod.threshold <- opt.threshold.sim(mod=mix.mod,grid.lo=grid.[1],grid.hi=grid.[2],n.draw=draws)
 # Bootstrap routine
 # Create storage list object
 pars.boot <- list(means=matrix(nr=boots,nc=mix.mod$G),variances=matrix(nr=boots,nc=length(mix.mod$parameters$mean)),
                   thresholds=matrix(nr=boots,nc=mix.mod$G-1),error.rate=matrix(nr=boots,nc=1))
+
 # Run bootstrap iterations
 for ( i in 1:boots){
   # Resample dataset and fit the mixture model, forcing number of distributions and variance 
