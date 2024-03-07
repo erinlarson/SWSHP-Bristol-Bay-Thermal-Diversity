@@ -87,14 +87,14 @@ write_csv(fishSiteYears, "./fish/newdata/fishSiteYears.csv")
 
 fishTempSiteYears <- tempMetricsClean %>%
   left_join(fishSiteYears, by = c("Site", "Year"))
-  # filter(Length_n >= minSampleSize)
+# filter(Length_n >= minSampleSize)
 
 fishTemp <- fishTempSiteYears %>%
   left_join(fishClean, by = c("Site", "Year"))
 
 BearBigWhitefish <- fishTemp %>%
   filter(Site == "Big Whitefish Creek" | Site == "Bear Creek")
-  
+
 y2019 <- fishTemp %>%
   filter(Year == "2019")
 
@@ -110,7 +110,7 @@ overallFL
 ggsave("fish/plots/overallFL.png", width = 6, height = 5)
 
 overallFL.CDD <- ggplot(data = fishTemp, aes(x = Length, group = paste(Site, Year),
-                                                       color = CDD)) +
+                                             color = CDD)) +
   geom_density() +
   scale_color_continuous(low = "blue", high = "red") +
   xlab("Fork length (mm)") +
