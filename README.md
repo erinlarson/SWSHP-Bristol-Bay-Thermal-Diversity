@@ -2,7 +2,7 @@
 
 Project funded by Southwest Alaska Salmon Habitat Partnership. Collaboration between R. Shaftel (ACCS-UAA), E. Schoen (IARC-UAF), and Sue Mauger (Cook Inletkeeper).
 
-Other contributors include Dustin Merrigan (ACCS) and Ben Meyer (KWF).
+Other contributors include Dustin Merrigan (ACCS), Ben Meyer (KWF), and Will Samuel (UAF).
 
 Project Title: Bristol Bay regional analysis of thermal diversity supporting salmon populations and life-histories
 

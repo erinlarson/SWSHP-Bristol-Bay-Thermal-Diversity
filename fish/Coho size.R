@@ -48,6 +48,9 @@ tempMetricsClean <- tempMetrics %>%
   mutate(Year = factor(YearSampled),
          Site = factor(StationName))
 
+write_csv(tempMetricsClean, "./fish/newdata/tempMetricsClean.csv")
+
+
 hist(fish$Length)
 
 # Select only August and September measurements
@@ -58,6 +61,9 @@ fishClean <- fish %>%
          Site = factor(StationName)) %>%
   filter(Month %in% 8:9) %>%
   filter(Length %in% 35:200)
+
+write_csv(fishClean, "./fish/newdata/fishClean.csv")
+
 
 nFL <- fishClean %>%
   filter(!is.na(Length))
@@ -74,7 +80,7 @@ fishSiteYears <- fishClean %>%
   filter(!is.na(Length)) %>%
   summarize(Length_n = n())
 
-write_csv(fishSiteYears, "./fish/plots/cohoSampleSizeBySiteYear.csv")
+write_csv(fishSiteYears, "./fish/newdata/fishSiteYears.csv")
 
 # Remove site-years with very small sample sizes
 # minSampleSize <- 20
@@ -91,6 +97,8 @@ BearBigWhitefish <- fishTemp %>%
   
 y2019 <- fishTemp %>%
   filter(Year == "2019")
+
+
 
 ########### Plot data ###############
 
