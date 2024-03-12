@@ -39,11 +39,11 @@ All data were combined in the AKSSF repository. Read from that project drive and
 NOTE: Data from Zenodo are incomplete and are missing the UW data from 2017 on.
 
 ```{r zenodo data, eval = FALSE}
-temp <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/dailyTemps.csv")
+temp <- read_csv(file =  "C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\zenodo1\\dailyTemps.csv")
 
-mets <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/tempMetrics.csv")
+mets <- read_csv(file = "C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\zenodo1\\tempMetrics.csv")
 
-md <- read_csv(file = "W:/Github/AKSSF/data_preparation/final_data/zenodo1/tempSitesMetadata.csv")
+md <- read_csv(file = "C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\zenodo1\\tempSitesMetadata.csv")
 
 names(md)
 ```
@@ -52,8 +52,8 @@ Try a different dataset that Tim used for the DFA -- all years are there!
 
 ```{r DFA input data}
 
-temp <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\summer_data_wair_dayl2022-03-17.csv")
-md <- read_csv("W:\\Github\\AKSSF\\data_preparation\\final_data\\md_2022-02-08.csv")
+temp <- read_csv("C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\summer_data_wair_dayl2022-03-17.csv")
+md <- read_csv("C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\md_2022-02-08.csv")
 
 md %>% count(Waterbody_type)
 md %>% filter(Region == "Bristol Bay") %>% distinct(SourceName, Contact_person)
@@ -62,7 +62,7 @@ md %>% filter(Region == "Bristol Bay") %>% distinct(SourceName, Contact_person)
 Adding watershed attributes created for the AKSSF project to these sites.
 
 ```{r read in TS model data frame}
-mod_dat <- readRDS("W:/Github/AKSSF/data_preparation/final_data/model_data2022-05-09.rds")
+mod_dat <- readRDS("C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\model_data2022-05-09.rds")
 
 mod_dat
 
@@ -154,11 +154,11 @@ Map of sites for each HUC8 in Bristol Bay. (Looks like the metadata I created al
 
 md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
 
-huc8 <- st_read(dsn = "S:/Leslie/GIS/NHD Harmonized/WBD_19_GDB.gdb", layer = "WBDHU8")
-# # st_crs(huc8)
+huc8 <- st_read(dsn = "S:\\GIS_Layers\\GIS_data\\inlandWaters\\Hydrography\\NHD\\WBD\\WBD_19_GDB.gdb", layer = "WBDHU8")
+# # st_crs(huc8) 
 huc8_wgs84 <- st_transform(huc8, crs = "WGS84")
 # 
-# # st_crs(md_sf) == st_crs(huc8_wgs84)
+# # st_crs(md_sf) == st_crs 
 # 
 # md_sf <- st_join(md_sf, huc8_wgs84)
 
@@ -222,7 +222,6 @@ ggsave("output/SWIM_figures/site count by year.jpeg", width = 4.5, height = 4.5,
 ```{r sites by stream order}
 bb_temp %>% 
   filter(str_ord > 5) %>% 
-  distinct(SiteID, Waterbody_name)
   distinct(SiteID, str_ord) %>% 
   filter(!is.na(str_ord)) %>% 
   count(str_ord)
