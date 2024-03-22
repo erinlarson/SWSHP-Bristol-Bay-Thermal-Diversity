@@ -89,6 +89,13 @@ bb_temp <- left_join(bb_temp, mod_dat %>%
 
 
 ```{r BB data summary}
+
+#creating site/date/mean daily temp frame for Erik and Will
+mean_dailies<-bb_temp%>%
+  select(SiteID, sampleDate, meanDT)
+
+write.csv(mean_dailies, file="output/BBDailyTemps.csv")
+
 bb_temp %>% 
   filter(Region == "Bristol Bay", grepl("UW", SiteID)) %>% 
   distinct(SiteID, year = year(sampleDate)) %>% 
