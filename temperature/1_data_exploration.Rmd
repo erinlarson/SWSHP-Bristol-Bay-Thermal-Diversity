@@ -69,7 +69,7 @@ mod_dat
 #note that Tim had me populate all airtemps for this data frame, can remove dates without
 # meandt
 bb_temp <- left_join(temp, md %>% 
-                       select(Site, SourceName, Waterbody_name, Waterbody_type, Region, Name), by = c("SiteID" = "Site")) %>% 
+                       select(Site, SourceName, Waterbody_name, Waterbody_type, Region, Name, Latitude, Longitude, Waterbody_name, HUC8), by = c("SiteID" = "Site")) %>% 
     filter(Region == "Bristol Bay", !is.na(meanDT)) 
 
 #9 sites in temperature data frame that we didn't calculate geospatial data for.
@@ -92,7 +92,7 @@ bb_temp <- left_join(bb_temp, mod_dat %>%
 
 #creating site/date/mean daily temp frame for Erik and Will
 mean_dailies<-bb_temp%>%
-  select(SiteID, sampleDate, meanDT)
+  select(SiteID, Latitude, Longitude, HUC8, Waterbody_name, sampleDate, meanDT)
 
 write.csv(mean_dailies, file="output/BBDailyTemps.csv")
 
