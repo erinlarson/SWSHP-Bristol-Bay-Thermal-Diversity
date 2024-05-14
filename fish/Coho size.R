@@ -162,3 +162,4 @@ BearBigWhitefishFL_byYear <- ggplot(data = BearBigWhitefish, aes(x = Length, col
 
 BearBigWhitefishFL_byYear
 ggsave("fish/plots/FL Bear Big Whitefish_by year.png", width = 6, height = 8)
+
