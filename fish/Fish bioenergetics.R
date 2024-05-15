@@ -31,45 +31,130 @@ rm(list=ls(all=TRUE)) # clear the working environment
 
 
 # Generate a daily time series for the bioenergetics input ----------------
-temp <- readRDS("fish/data/temp_data_2023-03-16.rds")
-
-temp <- temp %>% 
-  rename("Site" = StationName) %>%   
-  mutate("Drainage" = str_extract(SiteID, "(?<=UW_)[^ ]+"),
-         "DOY" = yday(sampleDate), 
-         SiteYear = paste(Site, YearSampled, sep = "_")) %>% 
-  select(-SiteID, -file_name)
-
-unique(temp$Site) #8 sites
-unique(temp$YearSampled) #9 years. Might be able to add more recent data too. 
-unique(temp$Drainage) #9 years. Might be able to add more recent data too. 
-
-
-
 full.temp <- read.csv("temperature/output/BBDailyTemps.csv")
-metadata <- readRDS("temperature/output/bristol_bay_site_metadata/rds")
+
+full.temp <- full.temp %>% 
+  rename("Date" = sampleDate) %>% 
+  mutate("Year" = year(ymd(Date)),
+         "DOY" = yday(Date))
 
 str(full.temp)
 
-unique(full.temp$SiteID) #8 sites
-
-full.temp <- full.temp %>% 
-  rename("Site" = StationName) %>%   
-  mutate("Drainage" = str_extract(SiteID, "(?<=UW_)[^ ]+"),
-         "DOY" = yday(sampleDate), 
-         SiteYear = paste(Site, YearSampled, sep = "_")) %>% 
-  select(-SiteID, -file_name)
+unique(full.temp$SiteID) #113 sites
+unique(full.temp$YearSampled) #9 years. Might be able to add more recent data too. 
+unique(full.temp$Drainage) #9 years. Might be able to add more recent data too.
 
 
-common_values <- intersect(full.temp$SiteID, )
+unique_sites <- full.temp %>% 
+  select(-X,-Date, -meanDT, -Year, -DOY) %>% 
+  distinct(SiteID, Latitude, Longitude, HUC8, Waterbody_name)
 
-num_common_values <- length(common_values)
+write_csv(unique_sites, "./fish/newdata/unique_temp_sites.csv")
+
+
+# For the Nushagak River, generate an occupancy matrix --------------------
+
+#Nushagak daily temperatures
+nush <- full.temp %>% 
+  filter(HUC8 %in% c(19030303, 19030301, 19030302)) 
+
+unique(nush$SiteID)
+
+#Labeling the site numbers from most downstream (1) to furthest upstream)
+#because this is a dendritic stream network (as opposed to a linear path), this is an approximation
+nush <- nush %>% 
+  mutate(
+         site_num = ifelse(HUC8 = "UW_Aleknagik Squaw Creek", 1, ""),
+         site_num = ifelse(HUC8 = "cik_Squaw Creek", 2, site_num),
+         site_num = ifelse(HUC8 = "USGS_15302812", 3, site_num),
+         site_num = ifelse(HUC8 = "cik_Panaruqak Creek", 4, site_num),
+         site_num = ifelse(HUC8 = "cik_Tunravik Creek", 5, site_num),
+         site_num = ifelse(HUC8 = "cik_Sivanguq Creek", 6, site_num),
+         site_num = ifelse(HUC8 = "cik_Napotoli Creek", 7, site_num),
+         site_num = ifelse(HUC8 = "usgs_15302250", 8, site_num),
+         site_num = ifelse(HUC8 = "usgs_15301500", 9, site_num),
+         site_num = ifelse(HUC8 = "usgs_15302300", 10, site_num),
+         site_num = ifelse(HUC8 = "usgs_15302320", 11, site_num),
+         site_num = ifelse(HUC8 = "accs_mustu17", 12, site_num),
+         site_num = ifelse(HUC8 = "usgs_15302250", 13, site_num),
+         site_num = ifelse(HUC8 = "accs_musfk01", 14, site_num),
+         site_num = ifelse(HUC8 = "accs_mutsk02", 15, site_num),
+         site_num = ifelse(HUC8 = "accs_mutsk09", 16, site_num),
+         site_num = ifelse(HUC8 = "usgs_15302200", 17, site_num),
+         site_num = ifelse(HUC8 = "accs_mussm15", 18, site_num),
+         site_num = ifelse(HUC8 = "accs_muekm23", 19, site_num),
+         site_num = ifelse(HUC8 = "accs_AKBB-040", 20, site_num),
+         site_num = ifelse(HUC8 = "accs_mubon10", 21, site_num),
+         site_num = ifelse(HUC8 = "accs_AKBB-011", 22, site_num),
+         site_num = ifelse(HUC8 = "accs_AKBB-020", 23, site_num),
+         )
+
+
+nush <- nush %>% 
+  mutate(site_num = ifelse(SiteID == "UW_Aleknagik Squaw Creek", 1, 
+                     ifelse(SiteID == "cik_Squaw Creek", 2, 
+                     ifelse(SiteID == "USGS_15302812", 3, 
+                     ifelse(SiteID == "cik_Panaruqak Creek", 4, 
+                     ifelse(SiteID == "cik_Tunravik Creek", 5, 
+                     ifelse(SiteID == "cik_Sivanguq Creek", 6, 
+                     ifelse(SiteID == "cik_Napotoli Creek", 7, 
+                     ifelse(SiteID == "usgs_15302250", 8, 
+                     ifelse(SiteID == "usgs_15301500", 9, 
+                     ifelse(SiteID == "usgs_15302300", 10, 
+                     ifelse(SiteID == "usgs_15302320", 11, 
+                     ifelse(SiteID == "accs_mustu17", 12, 
+                     ifelse(SiteID == "usgs_15302250", 13, 
+                     ifelse(SiteID == "accs_musfk01", 14, 
+                     ifelse(SiteID == "accs_mutsk02", 15, 
+                     ifelse(SiteID == "accs_mutsk09", 16, 
+                     ifelse(SiteID == "usgs_15302200", 17, 
+                     ifelse(SiteID == "accs_mussm15", 18, 
+                     ifelse(SiteID == "accs_muekm23", 19, 
+                     ifelse(SiteID == "accs_AKBB-040", 20, 
+                     ifelse(SiteID == "accs_mubon10", 21, 
+                     ifelse(SiteID == "accs_AKBB-011", 22, 
+                     ifelse(SiteID == "accs_AKBB-020", 23, NA)))))))))))))))))))))))) %>% 
+  mutate(site_upstream = site_num = ifelse(SiteID == "UW_Aleknagik Squaw Creek", 1, 
+                     ifelse(SiteID == "UW_Aleknagik Squaw Creek", 2, 
+                     ifelse(SiteID == "cik_Squaw Creek", 3, 
+                     ifelse(SiteID == "USGS_15302812", 4, 
+                     ifelse(SiteID == "cik_Panaruqak Creek", 5, 
+                     ifelse(SiteID == "cik_Tunravik Creek", 6, 
+                     ifelse(SiteID == "cik_Sivanguq Creek", 7, 
+                     ifelse(SiteID == "cik_Napotoli Creek", 8, 
+                     ifelse(SiteID == "usgs_15302250", 9, 
+                     ifelse(SiteID == "usgs_15301500", 10, 
+                     ifelse(SiteID == "usgs_15302300", 11, 
+                     ifelse(SiteID == "usgs_15302320", 12, 
+                     ifelse(SiteID == "accs_mustu17", 13, 
+                     ifelse(SiteID == "usgs_15302250", 14, 
+                     ifelse(SiteID == "accs_musfk01", 15, 
+                     ifelse(SiteID == "accs_mutsk02", 16, 
+                     ifelse(SiteID == "accs_mutsk09", 17, 
+                     ifelse(SiteID == "usgs_15302200", 18, 
+                     ifelse(SiteID == "accs_mussm15", 19, 
+                     ifelse(SiteID == "accs_muekm23", 20, 
+                     ifelse(SiteID == "accs_AKBB-040", 21, 
+                     ifelse(SiteID == "accs_mubon10", 22, 
+                     ifelse(SiteID == "accs_AKBB-011", 23, 
+                     ifelse(SiteID == "accs_AKBB-020", NA, NA))))))))))))))))))))))))
+
+
+str(nush)
+
+range(nush$Date)
 
 
 
-# Build this off of Erik's existing bioenergetics code --------------------
 
- 
+
+
+
+
+
+
+
+
 
 
 
