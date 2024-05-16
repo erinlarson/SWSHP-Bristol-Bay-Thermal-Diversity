@@ -55,8 +55,9 @@ nush <- full.temp %>%
 
 unique(nush$SiteID)
 
-#Labeling the site numbers from most downstream (1) to furthest upstream)
-#because this is a dendritic stream network (as opposed to a linear path), this is an approximation
+#Labeling the site numbers manually from most downstream (1) to furthest upstream (23)
+#because this is a dendritic stream network (as opposed to a linear path), this is an approximation. 
+#I think we can safely assume fish could reasonably migrate between any of these two sites in a week, its an assumption we will have to make for our model. We will also have to assume that fish travel instantaneously between sites, since we don't have data in between the temperate sites. 
 
 nush <- nush %>% 
   mutate(site_num = ifelse(SiteID == "UW_Aleknagik Squaw Creek", 1, 
