@@ -13,12 +13,13 @@ library(tidyverse)
 library(knitr)
 library(zoo)
 library(lubridate)
+library(readr)
 ```
 
 This file is for exploring ST at the sites where UW has been monitoring coho salmon sizes over time. Figures are shown in this markdown and saved to the temperature/output folder for use in presentations. Currently planning an update at the 2023 SWIM meeting.
 
 ```{r read in temps}
-temp <- read_rds("fish/data/temp_data_2023-03-16.rds")
+temp <- read_rds("C:/Users/elarson15/Documents/Projects/229919 SWSHP BB Thermal Diversity/SWSHP-Bristol-Bay-Thermal-Diversity/fish/data/temp_data_2023-03-16.rds")
 
 temp %>% 
   count(StationName, YearSampled) %>% 

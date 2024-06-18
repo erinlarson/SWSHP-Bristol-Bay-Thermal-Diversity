@@ -384,7 +384,7 @@ Map of thermal regime classes within Bristol Bay and by year. Note that thermal 
 
 ```{r map of TR classes for specific years, fig.width = 8}
 # TR saved for Dean in AKSSF repo
-tr_grps <- read_csv(file = "W:/Github/AKSSF/output/Thermal_regimes_May22.csv")
+tr_grps <- read_csv(file = "data/Thermal_regimes_May22.csv")
 
 # left_join(temp %>% mutate(Year = year(sampleDate)), tr_grps) #%>% 
 
@@ -415,7 +415,7 @@ Look at the variance explained by each PC.
 
 ```{r pca biplot of thermal regimes}
 
-mets11 <- readRDS(file = "W:/Github/AKSSF/output/temp_mets11_wTR.rds")
+mets11 <- readRDS(file = "data/temp_mets11_wTR.rds")
 
 
 mets_pca <- prcomp(mets11 %>% filter(Region == "Bristol Bay") %>% select(MWMT:`Tim. MWMT`) , scale = TRUE) 
@@ -647,17 +647,22 @@ bb_ltmets %>%
   left_join(bb_mkres %>% filter(p.value < 0.05) %>% select(SiteID, name) %>% 
                mutate(sig_trend = 1)) %>%
   mutate(name_lab = factor(name, levels = c("Summer", "MWAT", "MWAT_jd"),
-                           labels = c("Mean Summer Temp.", "Max Weekly Temp.", "Timing of Max Weekly Temp."))) %>% 
+                           labels = c("Mean Summer Temperature (Celsius)", "Max Weekly Temperature (Celsius)", "Timing of Max Weekly Temperature (Julian Day)"))) %>% 
   ggplot() +
   # geom_point(aes(x = year, y = value, group = SiteID), color = "gray") +
-  geom_line(aes(x = year, y = value, group = SiteID), color = "gray") +
-  facet_wrap(~name_lab, scales = "free") +
+  geom_line(aes(x = year, y = value, color = SiteID)) +
+  facet_wrap(~name_lab, scales = "free", strip.position="left") +
   theme_bw() +
-  theme(text = element_text(size = 16), legend.position = "bottom") +
-  labs(color = "", x = "Year", y = "Metric Value") +
+  theme(text = element_text(size = 16), legend.position = "bottom") + guides(colour = FALSE)+
+  theme(strip.background = element_blank(),
+        strip.placement = "outside",
+        # Customize theme so that is black & white style as requested
+        panel.background = element_rect(fill = NA, colour = 'black'),
+        panel.grid = element_blank())+
+  labs(color = "", x = "Year", y = NULL) +
   guides(color = guide_legend(nrow = 2, byrow = TRUE))
 
-ggsave("output/SWIM_figures/all temp trends.jpeg", width = 9, height = 4, units = "in")
+ggsave("output/SWIM_figures/all temp trends.jpeg", width = 9, height = 6, units = "in")
 ```
 
 ```{r all trends with sig trends highlighted}
