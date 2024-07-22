@@ -694,4 +694,57 @@ bb_ltmets %>%
 
 ggsave("output/SWIM_figures/temp trends.jpeg", width = 9, height = 4, units = "in")
 ```
+#Looking at temperature metrics for sites
+```{r}
+head(mets)
+
+#filtering for BB sites only - need to merge with site metadata first
+BB_mets<-mets%>%
+  left_join(md, by=c("SiteID"="Site"))%>%
+  filter(Region=="Bristol Bay")
+dim(BB_mets)
+
+#making figure similar to Figure 4 in Mauger 2016 of daily occurrence of MWMT 
+ggplot(data=BB_mets, aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01")))+geom_histogram(aes(fill=Year), binwidth=1)+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")
+
+#faceting on year - just out of curiousity, unlikely to use this in reporting since it's too messy
+ggplot(data=BB_mets, aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01")))+geom_histogram(aes(color=Year), binwidth=1)+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")+facet_wrap(~Year)
+
+#making plots of MWMT, mean temp, days >18 for all AKSSF sites
+keep_cols<-c("SiteID", "Year", "Region", "HUC8", "MA7d_DMT", "MnDAT", "SUM_18_DMT")
+
+all_mets<-mets%>%
+  left_join(md, by=c("SiteID"="Site"))%>%
+  select(keep_cols)
+
+head(all_mets)
+
+all_mets_long<-all_mets%>%
+  pivot_longer(!c("SiteID", "Year", "Region", "HUC8"), names_to="metric", values_to="values")%>%
+  mutate(metricf=factor(metric, levels=c("MA7d_DMT", "MnDAT", "SUM_18_DMT"), 
+                         labels=c("Maximum Weekly Mean Temperature (Celsius)", "Mean Temperature (Celsius)", expression("Number of Days > 18°C"))))
+
+ggplot(all_mets_long, aes(x=fct_rev(Region), y=values))+xlab("Region")+geom_boxplot()+facet_wrap(~metricf, scales="free", strip.position="bottom")+theme_bw()+coord_flip()+ylab(NULL)
+ggsave("output/SWIM_figures/all region boxplots.pdf", width=15, height=5, units="in", dpi=1000)
+
+#making plots of MWMT, mean temp, days >18 for just BB sites by HUC
+
+
+huc8_names<-huc8%>%
+  select("Name", "HUC8")%>%
+  mutate("HUc8"=as.double("HUC8"))
+
+BB_huc_metrics<-all_mets_long%>%
+  mutate(HUC8=as.character(HUC8))%>%
+  left_join(huc8_names)%>%
+  filter(Region=="Bristol Bay")
+
+ggplot(BB_huc_metrics, aes(x=Name, y=values))+xlab("Watershed")+geom_boxplot()+facet_wrap(~metricf, scales="free", strip.position="bottom")+theme_bw()+coord_flip()+ylab(NULL)
+
+ggsave("output/SWIM_figures/Bristol Bay HUC8 boxplots.pdf", width=15, height=5, units="in", dpi=1000)
+
+
+```
+
+
 
