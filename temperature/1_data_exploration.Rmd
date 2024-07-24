@@ -745,6 +745,67 @@ ggsave("output/SWIM_figures/Bristol Bay HUC8 boxplots.pdf", width=15, height=5, 
 
 
 ```
+#making PCA biplot of Bristol Bay thermal regimes by HUC8
+```{r pca biplot of BB Huc8 thermal regimes}
+
+mets11 <- readRDS(file = "data/temp_mets11_wTR.rds")
 
 
+##Stopped here - site IDs not matched up correctly
+mets11_HUC<-mets11%>%
+  left_join(BB_huc_metrics)%>%
+  filter(Region=="Bristol Bay")
+
+mets_pca <- prcomp(mets11_HUC %>% select(MWMT:`Tim. MWMT`) , scale = TRUE) 
+biplot(mets_pca)
+#ggplot version of pca biplot (so can add black circles around sites in BB)
+
+
+# Get eigenvalues (variance explained by each PC)
+mets_pca %>%
+  tidy(matrix = "eigenvalues") %>%
+  ggplot(aes(PC, percent)) +
+  geom_col(fill = "#56B4E9", alpha = 0.8) +
+  scale_x_continuous(breaks = 1:9) +
+  scale_y_continuous(
+    labels = scales::percent_format(),
+    expand = expansion(mult = c(0, 0.01))
+  ) +
+  theme_minimal_hgrid(12)
+
+
+# first plot is just points
+p1 <- mets_pca %>%
+  augment(mets11_HUC %>% filter(Region == "Bristol Bay")) %>% # add original dataset back in
+  ggplot()  +
+  geom_point(aes(.fittedPC1, .fittedPC2, color = as.factor(Name)), size = 1.5) +
+  geom_point(aes(.fittedPC1, .fittedPC2), size = 2, shape = 1, data = . %>% filter(Year == 2019)) + 
+  # stat_ellipse(aes(.fittedPC1, .fittedPC2, color = as.factor(grp_6))) +
+  theme_half_open(12) + 
+  background_grid() +
+  labs(x = "PC1 (53.5%)", y = "PC2 (17.0%)", color = "Thermal Regimes") +
+  theme(legend.position = "bottom")
+
+# second plot is covariates as arrows
+arrow_style <- arrow(
+  angle = 20, ends = "first", type = "closed", length = grid::unit(8, "pt")
+)
+
+# plot rotation matrix
+p2 <- mets_pca %>%
+  tidy(matrix = "rotation") %>%
+  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") %>%
+  ggplot(aes(PC1, PC2)) +
+  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
+  geom_text_repel(
+    aes(label = column), 
+    color = "#904C2F"
+  ) +
+  # xlim(-0.2, .6) + ylim(-.7, 0.3) +
+  coord_fixed() + # fix aspect ratio to 1:1
+  theme_half_open(12) + 
+  background_grid() 
+
+plot_grid(p1, p2)
+```
 
