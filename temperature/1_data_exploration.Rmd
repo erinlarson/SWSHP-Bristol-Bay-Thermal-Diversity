@@ -30,6 +30,7 @@ library(ggrepel)
 library(zoo)
 library(trend)
 library(Kendall)
+library(ggfortify)
 ```
 
 # Read in data and add attributes
@@ -732,7 +733,7 @@ ggsave("output/SWIM_figures/all region boxplots.jpg", width=5, height=10, units=
 
 huc8_names<-huc8%>%
   select("Name", "HUC8")%>%
-  mutate("HUc8"=as.double("HUC8"))
+  as.data.frame()
 
 BB_huc_metrics<-all_mets_long%>%
   mutate(HUC8=as.character(HUC8))%>%
@@ -745,67 +746,79 @@ ggsave("output/SWIM_figures/Bristol Bay HUC8 boxplots.jpg", width=5, height=10, 
 
 
 ```
+
 #making PCA biplot of Bristol Bay thermal regimes by HUC8
 ```{r pca biplot of BB Huc8 thermal regimes}
 
-mets11 <- readRDS(file = "data/temp_mets11_wTR.rds")
+pca_keepcols <- c("SiteID", "Year", "Name", "MA7d_DMT", "RANGE_MAX", "SIGMA_DMT", "SUM_13_DMT", "SUM_18_DMT", "dur13mx", "dur18mx",
+             "MxDMT_jd", "MA7d_DMT_jd", "NDNT", "MnDAT")
+
+huc_mets<-mets%>%
+  left_join(md, by=c("SiteID"="Site"))%>%
+   mutate(HUC8=as.character(HUC8))%>%
+  left_join(huc8_names)%>%
+  filter(Region=="Bristol Bay")%>%
+  select(all_of(pca_keepcols))
+
+hucmets_lg <- huc_mets %>% 
+  pivot_longer(cols = MA7d_DMT:MnDAT, names_to = "metric", values_to = "value") %>% 
+  mutate(group = case_when(grepl("SIGMA|MxDIFF|SD|CV|RANGE", metric) ~ "Variability",
+                           grepl("dur", metric) ~ "Duration",
+                           grepl("SUM", metric) ~ "Frequency",
+                           grepl("jd", metric) ~ "Timing",
+                           grepl("TempSens", metric) ~ "Sensitivity",
+                           TRUE ~ "Magnitude"))
+
+mets11_scwd <- hucmets_lg %>%
+  mutate(metric_lab = case_when(metric == "MA7d_DMT" ~ "MWMT",
+                                metric == "RANGE_MAX" ~ "Range",
+                                metric == "SIGMA_DMT" ~ "Var.",
+                                metric == "SUM_13_DMT" ~ "Sum 13",
+                                metric == "SUM_18_DMT" ~ "Sum 18",
+                                metric == "dur13mx" ~ "Dur. 13",
+                                metric == "dur18mx" ~ "Dur. 18",
+                                metric == "MxDMT_jd" ~ "Tim. Max. Daily",
+                                metric == "MA7d_DMT_jd" ~ "Tim. MWMT",
+                                metric == "NDNT" ~ "Min. Temp.",
+                                metric == "MnDAT" ~ "Mean Temp.")) %>% 
+  group_by(metric_lab) %>% 
+  mutate(value_sc = scale(value)) %>% 
+  select(SiteID, Year, Name, metric_lab, value_sc) %>% 
+  pivot_wider(names_from = metric_lab, values_from = value_sc)
 
 
-##Stopped here - site IDs not matched up correctly
-mets11_HUC<-mets11%>%
-  left_join(BB_huc_metrics)%>%
-  filter(Region=="Bristol Bay")
+mets11_dist <- dist(as.data.frame(mets11_scwd) %>% select('MWMT':'Mean Temp.'))
 
-mets_pca <- prcomp(mets11_HUC %>% select(MWMT:`Tim. MWMT`) , scale = TRUE) 
-biplot(mets_pca)
-#ggplot version of pca biplot (so can add black circles around sites in BB)
+mets11_clust <- hclust(mets11_dist, method = "ward.D2") 
 
-
-# Get eigenvalues (variance explained by each PC)
-mets_pca %>%
-  tidy(matrix = "eigenvalues") %>%
-  ggplot(aes(PC, percent)) +
-  geom_col(fill = "#56B4E9", alpha = 0.8) +
-  scale_x_continuous(breaks = 1:9) +
-  scale_y_continuous(
-    labels = scales::percent_format(),
-    expand = expansion(mult = c(0, 0.01))
-  ) +
-  theme_minimal_hgrid(12)
+mets11_tr <- bind_cols(mets11_scwd, 
+                       cutree(mets11_clust, k = 3:10) %>% 
+                         as_tibble() %>% 
+                         rename_with(.fn = ~ paste0("grp_", .x)))
 
 
-# first plot is just points
-p1 <- mets_pca %>%
-  augment(mets11_HUC %>% filter(Region == "Bristol Bay")) %>% # add original dataset back in
-  ggplot()  +
-  geom_point(aes(.fittedPC1, .fittedPC2, color = as.factor(Name)), size = 1.5) +
-  geom_point(aes(.fittedPC1, .fittedPC2), size = 2, shape = 1, data = . %>% filter(Year == 2019)) + 
-  # stat_ellipse(aes(.fittedPC1, .fittedPC2, color = as.factor(grp_6))) +
-  theme_half_open(12) + 
-  background_grid() +
-  labs(x = "PC1 (53.5%)", y = "PC2 (17.0%)", color = "Thermal Regimes") +
-  theme(legend.position = "bottom")
+bind_cols(mets11_scwd, group = cutree(mets11_clust, k = 6)) %>% 
+  ggplot(aes(x = as.factor(group), fill = Name)) +
+  geom_bar(position = "fill")
 
-# second plot is covariates as arrows
-arrow_style <- arrow(
-  angle = 20, ends = "first", type = "closed", length = grid::unit(8, "pt")
-)
+bind_cols(mets11_scwd, group = cutree(mets11_clust, k = 6)) %>% 
+  count(group, Name) %>%
+  group_by(Name) %>% 
+  mutate(percent = n/sum(n)) %>% 
+  ggplot(aes(x = as.factor(group), y = percent, fill = HUC8)) +
+  geom_col(position = position_dodge()) 
 
-# plot rotation matrix
-p2 <- mets_pca %>%
-  tidy(matrix = "rotation") %>%
-  pivot_wider(names_from = "PC", names_prefix = "PC", values_from = "value") %>%
-  ggplot(aes(PC1, PC2)) +
-  geom_segment(xend = 0, yend = 0, arrow = arrow_style) +
-  geom_text_repel(
-    aes(label = column), 
-    color = "#904C2F"
-  ) +
-  # xlim(-0.2, .6) + ylim(-.7, 0.3) +
-  coord_fixed() + # fix aspect ratio to 1:1
-  theme_half_open(12) + 
-  background_grid() 
 
-plot_grid(p1, p2)
+pc1 <- prcomp(mets11_scwd %>% select(-(SiteID:Name))) 
+
+pc2 <- princomp(mets11_scwd %>% select(-(SiteID:Name)), cor = TRUE) 
+
+biplot(pc1)
+biplot(pc2)
+
+
+autoplot(pc2, data = mets11_scwd, frame.type='norm', fill=NULL, frame.colour = "Name", labels = TRUE, loadings.label = TRUE,loadings.label.colour = "black", loadings.label.repel = TRUE, loadings.colour = "black") +
+  theme_bw()
+
 ```
 
