@@ -31,6 +31,7 @@ library(zoo)
 library(trend)
 library(Kendall)
 library(ggfortify)
+library(RColorBrewer)
 ```
 
 # Read in data and add attributes
@@ -817,11 +818,33 @@ biplot(pc1)
 biplot(pc2)
 
 
-autoplot(pc2, data = mets11_scwd, color="Name", labels = TRUE, loadings.label = TRUE,loadings.label.colour = "black", loadings.label.repel = TRUE, loadings.colour = "black") +
-  theme_bw()
+pcaplot1<-autoplot(pc2, data = mets11_scwd, color="Name", labels = TRUE, loadings.label = TRUE,loadings.label.colour = "black", loadings.label.repel = TRUE, loadings.colour = "black") +
+  theme_bw()+labs(colour="Watershed")+scale_color_brewer(palette="Paired")
 
-autoplot(pc2, data = mets11_scwd, frame.type='norm', fill=NULL, frame.colour = "Name") +
-  theme_bw()
+pcaplot2<-autoplot(pc2, data = mets11_scwd, frame.type='norm', frame.alpha=0, frame.colour = "Name", frame.linetype=2)+theme_bw()+labs(colour="Watershed", fill="Watershed")+scale_color_brewer(palette="Paired")
+
+legendplot<-autoplot(pc2, data = mets11_scwd, frame.type='norm', frame.fill="Name", color="Name", frame.colour = "Name", frame.linetype=2)+theme_bw()+labs(colour="Watershed", fill="Watershed")+scale_color_brewer(palette="Paired")+scale_fill_brewer(palette="Paired")
+
+
+prow<-plot_grid(
+  pcaplot1+theme(legend.position="none"),
+  pcaplot2+theme(legend.position="none"),
+  align="vh",
+  labels=c("A", "B"),
+  hjust=-1,
+  nrow=1
+)
+prow
+
+legend <- get_legend(
+  # create some space to the left of the legend
+ legendplot + guides(color = guide_legend(nrow = 1)) +
+    theme(legend.position = "top")
+)
+
+plot_grid(legend, prow, ncol=1, rel_heights=c(0.1, 1))
+ggsave("output/SWIM_figures/Bristol Bay HUC8 PCAs.jpg", width=14, height=7, units="in", dpi=1000)
+
 
 ```
 
