@@ -817,7 +817,10 @@ biplot(pc1)
 biplot(pc2)
 
 
-autoplot(pc2, data = mets11_scwd, frame.type='norm', fill=NULL, frame.colour = "Name", labels = TRUE, loadings.label = TRUE,loadings.label.colour = "black", loadings.label.repel = TRUE, loadings.colour = "black") +
+autoplot(pc2, data = mets11_scwd, color="Name", labels = TRUE, loadings.label = TRUE,loadings.label.colour = "black", loadings.label.repel = TRUE, loadings.colour = "black") +
+  theme_bw()
+
+autoplot(pc2, data = mets11_scwd, frame.type='norm', fill=NULL, frame.colour = "Name") +
   theme_bw()
 
 ```
