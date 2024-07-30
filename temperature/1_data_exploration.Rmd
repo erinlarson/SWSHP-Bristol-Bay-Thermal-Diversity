@@ -741,9 +741,9 @@ BB_huc_metrics<-all_mets_long%>%
   left_join(huc8_names)%>%
   filter(Region=="Bristol Bay")
 
-ggplot(BB_huc_metrics, aes(x=Name, y=values))+xlab("Watershed")+geom_boxplot()+facet_wrap(~metricf, scales="free", strip.position="bottom", ncol=1)+theme_bw()+coord_flip()+ylab(NULL)
+ggplot(BB_huc_metrics, aes(x=Name, y=values))+xlab("Watershed")+geom_boxplot()+facet_wrap(~metricf, scales="free", strip.position="bottom", nrow=1)+theme_bw()+coord_flip()+ylab(NULL)
 
-ggsave("output/SWIM_figures/Bristol Bay HUC8 boxplots.jpg", width=5, height=10, units="in", dpi=1000)
+ggsave("output/SWIM_figures/Bristol Bay HUC8 boxplots.jpg", width=15, height=5, units="in", dpi=1000)
 
 
 ```
