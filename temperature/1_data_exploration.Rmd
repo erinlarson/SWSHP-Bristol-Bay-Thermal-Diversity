@@ -32,6 +32,7 @@ library(trend)
 library(Kendall)
 library(ggfortify)
 library(RColorBrewer)
+library(ggspatial)
 ```
 
 # Read in data and add attributes
@@ -178,16 +179,18 @@ bb_huc8_names <- md_sf %>%
   count(Name) %>% 
   mutate(name_lab = paste0(gsub("River", "R.", Name), " (", n, ")"))
 
-
-
-ggplot() +
+locations.sf<-st_as_sf(md_sf %>% filter(Region == "Bristol Bay"))
+ggplot()+
   geom_sf(data = huc8_wgs84 %>% right_join(bb_huc8_names), aes(fill = name_lab)) +
   geom_sf(data = md_sf %>% filter(Region == "Bristol Bay")) +
   theme_bw() +
   theme(text = element_text(size = 18)) +
   labs(fill = "HUC8 Name", title = "Bristol Bay Sampling Sites")
 
+write.csv( md %>% filter(Region == "Bristol Bay"), "output/TempMonitoringLocations.csv")
 ggsave("output/SWIM_figures/map of BB sites.jpeg", width = 9, height = 4, units = "in")
+
+
 ```
 
 
