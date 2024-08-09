@@ -105,6 +105,30 @@ bb_temp %>%
   group_by(SiteID) %>% 
   summarize(years = toString(year))
 
+years<-bb_temp %>% 
+  filter(Region == "Bristol Bay") %>% 
+  distinct(SiteID, year = year(sampleDate)) %>% 
+  count(SiteID) %>% 
+  arrange(n)
+
+sum(years$n)
+
+
+bb_temp %>% 
+  filter(Region == "Bristol Bay") %>% 
+  distinct(SiteID, year = year(sampleDate)) %>% 
+  count(SiteID) %>% 
+  arrange(n) %>%
+  filter(n>2)
+
+bb_temp %>% 
+  filter(Region == "Bristol Bay") %>% 
+  distinct(SiteID, year = year(sampleDate)) %>% 
+  count(SiteID) %>% 
+  arrange(n) %>%
+  filter(n>9)
+
+
 #interesting, I thought the TR/TS dataset was filtered to sites with 3 or more years of data
 bb_temp %>% 
   filter(Region == "Bristol Bay") %>% 
@@ -187,7 +211,7 @@ ggplot()+
   theme(text = element_text(size = 18)) +
   labs(fill = "HUC8 Name", title = "Bristol Bay Sampling Sites")
 
-write.csv( md %>% filter(Region == "Bristol Bay"), "output/TempMonitoringLocations.csv")
+write.csv(md %>% filter(Region == "Bristol Bay"), "output/TempMonitoringLocations.csv")
 ggsave("output/SWIM_figures/map of BB sites.jpeg", width = 9, height = 4, units = "in")
 
 
