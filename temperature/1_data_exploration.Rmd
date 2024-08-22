@@ -772,6 +772,7 @@ ggplot(BB_huc_metrics, aes(x=Name, y=values))+xlab("Watershed")+geom_boxplot()+f
 
 ggsave("output/SWIM_figures/Bristol Bay HUC8 boxplots.jpg", width=15, height=5, units="in", dpi=1000)
 
+summary(BB_mets)
 
 ```
 
