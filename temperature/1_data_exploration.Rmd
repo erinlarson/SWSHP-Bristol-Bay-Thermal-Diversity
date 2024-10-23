@@ -130,12 +130,19 @@ bb_temp %>%
 
 
 #interesting, I thought the TR/TS dataset was filtered to sites with 3 or more years of data
-bb_temp %>% 
+bb_years<-bb_temp %>% 
   filter(Region == "Bristol Bay") %>% 
   distinct(SiteID, year = year(sampleDate)) %>% 
   count(SiteID) %>% 
-  arrange(n) 
+  arrange(n)%>%
+  rename(NumberYears=n)%>%
+  left_join(y=distinct(bb_temp, SiteID, Latitude, Longitude))
 
+head(bb_years)
+
+write.csv(bb_years, "output/BBThermalRegimeSiteInfoForMapping.csv")  
+            
+            
 
 ```
 
