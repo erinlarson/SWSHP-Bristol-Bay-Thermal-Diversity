@@ -407,6 +407,48 @@ ggdraw(add_sub(b1, "113 sites with one to 18 years of data from 2001-2020 \n2019
 
 ggsave("output/SWIM_figures/daily temps by huc8.jpeg", 
        width = 9, height = 4.5, units = "in", bg = "white")
+
+
+#Making new timeseries with just 2015-2019 data
+
+b2 <- bb_temp %>% 
+  mutate(mo_day = format(sampleDate, "%m-%d"),
+         site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0),
+         large_drainage=case_when(
+           Name=="Mulchatna River"~"Nushagak",
+           Name=="Egegik Bay"~"Egegik Bay",
+           Name=="Lake Clark"~"Kvichak",
+           Name=="Lake Iliamna"~"Kvichak",
+           Name=="Lower Nushagak River"~"Nushagak",
+           Name=="Naknek"~"Naknek",
+           Name=="Nushagak Bay"~"Nushagak Bay",
+           Name=="Togiak"~"Togiak",
+           Name=="Upper Nushagak River"~"Nushagak",
+           Name=="Wood River"~"Wood River",
+         )) %>% 
+  filter(month(sampleDate) %in% 6:9) %>%
+    filter(year(sampleDate) %in% 2015:2019) %>%
+  complete(SiteID, sampleDate) %>% 
+  filter(!(grepl("kijilo", SiteID) & sampleDate == as.Date("2019-09-19"))) %>%
+  filter(!is.na(Region)) %>% 
+  ggplot() +
+  geom_line(data = . %>% filter(is_19 == 0), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
+  geom_line(data = . %>% filter(is_19 == 1), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = "red")) +
+  geom_abline(aes(intercept = 18, slope = 0), linetype = 2) +
+  facet_wrap(~factor(large_drainage, level=c("Egegik Bay", "Naknek", "Kvichak", "Nushagak", "Wood River", "Nushagak Bay", "Togiak"))) +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.x = element_blank(), text = element_text(size = 16)) +
+  labs(y = "Mean Daily Temperature (°C)")
+
+b2
+
+ggsave("output/SWIM_figures/daily temps by largedrainage_2015_2019.jpeg", 
+       width = 9, height = 4.5, units = "in", bg = "white")
+
 ```
 
 
@@ -651,7 +693,7 @@ bb_ltmets %>%
 ```{r significant trends}
 
 bb_ltmets %>%
-  left_join(md %>% select(Site, Waterbody_name), by = c("SiteID" = "Site")) %>%
+  left_join(md %>% select(Site, Waterbody_name, HUC8), by = c("SiteID" = "Site")) %>%
   mutate(wb_name = case_when(is.na(Waterbody_name) ~ "Aleknagik Bear Creak",
                              Waterbody_name == "Lynx" ~ "Nerka Lynx Creek",
                              TRUE ~ str_to_title(Waterbody_name))) %>% 
@@ -741,7 +783,9 @@ BB_mets<-mets%>%
 dim(BB_mets)
 
 #making figure similar to Figure 4 in Mauger 2016 of daily occurrence of MWMT 
-ggplot(data=BB_mets, aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01")))+geom_histogram(aes(fill=Year), binwidth=1)+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")
+ggplot(data=BB_mets%>%filter(Year %in% 2015:2019), aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01")))+geom_histogram(aes(fill=Year), binwidth=1)+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")
+
+ggsave("output/SWIM_figures/MWMTByDay.jpg", width=5, height=3, units="in", dpi=1000)
 
 #faceting on year - just out of curiousity, unlikely to use this in reporting since it's too messy
 ggplot(data=BB_mets, aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01")))+geom_histogram(aes(color=Year), binwidth=1)+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")+facet_wrap(~Year)
@@ -778,6 +822,27 @@ BB_huc_metrics<-all_mets_long%>%
 ggplot(BB_huc_metrics, aes(x=Name, y=values))+xlab("Watershed")+geom_boxplot()+facet_wrap(~metricf, scales="free", strip.position="bottom", nrow=1)+theme_bw()+coord_flip()+ylab(NULL)
 
 ggsave("output/SWIM_figures/Bristol Bay HUC8 boxplots.jpg", width=15, height=5, units="in", dpi=1000)
+
+
+BB_largedrainage_metrics <- BB_huc_metrics %>% 
+  mutate(
+         large_drainage=case_when(
+           Name=="Mulchatna River"~"Nushagak",
+           Name=="Egegik Bay"~"Egegik Bay",
+           Name=="Lake Clark"~"Kvichak",
+           Name=="Lake Iliamna"~"Kvichak",
+           Name=="Lower Nushagak River"~"Nushagak",
+           Name=="Naknek"~"Naknek",
+           Name=="Nushagak Bay"~"Nushagak Bay",
+           Name=="Togiak"~"Togiak",
+           Name=="Upper Nushagak River"~"Nushagak",
+           Name=="Wood River"~"Wood River",
+         ))%>%
+  filter(Year %in% 2015:2019)
+ggplot(BB_largedrainage_metrics, aes(x=factor(large_drainage, level=c("Togiak", "Nushagak Bay", "Wood River","Nushagak", "Kvichak", "Naknek", "Egegik Bay")), y=values, color=large_drainage))+ scale_color_brewer(type="div", palette="Dark2")+xlab("Watershed")+geom_boxplot(lwd=0.75)+facet_wrap(~metricf, scales="free", strip.position="bottom", nrow=1)+theme_bw()+coord_flip()+ylab(NULL)+guides(color="none")
+
+ggsave("output/SWIM_figures/Bristol Bay Large Drainage boxplots.jpg", width=15, height=5, units="in", dpi=1000)
+
 
 summary(BB_mets)
 
