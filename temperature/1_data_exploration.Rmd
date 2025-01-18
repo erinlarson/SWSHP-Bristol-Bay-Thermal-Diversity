@@ -689,25 +689,39 @@ bb_ltmets %>%
   theme_bw() +
   theme()
 ```
-
+##STOPPED HERE NEED TO FIX SO THAT COLORS MATCH OTHER FIGS AND LEGEND MAKES SENSE
 ```{r significant trends}
 
 bb_ltmets %>%
-  left_join(md %>% select(Site, Waterbody_name, HUC8), by = c("SiteID" = "Site")) %>%
+  left_join(md %>% select(Site, Waterbody_name, HUC8, Name), by = c("SiteID" = "Site")) %>%
   mutate(wb_name = case_when(is.na(Waterbody_name) ~ "Aleknagik Bear Creak",
                              Waterbody_name == "Lynx" ~ "Nerka Lynx Creek",
-                             TRUE ~ str_to_title(Waterbody_name))) %>% 
+                             TRUE ~ str_to_title(Waterbody_name)), 
+         large_drainage=case_when(
+           Name=="Mulchatna River"~"Nushagak River",
+           Name=="Egegik Bay"~"Egegik Bay",
+           Name=="Lake Clark"~"Kvichak River",
+           Name=="Lake Iliamna"~"Kvichak River",
+           Name=="Lower Nushagak River"~"Nushagak River",
+           Name=="Naknek"~"Naknek River",
+           Name=="Nushagak Bay"~"Nushagak Bay",
+           Name=="Togiak"~"Togiak Bay",
+           Name=="Upper Nushagak River"~"Nushagak River",
+           Name=="Wood River"~"Wood River")) %>% 
   pivot_longer(cols = MWAT:MWAT_jd) %>% 
   right_join(bb_mkres %>% filter(p.value < 0.05) %>% select(SiteID, name)) %>% 
-  ggplot(aes(x = year, y = value, color = wb_name)) +
-  geom_point() +
+  ggplot(aes(x = year, y = value, color = wb_name, shape=wb_name)) +
+  geom_point(size=2) +
   geom_line() +
   geom_smooth(method = "lm") +
   facet_wrap(~name, scales = "free") +
   theme_bw() +
   theme(text = element_text(size = 16), legend.position = "bottom") +
   labs(color = "", x = "Year", y = "Metric Value") +
-  guides(color = guide_legend(nrow = 2, byrow = TRUE))
+  scale_color_brewer(type="div",palette="Dark2", guide=guide_legend(reverse=TRUE), name="Drainage", breaks=c("Egegik Bay", "Naknek River", "Kvichak River", "Nushagak River","Wood River", "Nushagak Bay","Togiak Bay"))+
+  scale_shape_manual(values=c(16, 16, 16, 16, 17))+
+  scale_color_manual(values=c("#E7298AFF", "#1B9E77FF", "#7570B3FF", "#D95F02FF", "#E7298AFF"))+
+  guides(color=guide_legend("Site", nrow = 2, byrow = TRUE), shape=guide_legend("Site", nrow = 2, byrow = TRUE))
 
 ggsave("output/SWIM_figures/temp trends.jpeg", width = 7, height = 4, units = "in")
 ```
