@@ -818,7 +818,7 @@ ggsave("output/SWIM_figures/MWMTByDay_Drainage.jpg", width=5, height=3, units="i
 
 
 #making figure similar to Figure 4 in Mauger 2016 of daily occurrence of MWMT w/ fill by year
-ggplot(data=BB_mets_summary, aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01"), fill=as.factor(Year)))+geom_histogram( binwidth=1, color="black")+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")+ scale_fill_brewer(type="seq",palette="YlOrRd", name="Year")
+ggplot(data=BB_mets_summary, aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01"), fill=as.factor(Year)))+geom_histogram( binwidth=1, color="black")+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")+ scale_fill_brewer(type="seq",palette="YlGnBu", name="Year")
 
 ggsave("output/SWIM_figures/MWMTByDay_Year.jpg", width=5, height=3, units="in", dpi=1000)
 ```
