@@ -1,0 +1,430 @@
+---
+title: "CleanPaperAnalysis"
+author: "Erin Larson"
+date: "2025-03-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(sf)
+library(lubridate)
+library(broom)
+library(cowplot)
+library(ggrepel)
+library(zoo)
+library(trend)
+library(Kendall)
+library(ggfortify)
+library(RColorBrewer)
+library(ggspatial)
+```
+
+# Read in data and add attributes
+
+All data were combined in the AKSSF repository. Read from that project drive and filter on data from Bristol Bay.
+
+NOTE: Data from Zenodo are incomplete and are missing the UW data from 2017 on.
+
+```{r zenodo data, eval = FALSE}
+mets <- read_csv(file = "C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\zenodo1\\tempMetrics.csv")
+```
+
+Try a different dataset that Tim used for the DFA -- all years are there!
+
+```{r DFA input data}
+
+temp <- read_csv("C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\summer_data_wair_dayl2022-03-17.csv")
+md <- read_csv("C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\md_2022-02-08.csv")
+
+md %>% count(Waterbody_type)
+md %>% filter(Region == "Bristol Bay") %>% distinct(SourceName, Contact_person)
+```
+
+Adding watershed attributes created for the AKSSF project to these sites.
+
+```{r read in TS model data frame}
+mod_dat <- readRDS("C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\model_data2022-05-09.rds")
+
+mod_dat
+
+#note that Tim had me populate all airtemps for this data frame, can remove dates without
+# meandt
+bb_temp <- left_join(temp, md %>% 
+                       select(Site, SourceName, Waterbody_name, Waterbody_type, Region, Name, Latitude, Longitude, Waterbody_name, HUC8), by = c("SiteID" = "Site")) %>% 
+    filter(Region == "Bristol Bay", !is.na(meanDT)) 
+
+#9 sites in temperature data frame that we didn't calculate geospatial data for.
+# I think these were dropped bc too little data or incomplete summer data.
+anti_join(bb_temp %>% distinct(SiteID), mod_dat %>% distinct(Site), by = c("SiteID" = "Site"))
+
+names(mod_dat)
+
+bb_temp <- left_join(bb_temp, mod_dat %>% 
+            select(Site, str_ord:wtd_area_sqKM) %>% 
+            distinct(), 
+          by = c("SiteID" = "Site")) %>% 
+  filter(!is.na(str_ord))
+
+
+```
+
+
+```{r BB data summary}
+
+#creating site/date/mean daily temp frame for Erik and Will
+mean_dailies<-bb_temp%>%
+  select(SiteID, Latitude, Longitude, HUC8, Waterbody_name, sampleDate, meanDT, str_ord)
+
+write.csv(mean_dailies, file="output/BBDailyTemps.csv")
+
+
+#making table for Will for map
+bb_years<-bb_temp %>% 
+  filter(Region == "Bristol Bay") %>% 
+  distinct(SiteID, year = year(sampleDate)) %>% 
+  count(SiteID) %>% 
+  arrange(n)%>%
+  rename(NumberYears=n)%>%
+  left_join(y=distinct(bb_temp, SiteID, Latitude, Longitude))
+
+head(bb_years)
+
+write.csv(bb_years, "output/BBThermalRegimeSiteInfoForMapping.csv")  
+            
+            
+
+```
+
+
+# Site summaries
+
+## Map
+
+Map of sites for each HUC8 in Bristol Bay. (Looks like the metadata I created already has HUC8 on there.)
+
+```{r BB sites by huc8}
+
+md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
+
+huc8 <- st_read(dsn = "S:\\GIS_Layers\\GIS_data\\inlandWaters\\Hydrography\\NHD\\WBD\\WBD_19_GDB.gdb", layer = "WBDHU8")
+# # st_crs(huc8) 
+huc8_wgs84 <- st_transform(huc8, crs = "WGS84")
+# 
+# # st_crs(md_sf) == st_crs 
+# 
+# md_sf <- st_join(md_sf, huc8_wgs84)
+
+
+bb_huc8_names <- md_sf %>% 
+  filter(Region == "Bristol Bay") %>% 
+  st_drop_geometry() %>% 
+  count(Name) %>% 
+  mutate(name_lab = paste0(gsub("River", "R.", Name), " (", n, ")"))
+
+locations.sf<-st_as_sf(md_sf %>% filter(Region == "Bristol Bay"))
+ggplot()+
+  geom_sf(data = huc8_wgs84 %>% right_join(bb_huc8_names), aes(fill = name_lab)) +
+  geom_sf(data = md_sf %>% filter(Region == "Bristol Bay")) +
+  theme_bw() +
+  theme(text = element_text(size = 18)) +
+  labs(fill = "HUC8 Name", title = "Bristol Bay Sampling Sites")
+
+write.csv(md %>% filter(Region == "Bristol Bay"), "output/TempMonitoringLocations.csv")
+ggsave("output/SWIM_figures/map of BB sites.jpeg", width = 9, height = 4, units = "in")
+
+
+```
+
+
+## Sites by watershed attributes and years
+
+
+What sites have been monitored or are being monitored?
+
+- number of sites in each HUC8 (possibly filter to exclude those with < 3 years of data): sites by huc8 code chunk
+- number of years of data for each site: site count by years of data code chunk
+
+Do sites represent the different stream sizes/types in Bristol Bay?
+
+- sites by stream order or elevation.
+- compare this histogram to Dustin's summary of stream order or elevation for all HUC12 outlets: sites by stream order code chunk
+
+Do sites represent different thermal regimes?
+
+- look at BB sites in pca biplot colored by different TR: pca biplot of thermal regimes code chunk
+
+```{r site count by years of data}
+bb_temp %>% 
+  filter(month(sampleDate) %in% 6:8) %>% 
+  group_by(SiteID, year) %>% 
+  mutate(yr_ct = n()) %>% 
+  filter(yr_ct > 73) %>% 
+  distinct(SiteID, year) %>% 
+  ungroup() %>% 
+  count(year) %>%
+  # arrange(desc(n))
+  ggplot(aes(x = year, y = n)) +
+  geom_col() +
+  theme_bw() +
+  theme() +
+  labs(x = "Year", y = "Count of Sites")
+
+ggsave("output/SWIM_figures/site count by year.jpeg", width = 4.5, height = 4.5, units = "in")
+```
+
+
+```{r sites by stream order}
+bb_temp %>% 
+  filter(str_ord > 5) %>% 
+  distinct(SiteID, str_ord) %>% 
+  filter(!is.na(str_ord)) %>% 
+  count(str_ord)
+
+#read in Dustin's data frame with stream order for all huc12 outlets
+bb_huc12 <- read_csv("data/spatial/AKSSF_AwcHuc12s_strwtd_cv.csv") %>% 
+  filter(region == "Bristol_Bay")
+names(bb_huc12)  
+
+bb_huc12 %>%
+  count(str_ord)
+
+bind_rows(bb_huc12 %>% select(SiteID = cat_ID_con, str_ord) %>% mutate(type = "HUC12"),
+          bb_temp %>% select(SiteID, str_ord) %>% mutate(type = "Monitoring Sites")) %>% 
+  ggplot() +
+  geom_histogram(aes(x = (str_ord), 
+                     y=stat(density*width), fill = type), 
+                 position = position_dodge()) 
+
+bind_rows(bb_huc12 %>% select(SiteID = cat_ID_con, str_ord) %>% mutate(type = "HUC12 Outlets"),
+          bb_temp %>% select(SiteID, str_ord) %>% mutate(type = "Monitoring Sites")) %>%
+  count(type, order = factor(str_ord)) %>% 
+  group_by(type) %>% 
+  mutate(n = prop.table(n)) %>% 
+  ggplot(aes(x = order, y = n, fill = type)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(x = "Stream Order", y = "Percent of Sites", fill = "Site Type")
+
+ggsave("output/SWIM_figures/site percent by stream order.jpeg", width = 4.5, height = 4.5, units = "in")
+
+```
+
+
+
+
+# Time series figures
+
+Plots of daily temps by HUC8 and with 20C threshold for thermal stress to adults and juveniles.
+
+
+
+```{r time series by huc8}
+
+#Making timeseries by strahler order
+
+b1 <- bb_temp %>% 
+  mutate(mo_day = format(sampleDate, "%m-%d"),
+         site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0),
+         large_drainage=case_when(
+           Name=="Mulchatna River"~"Nushagak River",
+           Name=="Egegik Bay"~"Egegik Bay",
+           Name=="Lake Clark"~"Kvichak River",
+           Name=="Lake Iliamna"~"Kvichak River",
+           Name=="Lower Nushagak River"~"Nushagak River",
+           Name=="Naknek"~"Naknek River",
+           Name=="Nushagak Bay"~"Nushagak Bay",
+           Name=="Togiak"~"Togiak Bay",
+           Name=="Upper Nushagak River"~"Nushagak River",
+           Name=="Wood River"~"Wood River",
+         )) %>% 
+  filter(month(sampleDate) %in% 6:9) %>%
+    filter(year(sampleDate) %in% 2015:2019) %>%
+  complete(SiteID, sampleDate) %>% 
+  filter(!(grepl("kijilo", SiteID) & sampleDate == as.Date("2019-09-19"))) %>%
+  filter(!is.na(Region)) %>% 
+  ggplot() +
+  geom_line(data = . %>% filter(is_19 == 0), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
+  geom_line(data = . %>% filter(is_19 == 1), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = "red")) +
+  geom_abline(aes(intercept = 20, slope = 0), linetype = 2) +
+  facet_wrap(~str_ord) +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.x = element_blank(), text = element_text(size = 16)) +
+  labs(y = "Mean Daily Temperature (°C)")
+
+b1
+
+ggsave("output/SWIM_figures/daily temps by stream order_2015_2019.jpeg", 
+       width = 9, height = 4.5, units = "in", bg = "white")
+
+
+#Making new timeseries with just 2015-2019 data
+
+b2 <- bb_temp %>% 
+  mutate(mo_day = format(sampleDate, "%m-%d"),
+         site_year = paste0(SiteID, year),
+         is_19 = case_when(year == 2019 ~ 1,
+                          TRUE ~ 0),
+         large_drainage=case_when(
+           Name=="Mulchatna River"~"Nushagak River",
+           Name=="Egegik Bay"~"Egegik Bay",
+           Name=="Lake Clark"~"Kvichak River",
+           Name=="Lake Iliamna"~"Kvichak River",
+           Name=="Lower Nushagak River"~"Nushagak River",
+           Name=="Naknek"~"Naknek River",
+           Name=="Nushagak Bay"~"Nushagak Bay",
+           Name=="Togiak"~"Togiak Bay",
+           Name=="Upper Nushagak River"~"Nushagak River",
+           Name=="Wood River"~"Wood River",
+         )) %>% 
+  filter(month(sampleDate) %in% 6:9) %>%
+    filter(year(sampleDate) %in% 2015:2019) %>%
+  complete(SiteID, sampleDate) %>% 
+  filter(!(grepl("kijilo", SiteID) & sampleDate == as.Date("2019-09-19"))) %>%
+  filter(!is.na(Region)) %>% 
+  ggplot() +
+  geom_line(data = . %>% filter(is_19 == 0), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year), color = "grey") +
+  geom_line(data = . %>% filter(is_19 == 1), 
+            aes(x = as.Date(mo_day, format = "%m-%d"), y = meanDT, group = site_year, color = "red")) +
+  geom_abline(aes(intercept = 20, slope = 0), linetype = 2) +
+  facet_wrap(~factor(large_drainage, level=c("Togiak Bay", "Nushagak Bay", "Wood River", "Nushagak River", "Kvichak River", "Naknek River", "Egegik Bay"))) +
+  theme_minimal() +
+  theme(legend.position = "none", axis.title.x = element_blank(), text = element_text(size = 16)) +
+  labs(y = "Mean Daily Temperature (°C)")
+
+b2
+
+ggsave("output/SWIM_figures/daily temps by largedrainage_2015_2019.jpeg", 
+       width = 9, height = 4.5, units = "in", bg = "white")
+
+```
+#Making histograms of MWMT by DOY, based on drainage and year
+```{r}
+head(mets)
+
+bb_strahler<-bb_temp%>%
+  select(SiteID, str_ord)%>%
+  distinct()
+
+all_md<-md%>%
+    left_join(bb_strahler, by=c("Site"="SiteID"))
+
+#filtering for BB sites only - need to merge with site metadata first
+BB_mets<-mets%>%
+  left_join(all_md, by=c("SiteID"="Site"))%>%
+  filter(Region=="Bristol Bay")
+
+dim(BB_mets)
+
+BB_mets_summary<-BB_mets%>%filter(Year %in% 2015:2019)%>%
+         mutate(  #this command tells R to create a new column based on the HUC8 names to create the new large drainage names 
+         large_drainage=case_when(
+           Name=="Mulchatna River"~"Nushagak River",
+           Name=="Egegik Bay"~"Egegik Bay",
+           Name=="Lake Clark"~"Kvichak River",
+           Name=="Lake Iliamna"~"Kvichak River",
+           Name=="Lower Nushagak River"~"Nushagak River",
+           Name=="Naknek"~"Naknek River",
+           Name=="Nushagak Bay"~"Nushagak Bay",
+           Name=="Togiak"~"Togiak Bay",
+           Name=="Upper Nushagak River"~"Nushagak River",
+           Name=="Wood River"~"Wood River",
+         ))
+
+#making figure similar to Figure 4 in Mauger 2016 of daily occurrence of MWMT w/ fill by drainage
+ggplot(data=BB_mets_summary, aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01"), fill=large_drainage))+geom_histogram( binwidth=1)+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")+ scale_fill_brewer(type="div",palette="Dark2", guide=guide_legend(reverse=TRUE), name="Drainage", breaks=c("Egegik Bay", "Naknek River", "Kvichak River", "Nushagak River","Wood River", "Nushagak Bay","Togiak Bay"))
+
+ggsave("output/SWIM_figures/MWMTByDay_Drainage.jpg", width=5, height=3, units="in", dpi=1000)
+
+
+#making figure similar to Figure 4 in Mauger 2016 of daily occurrence of MWMT w/ fill by stream order
+ggplot(data=BB_mets_summary%>%filter(str_ord %in% 1:9), aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01"), fill=as.factor(str_ord)))+geom_histogram( binwidth=1)+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")+scale_fill_brewer(type="seq", palette="Blues", name="Strahler Order")
+ggsave("output/SWIM_figures/MWMTByDay_StrahlerOrder.jpg", width=5, height=3, units="in", dpi=1000)
+
+
+#making figure similar to Figure 4 in Mauger 2016 of daily occurrence of MWMT w/ fill by year
+ggplot(data=BB_mets_summary, aes(x=as.Date(MA7d_DMT_jd, origin="1970-01-01"), fill=as.factor(Year)))+geom_histogram( binwidth=1, color="black")+theme_bw()+xlab("Month")+ylab("MWMT Count by Day")+ scale_fill_brewer(type="seq",palette="YlGnBu", name="Year")
+
+ggsave("output/SWIM_figures/MWMTByDay_Year.jpg", width=5, height=3, units="in", dpi=1000)
+```
+
+
+#Making temperature boxplots by HUC8 and drainage
+```{r}
+
+#making plots of MWMT, mean temp, days >18 for all AKSSF sites
+keep_cols<-c("SiteID", "Year", "Region", "HUC8", "MA7d_DMT", "MnDAT", "SUM_18_DMT", "str_ord")
+
+all_mets<-mets%>%
+  left_join(all_md, by=c("SiteID"="Site"))%>%
+  select(keep_cols)
+
+head(all_mets)
+
+all_mets_long<-all_mets%>%
+  pivot_longer(!c("SiteID", "Year", "Region", "HUC8", "str_ord"), names_to="metric", values_to="values")%>%
+  mutate(metricf=factor(metric, levels=c("MA7d_DMT", "MnDAT", "SUM_18_DMT"), 
+                         labels=c("Maximum Weekly Mean Temperature (Celsius)", "Mean Temperature (Celsius)", expression("Number of Days > 18°C"))))
+
+ggplot(all_mets_long, aes(x=fct_rev(Region), y=values))+xlab("Region")+geom_boxplot()+facet_wrap(~metricf, scales="free", strip.position="bottom", ncol=1)+theme_bw()+coord_flip()+ylab(NULL)
+ggsave("output/SWIM_figures/all region boxplots.jpg", width=5, height=10, units="in", dpi=1000)
+
+#making plots of MWMT, mean temp, days >18 for just BB sites by HUC
+
+
+huc8_names<-huc8%>%
+  select("Name", "HUC8")%>%
+  as.data.frame()
+
+BB_huc_metrics<-all_mets_long%>%
+  mutate(HUC8=as.character(HUC8))%>%
+  left_join(huc8_names)%>%
+  filter(Region=="Bristol Bay")
+
+ggplot(BB_huc_metrics, aes(x=Name, y=values))+xlab("Watershed")+geom_boxplot()+facet_wrap(~metricf, scales="free", strip.position="bottom", nrow=1)+theme_bw()+coord_flip()+ylab(NULL)
+
+ggsave("output/SWIM_figures/Bristol Bay HUC8 boxplots.jpg", width=15, height=5, units="in", dpi=1000)
+
+
+BB_largedrainage_metrics <- BB_huc_metrics %>% 
+  mutate(  #this command tells R to create a new column based on the HUC8 names to create the new large drainage names 
+         large_drainage=case_when(
+           Name=="Mulchatna River"~"Nushagak River",
+           Name=="Egegik Bay"~"Egegik Bay",
+           Name=="Lake Clark"~"Kvichak River",
+           Name=="Lake Iliamna"~"Kvichak River",
+           Name=="Lower Nushagak River"~"Nushagak River",
+           Name=="Naknek"~"Naknek River",
+           Name=="Nushagak Bay"~"Nushagak Bay",
+           Name=="Togiak"~"Togiak Bay",
+           Name=="Upper Nushagak River"~"Nushagak River",
+           Name=="Wood River"~"Wood River",
+         ))%>%
+  filter(Year %in% 2015:2019)
+ggplot(BB_largedrainage_metrics, aes(x=factor(large_drainage, level=c("Egegik Bay", "Naknek River", "Kvichak River", "Nushagak River","Wood River", "Nushagak Bay","Togiak Bay")), #this gets watersheds to display in the correct southeast to northwest order
+                                     y=values, color=large_drainage))+ scale_color_brewer(type="div",palette="Dark2")+ #this is the color palette I used
+  xlab("Watershed")+geom_boxplot(lwd=0.75)+facet_wrap(~metricf, scales="free", strip.position="bottom", nrow=1)+theme_bw()+coord_flip()+ylab(NULL)+guides(color="none")+theme(text=element_text(size=16))
+
+ggsave("output/SWIM_figures/Bristol Bay Large Drainage boxplots.jpg", width=16, height=5, units="in", dpi=1000)
+
+BB_largedrainage_metrics <- BB_huc_metrics %>%
+  filter(Year %in% 2015:2019)
+
+ggplot(BB_largedrainage_metrics, aes(x=str_ord, y=values, color=as.factor(str_ord)))+ scale_color_brewer(type="seq", palette="Blues", name="Strahler Order")+
+  xlab("Strahler Order")+geom_boxplot(lwd=0.75)+facet_wrap(~metricf, scales="free", strip.position="bottom", nrow=1)+theme_bw()+coord_flip()+ylab(NULL)+guides(color="none")+theme(text=element_text(size=16))
+
+ggsave("output/SWIM_figures/Bristol Bay Strahler Order boxplots.jpg", width=16, height=5, units="in", dpi=1000)
+
+summary(BB_mets)
+
+```
+
