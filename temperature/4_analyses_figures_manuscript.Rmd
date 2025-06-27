@@ -20,6 +20,7 @@ library(Kendall)
 library(ggfortify)
 library(RColorBrewer)
 library(ggspatial)
+library(GSODR)
 ```
 
 # Read in data and add attributes
@@ -427,4 +428,27 @@ ggsave("output/SWIM_figures/Bristol Bay Strahler Order boxplots.jpg", width=16, 
 summary(BB_mets)
 
 ```
+#Air temperature plot
+Making a plot of longterm temps to put 2019 in context. South Naknek Airport (1994-2024), King Salmon Airport (1942-2024), Iliamna Airport (1948-1971, 1973-2024). 
+```{r}
+nearest_stations(58.925739, -157.009770, 300)
+naknek_air<-get_GSOD(years=1994:2024, station="703335-99999")
+naknek_air$Location<-as.factor("Naknek")
+kingsalmon_air<-get_GSOD(years=1942:2024, station="703260-25503")
+kingsalmon_air$Location<-as.factor("King Salmon")
+iliamna_air<-rbind(get_GSOD(years=1948:1971,station="999999-25506"), get_GSOD(years=1973:2024, station="703400-25506"))
+iliamna_air$Location<-as.factor("Iliamna")
 
+longterm_BB_air<-rbind(iliamna_air, kingsalmon_air)
+
+BB_air_summer<-longterm_BB_air%>%
+  filter(MONTH %in% (6:9))
+
+BB_summary<-BB_air_summer%>%
+  group_by(Location, YEAR)%>%
+  mutate(mean_temp=mean(TEMP), max_temp=max(TEMP))
+
+ggplot(BB_summary, aes(x=YEAR, y=mean_temp, color=Location))+geom_point()+geom_smooth()+geom_point(data=BB_summary[BB_summary$YEAR==2019,], pch=1, size=5, color="black")+theme_bw()+scale_color_manual(values=c("plum4", "lightsalmon"))+annotate("rect", xmin=2015, xmax=2019, ymin=9, ymax=15, alpha=0.2, fill="red")+annotate("rect", xmin=2001, xmax=2020, ymin=9, ymax=15, alpha=0.2, fill="gray")
+
+
+```
