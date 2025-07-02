@@ -4,7 +4,7 @@ author: "Erin Larson"
 date: "2025-03-07"
 output: html_document
 ---
-
+Got Egegik data added in - check in AKTEMP for other sites that might be missing data???
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
@@ -21,6 +21,7 @@ library(ggfortify)
 library(RColorBrewer)
 library(ggspatial)
 library(GSODR)
+library(rstudioapi)
 ```
 
 # Read in data and add attributes
@@ -28,12 +29,6 @@ library(GSODR)
 All data were combined in the AKSSF repository. Read from that project drive and filter on data from Bristol Bay.
 
 NOTE: Data from Zenodo are incomplete and are missing the UW data from 2017 on.
-
-```{r zenodo data, eval = FALSE}
-mets <- read_csv(file = "C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Thermal Sensitivity\\AKSSF\\data_preparation\\final_data\\zenodo1\\tempMetrics.csv")
-```
-
-Try a different dataset that Tim used for the DFA -- all years are there!
 
 ```{r DFA input data}
 
@@ -51,9 +46,24 @@ mod_dat <- readRDS("C:\\Users\\elarson15\\Documents\\Projects\\229904 AKSSF Ther
 
 mod_dat
 
-#note that Tim had me populate all airtemps for this data frame, can remove dates without
-# meandt
-bb_temp <- left_join(temp, md %>% 
+
+##accessing AKTEMP to add in 2019 and 2020 data for Egegik Bay - not included in the original dataset for some reason...
+Egegik<-read.csv("data/FWS/AKTEMP-USFWS_EgegikR_daily.csv")
+head(Egegik)
+Egegik$series_id<-NULL
+Egegik$flag<-NULL
+Egegik$n_values<-NULL
+Egegik$SiteID<-rep("fws_580223156504200")
+Egegik$sampleDate<-as.Date(Egegik$date, format="%m/%d/%Y")
+Egegik$date<-NULL
+Egegik$year<-year(Egegik$sampleDate)
+colnames(Egegik)<-c("minDT", "meanDT", "maxDT", "SiteID", "sampleDate", "year")
+study_period<-filter(Egegik, sampleDate<"2020-10-01" & sampleDate>"2018-10-01")
+
+all_temp<-bind_rows(temp, study_period)
+
+#note that Tim had me populate all airtemps for this data frame, can remove dates without meandt
+bb_temp <- left_join(all_temp, md %>% 
                        select(Site, SourceName, Waterbody_name, Waterbody_type, Region, Name, Latitude, Longitude, Waterbody_name, HUC8), by = c("SiteID" = "Site")) %>% 
     filter(Region == "Bristol Bay", !is.na(meanDT)) 
 
@@ -70,10 +80,12 @@ bb_temp <- left_join(bb_temp, mod_dat %>%
   filter(!is.na(str_ord))
 
 
+
 ```
 
 
-```{r BB data summary}
+
+```{r BB data summary for Will and Erik}
 
 #creating site/date/mean daily temp frame for Erik and Will
 mean_dailies<-bb_temp%>%
@@ -108,27 +120,29 @@ Map of sites for each HUC8 in Bristol Bay. (Looks like the metadata I created al
 
 ```{r BB sites by huc8}
 
-md_sf <- st_as_sf(md, coords = c("Longitude", "Latitude"), crs = "WGS84")
+bbtemp_sf <- st_as_sf(bb_temp, coords = c("Longitude", "Latitude"), crs = "WGS84")
 
 huc8 <- st_read(dsn = "S:\\GIS_Layers\\GIS_data\\inlandWaters\\Hydrography\\NHD\\WBD\\WBD_19_GDB.gdb", layer = "WBDHU8")
-# # st_crs(huc8) 
+
 huc8_wgs84 <- st_transform(huc8, crs = "WGS84")
-# 
-# # st_crs(md_sf) == st_crs 
-# 
-# md_sf <- st_join(md_sf, huc8_wgs84)
 
 
-bb_huc8_names <- md_sf %>% 
-  filter(Region == "Bristol Bay") %>% 
-  st_drop_geometry() %>% 
+
+bb_huc8_names <- bbtemp_sf %>%
+    st_drop_geometry() %>% 
+   filter(Region == "Bristol Bay") %>% 
+  distinct(SiteID, year = year(sampleDate), Name) %>% 
+  count(SiteID) %>% 
+  arrange(n)%>%
+  rename(NumberYears=n)%>%
+  left_join(y=distinct(bb_temp, SiteID, Latitude, Longitude, Name))%>%
   count(Name) %>% 
   mutate(name_lab = paste0(gsub("River", "R.", Name), " (", n, ")"))
 
-locations.sf<-st_as_sf(md_sf %>% filter(Region == "Bristol Bay"))
+locations.sf<-st_as_sf(bbtemp_sf )%>%
 ggplot()+
   geom_sf(data = huc8_wgs84 %>% right_join(bb_huc8_names), aes(fill = name_lab)) +
-  geom_sf(data = md_sf %>% filter(Region == "Bristol Bay")) +
+  geom_sf(data = bbtemp_sf ) +
   theme_bw() +
   theme(text = element_text(size = 18)) +
   labs(fill = "HUC8 Name", title = "Bristol Bay Sampling Sites")
